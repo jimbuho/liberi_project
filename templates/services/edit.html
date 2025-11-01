@@ -1,0 +1,143 @@
+{% extends 'base.html' %}
+
+{% block title %}Editar Servicio - Liberi{% endblock %}
+
+{% block content %}
+<div class="container mt-4 mb-5">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-body p-4">
+                    <h2 class="text-center mb-4">
+                        <i class="fas fa-edit"></i> Editar Servicio
+                    </h2>
+
+                    <form method="post" enctype="multipart/form-data">
+                        {% csrf_token %}
+
+                        <div class="mb-3">
+                            <label for="name" class="form-label">Nombre del Servicio *</label>
+                            <input type="text" class="form-control" id="name" name="name" 
+                                   required maxlength="200"
+                                   value="{{ service.name }}">
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="description" class="form-label">Descripción *</label>
+                            <textarea class="form-control" id="description" name="description" 
+                                      rows="4" required>{{ service.description }}</textarea>
+                            <small class="text-muted">Mínimo 50 caracteres</small>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="base_price" class="form-label">Precio Base (USD) *</label>
+                                <div class="input-group">
+                                    <span class="input-group-text">$</span>
+                                    <input type="number" class="form-control" id="base_price" 
+                                           name="base_price" step="0.01" min="1" required
+                                           value="{{ service.base_price }}">
+                                </div>
+                            </div>
+
+                            <div class="col-md-6 mb-3">
+                                <label for="duration_minutes" class="form-label">Duración (minutos) *</label>
+                                <input type="number" class="form-control" id="duration_minutes" 
+                                       name="duration_minutes" min="15" step="15" required
+                                       value="{{ service.duration_minutes }}">
+                                <small class="text-muted">En intervalos de 15 minutos</small>
+                            </div>
+                        </div>
+
+                        {% if service.image %}
+                        <div class="mb-3">
+                            <label class="form-label">Imagen Actual</label>
+                            <div class="mb-2">
+                                <img src="{{ service.image.url }}" alt="{{ service.name }}" 
+                                     class="img-thumbnail" style="max-height: 200px;">
+                            </div>
+                        </div>
+                        {% endif %}
+
+                        <div class="mb-3">
+                            <label for="image" class="form-label">
+                                {% if service.image %}Cambiar Imagen{% else %}Agregar Imagen{% endif %}
+                            </label>
+                            <input type="file" class="form-control" id="image" name="image" 
+                                   accept="image/*">
+                            <small class="text-muted">Opcional. Máximo 5MB. Formatos: JPG, PNG</small>
+                        </div>
+
+                        <div class="mb-3">
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox" id="available" 
+                                       name="available" {% if service.available %}checked{% endif %}>
+                                <label class="form-check-label" for="available">
+                                    Servicio activo (visible para clientes)
+                                </label>
+                            </div>
+                        </div>
+
+                        <div class="d-grid gap-2">
+                            <button type="submit" class="btn btn-primary btn-lg">
+                                <i class="fas fa-save"></i> Guardar Cambios
+                            </button>
+                            <a href="{% url 'dashboard' %}" class="btn btn-outline-secondary">
+                                <i class="fas fa-arrow-left"></i> Volver al Dashboard
+                            </a>
+                        </div>
+                    </form>
+
+                    <hr class="my-4">
+
+                    <!-- Danger Zone -->
+                    <div class="card border-danger">
+                        <div class="card-body">
+                            <h5 class="text-danger">
+                                <i class="fas fa-exclamation-triangle"></i> Zona de Peligro
+                            </h5>
+                            <p class="mb-3">
+                                Una vez que elimines este servicio, no podrás recuperarlo.
+                            </p>
+                            <button type="button" class="btn btn-danger" 
+                                    onclick="confirmDelete()">
+                                <i class="fas fa-trash"></i> Eliminar Servicio
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Agregar este form oculto antes del script -->
+<form id="deleteForm" method="post" action="{% url 'service_delete' service.id %}" style="display: none;">
+    {% csrf_token %}
+</form>
+
+<script>
+function confirmDelete() {
+    if (confirm('¿Estás seguro de eliminar este servicio? Esta acción no se puede deshacer.')) {
+        document.getElementById('deleteForm').submit();
+    }
+}
+
+// Validación de descripción
+document.getElementById('description').addEventListener('input', function() {
+    const minLength = 50;
+    const currentLength = this.value.length;
+    const small = this.nextElementSibling;
+    
+    if (currentLength < minLength) {
+        small.textContent = `${currentLength}/${minLength} caracteres (mínimo ${minLength})`;
+        small.classList.add('text-danger');
+        small.classList.remove('text-muted');
+    } else {
+        small.textContent = `${currentLength} caracteres`;
+        small.classList.remove('text-danger');
+        small.classList.add('text-success');
+    }
+});
+</script>
+{% endblock %}

@@ -1,0 +1,57 @@
+{% extends 'base.html' %}
+
+{% block title %}Iniciar Sesión - Liberi{% endblock %}
+
+{% block content %}
+<div class="container mt-5">
+    <div class="row justify-content-center">
+        <div class="col-md-5">
+            <div class="card">
+                <div class="card-body p-5">
+                    <h2 class="text-center mb-4">
+                        <i class="fas fa-sign-in-alt"></i> Iniciar Sesión
+                    </h2>
+                    
+                    {% if form.errors %}
+                        <div class="alert alert-danger">
+                            Usuario o contraseña incorrectos
+                        </div>
+                    {% endif %}
+
+                    <form method="post">
+                        {% csrf_token %}
+                        <div class="mb-3">
+                            <label for="username" class="form-label">Usuario o Email</label>
+                            <input type="text" class="form-control" id="username" name="username" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="password" class="form-label">Contraseña</label>
+                            <input type="password" class="form-control" id="password" name="password" required>
+                        </div>
+                        <div class="mb-3 form-check">
+                            <input type="checkbox" class="form-check-input" id="remember" name="remember">
+                            <label class="form-check-label" for="remember">
+                                Recordarme
+                            </label>
+                        </div>
+                        <button type="submit" class="btn btn-primary w-100 mb-3">
+                            Iniciar Sesión
+                        </button>
+                    </form>
+
+                    <hr>
+
+                    <div class="text-center">
+                        <p class="mb-0">¿No tienes cuenta? 
+                            <a href="{% url 'register' %}">Regístrate aquí</a>
+                        </p>
+                        <p class="mt-2">
+                            <a href="{% url 'register_provider' %}">¿Eres proveedor?</a>
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

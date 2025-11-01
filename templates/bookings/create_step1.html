@@ -1,0 +1,236 @@
+{% extends 'base.html' %}
+
+{% block title %}Agendar Servicio - Liberi{% endblock %}
+
+{% block content %}
+<div class="container mt-4 mb-5">
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{% url 'home' %}">Inicio</a></li>
+            <li class="breadcrumb-item"><a href="{% url 'services_list' %}">Servicios</a></li>
+            <li class="breadcrumb-item"><a href="{% url 'service_detail' service.id %}">{{ service.name }}</a></li>
+            <li class="breadcrumb-item active">Agendar</li>
+        </ol>
+    </nav>
+
+    <div class="row">
+        <div class="col-md-8">
+            <div class="card mb-4">
+                <div class="card-body">
+                    <h3 class="mb-4">
+                        <i class="fas fa-calendar-alt"></i> Selecciona Fecha y Hora
+                    </h3>
+
+                    <!-- Resumen del Servicio -->
+                    <div class="alert alert-info">
+                        <div class="row align-items-center">
+                            <div class="col-md-8">
+                                <strong>{{ service.name }}</strong><br>
+                                <small>{{ provider.get_full_name }} • {{ service.duration_minutes }} minutos</small>
+                            </div>
+                            <div class="col-md-4 text-end">
+                                <h4 class="text-primary mb-0">${{ service.base_price }}</h4>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Selector de Fecha -->
+                    <form method="get" id="dateForm">
+                        <div class="mb-4">
+                            <label class="form-label"><strong>Paso 1: Elige el día</strong></label>
+                            <select class="form-select form-select-lg" name="date" onchange="this.form.submit()">
+                                <option value="">Selecciona una fecha...</option>
+                                {% for date in available_dates %}
+                                <option value="{{ date|date:'Y-m-d' }}" 
+                                        {% if selected_date == date|date:'Y-m-d' %}selected{% endif %}>
+                                    {{ date|date:'l, d \d\e F \d\e Y' }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                            {% if not available_dates %}
+                            <small class="text-danger">
+                                <i class="fas fa-exclamation-circle"></i>
+                                Este proveedor no tiene días disponibles en los próximos 30 días
+                            </small>
+                            {% endif %}
+                        </div>
+                    </form>
+
+                    <!-- Horarios Disponibles -->
+                    {% if selected_date %}
+                    <div class="mb-4">
+                        <label class="form-label"><strong>Paso 2: Elige la hora</strong></label>
+                        
+                        {% if available_slots %}
+                        <div class="row g-2">
+                            {% for slot in available_slots %}
+                            <div class="col-md-3 col-6">
+                                <button type="button" 
+                                        class="btn btn-outline-primary w-100 time-slot"
+                                        data-time="{{ slot.time }}"
+                                        onclick="selectTimeSlot(this, '{{ slot.time }}')">
+                                    <i class="far fa-clock"></i> {{ slot.display }}
+                                </button>
+                            </div>
+                            {% endfor %}
+                        </div>
+                        {% else %}
+                        <div class="alert alert-warning">
+                            <i class="fas fa-info-circle"></i>
+                            No hay horarios disponibles para esta fecha. Intenta con otro día.
+                        </div>
+                        {% endif %}
+                    </div>
+                    {% endif %}
+
+                    <!-- Formulario Final -->
+                    <form method="post" action="{% url 'booking_create' %}" id="bookingForm" style="display: none;">
+                        {% csrf_token %}
+                        <input type="hidden" name="service_id" value="{{ service.id }}">
+                        <input type="hidden" name="provider_id" value="{{ provider.id }}">
+                        <input type="hidden" name="selected_date" value="{{ selected_date }}">
+                        <input type="hidden" name="selected_time" id="selected_time">
+
+                        <div class="mb-3">
+                            <label class="form-label"><strong>Paso 3: Ubicación</strong></label>
+                            {% if user_locations %}
+                            <select class="form-select" name="location_id" required>
+                                <option value="">Selecciona una ubicación...</option>
+                                {% for location in user_locations %}
+                                    {% if location.zone in provider.provider_profile.coverage_zones.all %}
+                                    <option value="{{ location.id }}">
+                                        <i class="fas fa-map-marker-alt"></i> 
+                                        {{ location.label|title }} - {{ location.zone.name }} - {{ location.address|truncatewords:8 }}
+                                    </option>
+                                    {% endif %}
+                                {% endfor %}
+                            </select>
+                            <small class="text-muted">
+                                Solo se muestran ubicaciones en zonas que el proveedor cubre
+                            </small>
+                            {% else %}
+                            <div class="alert alert-warning">
+                                <i class="fas fa-exclamation-triangle"></i>
+                                No tienes ubicaciones guardadas.
+                                <a href="{% url 'location_create' %}?next={{ request.path }}" class="alert-link">
+                                    Agregar ubicación
+                                </a>
+                            </div>
+                            {% endif %}
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Notas adicionales (opcional)</label>
+                            <textarea class="form-control" name="notes" rows="3"
+                                      placeholder="Instrucciones especiales, preferencias, alergias, etc."></textarea>
+                        </div>
+
+                        <div class="alert alert-success">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div>
+                                    <strong>Resumen:</strong><br>
+                                    <span id="booking-summary">Selecciona fecha y hora</span>
+                                </div>
+                                <div class="text-end">
+                                    <strong>Total:</strong><br>
+                                    <h4 class="text-primary mb-0">
+                                        ${{ service.base_price|add:provider.provider_profile.avg_travel_cost }}
+                                    </h4>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="d-grid gap-2">
+                            <button type="submit" class="btn btn-primary btn-lg">
+                                <i class="fas fa-check-circle"></i> Confirmar Reserva
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- Sidebar -->
+        <div class="col-md-4">
+            <!-- Provider Info -->
+            <div class="card mb-3">
+                <div class="card-body">
+                    <h5>
+                        <i class="fas fa-user-tie"></i> Proveedor
+                    </h5>
+                    <hr>
+                    <p class="mb-1"><strong>{{ provider.get_full_name }}</strong></p>
+                    <p class="text-muted mb-2">{{ provider.provider_profile.category.name }}</p>
+                    
+                    {% if provider.provider_profile.coverage_zones.all %}
+                    <p class="mb-2">
+                        <strong><i class="fas fa-map-marker-alt"></i> Zonas:</strong><br>
+                        {% for zone in provider.provider_profile.coverage_zones.all %}
+                            <span class="badge bg-secondary">{{ zone.name }}</span>
+                        {% endfor %}
+                    </p>
+                    {% endif %}
+                    
+                    <a href="{% url 'provider_profile' provider.id %}" class="btn btn-sm btn-outline-primary w-100">
+                        Ver Perfil Completo
+                    </a>
+                </div>
+            </div>
+
+            <!-- Tips -->
+            <div class="card">
+                <div class="card-body">
+                    <h6><i class="fas fa-lightbulb"></i> Consejos</h6>
+                    <hr>
+                    <ul class="small mb-0">
+                        <li>Reserva con al menos 1 hora de anticipación</li>
+                        <li>Verifica que tu ubicación esté en la zona del proveedor</li>
+                        <li>Agrega notas importantes para el servicio</li>
+                        <li>El proveedor confirmará tu reserva pronto</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+let selectedTime = null;
+
+function selectTimeSlot(button, time) {
+    // Remover selección previa
+    document.querySelectorAll('.time-slot').forEach(btn => {
+        btn.classList.remove('btn-primary');
+        btn.classList.add('btn-outline-primary');
+    });
+    
+    // Seleccionar este botón
+    button.classList.remove('btn-outline-primary');
+    button.classList.add('btn-primary');
+    
+    // Guardar tiempo seleccionado
+    selectedTime = time;
+    document.getElementById('selected_time').value = time;
+    
+    // Actualizar resumen
+    const date = '{{ selected_date }}';
+    const dateObj = new Date(date + 'T' + time);
+    const formattedDate = dateObj.toLocaleDateString('es-EC', {
+        weekday: 'long',
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+    });
+    
+    document.getElementById('booking-summary').textContent = formattedDate;
+    
+    // Mostrar formulario
+    document.getElementById('bookingForm').style.display = 'block';
+    
+    // Scroll suave al formulario
+    document.getElementById('bookingForm').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+</script>
+{% endblock %}

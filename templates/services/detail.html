@@ -1,0 +1,241 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ service.name }} - Liberi{% endblock %}
+
+{% block content %}
+<div class="container mt-4 mb-5">
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{% url 'home' %}">Inicio</a></li>
+            <li class="breadcrumb-item"><a href="{% url 'services_list' %}">Servicios</a></li>
+            <li class="breadcrumb-item active">{{ service.name }}</li>
+        </ol>
+    </nav>
+
+    <div class="row">
+        <!-- Service Details -->
+        <div class="col-md-8">
+            <div class="card mb-4">
+                {% if service.image %}
+                <img src="{{ service.image.url }}" class="card-img-top" 
+                     alt="{{ service.name }}" style="max-height: 400px; object-fit: cover;">
+                {% else %}
+                <div class="card-img-top bg-light d-flex align-items-center justify-content-center" 
+                     style="height: 300px;">
+                    <i class="fas fa-image fa-5x text-muted"></i>
+                </div>
+                {% endif %}
+                
+                <div class="card-body">
+                    <h2 class="card-title">{{ service.name }}</h2>
+                    <p class="lead">{{ service.description }}</p>
+                    
+                    <hr>
+                    
+                    <div class="row mb-3">
+                        <div class="col-md-4">
+                            <h5 class="text-primary">
+                                <i class="fas fa-dollar-sign"></i> ${{ service.base_price }}
+                            </h5>
+                            <small class="text-muted">Precio base</small>
+                        </div>
+                        <div class="col-md-4">
+                            <h5 class="text-primary">
+                                <i class="far fa-clock"></i> {{ service.duration_minutes }} min
+                            </h5>
+                            <small class="text-muted">Duración</small>
+                        </div>
+                        <div class="col-md-4">
+                            <h5 class="text-primary">
+                                {% if service.available %}
+                                    <i class="fas fa-check-circle text-success"></i> Disponible
+                                {% else %}
+                                    <i class="fas fa-times-circle text-danger"></i> No disponible
+                                {% endif %}
+                            </h5>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Provider Info -->
+            <div class="card mb-4">
+                <div class="card-body">
+                    <h4><i class="fas fa-user-tie"></i> Sobre el Proveedor</h4>
+                    <hr>
+                    
+                    <div class="row">
+                        <div class="col-md-8">
+                            <h5>{{ service.provider.get_full_name }}</h5>
+                            
+                            {% if service.provider.provider_profile %}
+                            <p class="text-muted">{{ service.provider.provider_profile.description }}</p>
+                            
+                            <div class="mb-2">
+                                <strong><i class="fas fa-map-marker-alt"></i> Zonas de cobertura:</strong><br>
+                                {% for zone in service.provider.provider_profile.coverage_zones %}
+                                    <span class="badge bg-secondary">{{ zone }}</span>
+                                {% endfor %}
+                            </div>
+                            
+                            {% if service.provider.provider_profile.avg_travel_cost > 0 %}
+                            <div class="mb-2">
+                                <strong><i class="fas fa-car"></i> Costo de traslado:</strong> 
+                                ${{ service.provider.provider_profile.avg_travel_cost }}
+                            </div>
+                            {% endif %}
+                            {% endif %}
+                        </div>
+                        
+                        <div class="col-md-4 text-center">
+                            {% if provider_rating %}
+                            <div class="mb-3">
+                                <div class="display-4 text-warning">{{ provider_rating }}</div>
+                                <div class="rating">
+                                    {% for i in "12345" %}
+                                        {% if forloop.counter <= provider_rating %}
+                                            <i class="fas fa-star"></i>
+                                        {% else %}
+                                            <i class="far fa-star"></i>
+                                        {% endif %}
+                                    {% endfor %}
+                                </div>
+                                <small class="text-muted">({{ total_reviews }} reseñas)</small>
+                            </div>
+                            {% endif %}
+                            
+                            <a href="{% url 'provider_profile' service.provider.id %}" 
+                               class="btn btn-outline-primary">
+                                <i class="fas fa-user"></i> Ver Perfil
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Reviews -->
+            {% if reviews %}
+            <div class="card">
+                <div class="card-body">
+                    <h4><i class="fas fa-star"></i> Reseñas</h4>
+                    <hr>
+                    
+                    {% for review in reviews %}
+                    <div class="mb-3 {% if not forloop.last %}border-bottom pb-3{% endif %}">
+                        <div class="d-flex justify-content-between">
+                            <div>
+                                <strong>{{ review.customer.get_full_name }}</strong>
+                                <div class="rating">
+                                    {% for i in "12345" %}
+                                        {% if forloop.counter <= review.rating %}
+                                            <i class="fas fa-star"></i>
+                                        {% else %}
+                                            <i class="far fa-star"></i>
+                                        {% endif %}
+                                    {% endfor %}
+                                </div>
+                            </div>
+                            <small class="text-muted">{{ review.created_at|date:"d/m/Y" }}</small>
+                        </div>
+                        {% if review.comment %}
+                        <p class="mt-2 mb-0">{{ review.comment }}</p>
+                        {% endif %}
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- Booking Sidebar -->
+        <div class="col-md-4">
+            <div class="card sticky-top" style="top: 20px;">
+                <div class="card-body">
+                    <h4 class="card-title">Reservar Servicio</h4>
+                    <hr>
+                    
+                    {% if user.is_authenticated %}
+                        {% if user.profile.role == 'customer' %}
+                            <form method="post" action="{% url 'booking_create' %}">
+                                {% csrf_token %}
+                                <input type="hidden" name="service_id" value="{{ service.id }}">
+                                <input type="hidden" name="provider_id" value="{{ service.provider.id }}">
+                                
+                                <div class="mb-3">
+                                    <label class="form-label">Fecha y Hora</label>
+                                    <input type="datetime-local" class="form-control" 
+                                           name="scheduled_time" required
+                                           min="{{ today|date:'Y-m-d' }}T08:00">
+                                </div>
+                                
+                                <div class="mb-3">
+                                    <label class="form-label">Ubicación</label>
+                                    <select class="form-select" name="location_id" required>
+                                        <option value="">Seleccionar...</option>
+                                        {% for location in user_locations %}
+                                        <option value="{{ location.id }}">
+                                            {{ location.label }} - {{ location.address|truncatewords:5 }}
+                                        </option>
+                                        {% endfor %}
+                                    </select>
+                                    <small class="text-muted">
+                                        <a href="{% url 'location_create' %}">+ Agregar nueva ubicación</a>
+                                    </small>
+                                </div>
+                                
+                                <div class="mb-3">
+                                    <label class="form-label">Notas (opcional)</label>
+                                    <textarea class="form-control" name="notes" rows="3"
+                                              placeholder="Instrucciones especiales..."></textarea>
+                                </div>
+                                
+                                <hr>
+                                
+                                <div class="d-flex justify-content-between mb-3">
+                                    <span>Servicio:</span>
+                                    <strong>${{ service.base_price }}</strong>
+                                </div>
+                                
+                                {% if service.provider.provider_profile.avg_travel_cost > 0 %}
+                                <div class="d-flex justify-content-between mb-3">
+                                    <span>Traslado:</span>
+                                    <strong>${{ service.provider.provider_profile.avg_travel_cost }}</strong>
+                                </div>
+                                {% endif %}
+                                
+                                <div class="d-flex justify-content-between mb-3">
+                                    <strong>Total:</strong>
+                                    <h4 class="text-primary mb-0">
+                                        ${{ total_cost }}
+                                    </h4>
+                                </div>
+                                
+                                <button type="submit" class="btn btn-primary w-100 btn-lg">
+                                    <i class="fas fa-calendar-check"></i> Reservar Ahora
+                                </button>
+                            </form>
+                        {% else %}
+                            <div class="alert alert-warning">
+                                <i class="fas fa-info-circle"></i> 
+                                Los proveedores no pueden hacer reservas
+                            </div>
+                        {% endif %}
+                    {% else %}
+                        <div class="alert alert-info text-center">
+                            <i class="fas fa-sign-in-alt fa-3x mb-3"></i>
+                            <p>Inicia sesión para reservar este servicio</p>
+                            <a href="{% url 'login' %}?next={{ request.path }}" class="btn btn-primary">
+                                Iniciar Sesión
+                            </a>
+                            <hr>
+                            <a href="{% url 'register' %}" class="btn btn-outline-primary">
+                                Crear Cuenta
+                            </a>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

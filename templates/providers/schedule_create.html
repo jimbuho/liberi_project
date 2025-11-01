@@ -1,0 +1,69 @@
+{% extends 'base.html' %}
+
+{% block title %}Agregar Horario - Liberi{% endblock %}
+
+{% block content %}
+<div class="container mt-4 mb-5">
+    <div class="row justify-content-center">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-body p-4">
+                    <h2 class="text-center mb-4">
+                        <i class="fas fa-clock"></i> Agregar Horario
+                    </h2>
+
+                    <form method="post">
+                        {% csrf_token %}
+
+                        <div class="mb-3">
+                            <label for="day_of_week" class="form-label">Día de la Semana *</label>
+                            <select class="form-select" id="day_of_week" name="day_of_week" required>
+                                <option value="">Selecciona un día...</option>
+                                <option value="0">Lunes</option>
+                                <option value="1">Martes</option>
+                                <option value="2">Miércoles</option>
+                                <option value="3">Jueves</option>
+                                <option value="4">Viernes</option>
+                                <option value="5">Sábado</option>
+                                <option value="6">Domingo</option>
+                            </select>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="start_time" class="form-label">Hora Inicio *</label>
+                                <input type="time" class="form-control" id="start_time" 
+                                       name="start_time" required>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="end_time" class="form-label">Hora Fin *</label>
+                                <input type="time" class="form-control" id="end_time" 
+                                       name="end_time" required>
+                            </div>
+                        </div>
+
+                        <div class="alert alert-info">
+                            <i class="fas fa-info-circle"></i>
+                            <strong>Ejemplo:</strong> Si trabajas lunes de 9 AM a 5 PM, selecciona:
+                            <ul class="mb-0 mt-2">
+                                <li>Día: Lunes</li>
+                                <li>Hora Inicio: 09:00</li>
+                                <li>Hora Fin: 17:00</li>
+                            </ul>
+                        </div>
+
+                        <div class="d-grid gap-2">
+                            <button type="submit" class="btn btn-primary btn-lg">
+                                <i class="fas fa-save"></i> Guardar Horario
+                            </button>
+                            <a href="{% url 'provider_schedule_manage' %}" class="btn btn-outline-secondary">
+                                <i class="fas fa-arrow-left"></i> Cancelar
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

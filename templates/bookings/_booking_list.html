@@ -1,0 +1,125 @@
+{% if bookings %}
+    {% for booking in bookings %}
+    <div class="card mb-3">
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-8">
+                    <div class="d-flex justify-content-between align-items-start mb-2">
+                        <div>
+                            <h5 class="card-title mb-1">
+                                Reserva #{{ booking.id|slice:":8" }}
+                            </h5>
+                            <p class="text-muted mb-2">
+                                <i class="fas fa-calendar"></i> 
+                                {{ booking.scheduled_time|date:"d/m/Y H:i" }}
+                            </p>
+                        </div>
+                        <span class="badge bg-{% if booking.status == 'pending' %}warning{% elif booking.status == 'accepted' %}info{% elif booking.status == 'completed' %}success{% elif booking.status == 'cancelled' %}danger{% else %}secondary{% endif %} fs-6">
+                            {{ booking.get_status_display }}
+                        </span>
+                    </div>
+
+                    {% if user.profile.role == 'customer' %}
+                        <p class="mb-1">
+                            <strong>Proveedor:</strong> {{ booking.provider.get_full_name }}
+                        </p>
+                        <p class="mb-1">
+                            <strong>Teléfono:</strong> {{ booking.provider_phone }}
+                        </p>
+                    {% else %}
+                        <p class="mb-1">
+                            <strong>Cliente:</strong> {{ booking.customer.get_full_name }}
+                        </p>
+                        <p class="mb-1">
+                            <strong>Teléfono:</strong> {{ booking.customer_phone }}
+                        </p>
+                    {% endif %}
+
+                    <p class="mb-1">
+                        <strong>Servicios:</strong>
+                        {% for service in booking.service_list %}
+                            {{ service.name }}{% if not forloop.last %}, {% endif %}
+                        {% endfor %}
+                    </p>
+
+                    {% if booking.location %}
+                    <p class="mb-1">
+                        <strong>Ubicación:</strong> {{ booking.location.address|truncatewords:10 }}
+                    </p>
+                    {% endif %}
+
+                    {% if booking.notes %}
+                    <p class="mb-1">
+                        <strong>Notas:</strong> <span class="text-muted">{{ booking.notes|truncatewords:15 }}</span>
+                    </p>
+                    {% endif %}
+                </div>
+
+                <div class="col-md-4 text-end">
+                    <h4 class="text-primary mb-3">${{ booking.total_cost }}</h4>
+                    
+                    <div class="mb-2">
+                        <span class="badge bg-{% if booking.payment_status == 'paid' %}success{% elif booking.payment_status == 'pending' %}warning{% else %}secondary{% endif %}">
+                            <i class="fas fa-credit-card"></i> {{ booking.get_payment_status_display }}
+                        </span>
+                    </div>
+
+                    <div class="d-grid gap-2">
+                        <a href="{% url 'booking_detail' booking.id %}" class="btn btn-outline-primary btn-sm">
+                            <i class="fas fa-eye"></i> Ver Detalles
+                        </a>
+
+                        {% if user.profile.role == 'provider' %}
+                            {% if booking.status == 'pending' %}
+                                <form method="post" action="{% url 'booking_accept' booking.id %}" class="d-inline">
+                                    {% csrf_token %}
+                                    <button type="submit" class="btn btn-success btn-sm w-100">
+                                        <i class="fas fa-check"></i> Aceptar
+                                    </button>
+                                </form>
+                                <form method="post" action="{% url 'booking_reject' booking.id %}" class="d-inline">
+                                    {% csrf_token %}
+                                    <button type="submit" class="btn btn-danger btn-sm w-100">
+                                        <i class="fas fa-times"></i> Rechazar
+                                    </button>
+                                </form>
+                            {% elif booking.status == 'accepted' %}
+                                <form method="post" action="{% url 'booking_complete' booking.id %}" class="d-inline">
+                                    {% csrf_token %}
+                                    <button type="submit" class="btn btn-success btn-sm w-100">
+                                        <i class="fas fa-check-circle"></i> Completar
+                                    </button>
+                                </form>
+                            {% endif %}
+                        {% endif %}
+
+                        {% if user.profile.role == 'customer' %}
+                            {% if booking.status == 'completed' and not booking.review %}
+                                <a href="{% url 'review_create' booking.id %}" class="btn btn-warning btn-sm">
+                                    <i class="fas fa-star"></i> Dejar Reseña
+                                </a>
+                            {% endif %}
+
+                            {% if booking.payment_status == 'pending' and booking.status == 'accepted' %}
+                                <a href="{% url 'payment_process' booking.id %}" class="btn btn-primary btn-sm">
+                                    <i class="fas fa-credit-card"></i> Pagar Ahora
+                                </a>
+                            {% endif %}
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+{% else %}
+    <div class="alert alert-info text-center">
+        <i class="fas fa-inbox fa-3x mb-3"></i>
+        <h4>No hay reservas en esta categoría</h4>
+        {% if user.profile.role == 'customer' %}
+        <a href="{% url 'services_list' %}" class="btn btn-primary mt-3">
+            <i class="fas fa-search"></i> Buscar Servicios
+        </a>
+        {% endif %}
+    </div>
+{% endif %}

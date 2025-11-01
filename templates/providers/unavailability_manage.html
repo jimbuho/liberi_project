@@ -1,0 +1,86 @@
+{% extends 'base.html' %}
+
+{% block title %}Días de Inactividad - Liberi{% endblock %}
+
+{% block content %}
+<div class="container mt-4 mb-5">
+    <div class="row">
+        <div class="col-md-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h2>
+                    <i class="fas fa-calendar-times"></i> Días de Inactividad / Vacaciones
+                </h2>
+                <div>
+                    <a href="{% url 'provider_unavailability_create' %}" class="btn btn-warning">
+                        <i class="fas fa-plus"></i> Agregar Período
+                    </a>
+                    <a href="{% url 'dashboard' %}" class="btn btn-outline-secondary">
+                        <i class="fas fa-arrow-left"></i> Volver
+                    </a>
+                </div>
+            </div>
+
+            {% if unavailabilities %}
+            <div class="row">
+                {% for unavail in unavailabilities %}
+                <div class="col-md-6 mb-3">
+                    <div class="card {% if unavail.start_date > today %}border-warning{% else %}border-secondary{% endif %}">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between align-items-start">
+                                <div>
+                                    <h5 class="card-title">
+                                        {% if unavail.start_date == unavail.end_date %}
+                                            {{ unavail.start_date|date:"d/m/Y" }}
+                                        {% else %}
+                                            {{ unavail.start_date|date:"d/m/Y" }} - {{ unavail.end_date|date:"d/m/Y" }}
+                                        {% endif %}
+                                    </h5>
+                                    {% if unavail.reason %}
+                                    <p class="text-muted mb-0">{{ unavail.reason }}</p>
+                                    {% endif %}
+                                    {% if unavail.start_date > today %}
+                                    <span class="badge bg-warning mt-2">Próximo</span>
+                                    {% elif unavail.start_date <= today and unavail.end_date >= today %}
+                                    <span class="badge bg-danger mt-2">Activo Ahora</span>
+                                    {% else %}
+                                    <span class="badge bg-secondary mt-2">Pasado</span>
+                                    {% endif %}
+                                </div>
+                                {% if unavail.start_date >= today %}
+                                <form method="post" action="{% url 'provider_unavailability_delete' unavail.id %}"
+                                      onsubmit="return confirm('¿Eliminar este período?')">
+                                    {% csrf_token %}
+                                    <button type="submit" class="btn btn-sm btn-outline-danger">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                </form>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <div class="alert alert-info text-center">
+                <i class="fas fa-info-circle fa-3x mb-3"></i>
+                <h4>No tienes períodos de inactividad registrados</h4>
+                <p>Cuando necesites tomar vacaciones o días libres, regístralos aquí</p>
+                <a href="{% url 'provider_unavailability_create' %}" class="btn btn-warning">
+                    <i class="fas fa-plus"></i> Registrar Vacaciones
+                </a>
+            </div>
+            {% endif %}
+
+            <div class="alert alert-info mt-4">
+                <strong><i class="fas fa-lightbulb"></i> ¿Para qué sirve esto?</strong>
+                <ul class="mb-0 mt-2">
+                    <li>Los días que registres aquí NO aparecerán disponibles para los clientes</li>
+                    <li>Úsalo para vacaciones, días festivos, o cualquier día que no puedas trabajar</li>
+                    <li>Puedes registrar un solo día o un rango de fechas</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

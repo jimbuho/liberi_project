@@ -1,0 +1,141 @@
+{% extends 'base.html' %}
+
+{% block title %}Procesar Pago - Liberi{% endblock %}
+
+{% block content %}
+<div class="container mt-4 mb-5">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-body p-4">
+                    <h2 class="text-center mb-4">
+                        <i class="fas fa-credit-card"></i> Procesar Pago
+                    </h2>
+
+                    <!-- Booking Summary -->
+                    <div class="card bg-light mb-4">
+                        <div class="card-body">
+                            <h5>Resumen de la Reserva</h5>
+                            <hr>
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <p><strong>Reserva:</strong> #{{ booking.id|slice:":8" }}</p>
+                                    <p><strong>Proveedor:</strong> {{ booking.provider.get_full_name }}</p>
+                                    <p><strong>Fecha:</strong> {{ booking.scheduled_time|date:"d/m/Y H:i" }}</p>
+                                </div>
+                                <div class="col-md-6">
+                                    <p><strong>Servicios:</strong></p>
+                                    <ul class="mb-0">
+                                        {% for service in booking.service_list %}
+                                        <li>{{ service.name }} - ${{ service.price }}</li>
+                                        {% endfor %}
+                                    </ul>
+                                </div>
+                            </div>
+                            <hr>
+                            <div class="d-flex justify-content-between align-items-center">
+                                <h4 class="mb-0">Total a Pagar:</h4>
+                                <h3 class="text-primary mb-0">${{ booking.total_cost }}</h3>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Payment Methods -->
+                    <h5 class="mb-3">Selecciona un método de pago</h5>
+
+                    <!-- PayPhone -->
+                    <div class="card mb-3 border-primary">
+                        <div class="card-body">
+                            <div class="d-flex align-items-center mb-3">
+                                <i class="fas fa-mobile-alt fa-3x text-primary me-3"></i>
+                                <div>
+                                    <h5 class="mb-1">PayPhone</h5>
+                                    <p class="text-muted mb-0">Pago rápido y seguro con tu celular</p>
+                                </div>
+                            </div>
+                            <form method="post" action="{% url 'payphone_create' %}">
+                                {% csrf_token %}
+                                <input type="hidden" name="booking_id" value="{{ booking.id }}">
+                                <button type="submit" class="btn btn-primary w-100">
+                                    <i class="fas fa-credit-card"></i> Pagar con PayPhone
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+
+                    <!-- Bank Transfer -->
+                    <div class="card mb-3">
+                        <div class="card-body">
+                            <div class="d-flex align-items-center mb-3">
+                                <i class="fas fa-university fa-3x text-info me-3"></i>
+                                <div>
+                                    <h5 class="mb-1">Transferencia Bancaria</h5>
+                                    <p class="text-muted mb-0">Transfiere desde tu banco</p>
+                                </div>
+                            </div>
+                            
+                            <div class="alert alert-info">
+                                <strong>Datos Bancarios:</strong><br>
+                                Banco Pichincha<br>
+                                Cuenta Corriente: 1234567890<br>
+                                RUC: 1234567890001<br>
+                                Beneficiario: Liberi S.A.
+                            </div>
+
+                            <form method="post" action="{% url 'bank_transfer' %}">
+                                {% csrf_token %}
+                                <input type="hidden" name="booking_id" value="{{ booking.id }}">
+                                
+                                <div class="mb-3">
+                                    <label for="reference" class="form-label">Número de Referencia *</label>
+                                    <input type="text" class="form-control" id="reference" 
+                                           name="reference" required
+                                           placeholder="Ingresa el número de comprobante">
+                                </div>
+                                
+                                <button type="submit" class="btn btn-info w-100">
+                                    <i class="fas fa-check"></i> Confirmar Transferencia
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+
+                    <!-- Cash (On Service) -->
+                    <div class="card">
+                        <div class="card-body">
+                            <div class="d-flex align-items-center mb-3">
+                                <i class="fas fa-money-bill-wave fa-3x text-success me-3"></i>
+                                <div>
+                                    <h5 class="mb-1">Efectivo</h5>
+                                    <p class="text-muted mb-0">Paga directamente al proveedor</p>
+                                </div>
+                            </div>
+                            
+                            <div class="alert alert-warning">
+                                <i class="fas fa-exclamation-triangle"></i>
+                                <strong>Nota:</strong> Si eliges pagar en efectivo, coordina con el proveedor al momento del servicio.
+                            </div>
+
+                            <button type="button" class="btn btn-outline-success w-100" 
+                                    onclick="confirm('Confirmarás el pago en efectivo con el proveedor. ¿Continuar?') && document.getElementById('cashForm').submit()">
+                                <i class="fas fa-handshake"></i> Acordar Pago en Efectivo
+                            </button>
+
+                            <form id="cashForm" method="post" action="{% url 'payment_cash' %}" style="display: none;">
+                                {% csrf_token %}
+                                <input type="hidden" name="booking_id" value="{{ booking.id }}">
+                            </form>
+                        </div>
+                    </div>
+
+                    <div class="text-center mt-4">
+                        <a href="{% url 'booking_detail' booking.id %}" class="btn btn-outline-secondary">
+                            <i class="fas fa-arrow-left"></i> Volver a la Reserva
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

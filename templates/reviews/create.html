@@ -1,0 +1,124 @@
+{% extends 'base.html' %}
+
+{% block title %}Dejar Reseña - Liberi{% endblock %}
+
+{% block content %}
+<div class="container mt-4 mb-5">
+    <div class="row justify-content-center">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-body p-4">
+                    <h2 class="text-center mb-4">
+                        <i class="fas fa-star"></i> Califica tu Experiencia
+                    </h2>
+
+                    <!-- Booking Info -->
+                    <div class="alert alert-info">
+                        <strong>Servicio:</strong> 
+                        {% for service in booking.service_list %}
+                            {{ service.name }}{% if not forloop.last %}, {% endif %}
+                        {% endfor %}
+                        <br>
+                        <strong>Proveedor:</strong> {{ booking.provider.get_full_name }}
+                        <br>
+                        <strong>Fecha:</strong> {{ booking.scheduled_time|date:"d/m/Y" }}
+                    </div>
+
+                    <form method="post" id="reviewForm">
+                        {% csrf_token %}
+
+                        <!-- Rating -->
+                        <div class="mb-4 text-center">
+                            <label class="form-label d-block mb-3">
+                                <strong>¿Cómo calificarías el servicio?</strong>
+                            </label>
+                            <div class="star-rating">
+                                <input type="radio" id="star5" name="rating" value="5" required>
+                                <label for="star5" class="star">★</label>
+                                
+                                <input type="radio" id="star4" name="rating" value="4">
+                                <label for="star4" class="star">★</label>
+                                
+                                <input type="radio" id="star3" name="rating" value="3">
+                                <label for="star3" class="star">★</label>
+                                
+                                <input type="radio" id="star2" name="rating" value="2">
+                                <label for="star2" class="star">★</label>
+                                
+                                <input type="radio" id="star1" name="rating" value="1">
+                                <label for="star1" class="star">★</label>
+                            </div>
+                            <p class="text-muted mt-2" id="ratingText">Selecciona una calificación</p>
+                        </div>
+
+                        <!-- Comment -->
+                        <div class="mb-3">
+                            <label for="comment" class="form-label">
+                                Cuéntanos más sobre tu experiencia (opcional)
+                            </label>
+                            <textarea class="form-control" id="comment" name="comment" 
+                                      rows="4" 
+                                      placeholder="¿Qué te gustó? ¿Qué se podría mejorar?"></textarea>
+                            <small class="text-muted">Tu opinión ayuda a otros usuarios</small>
+                        </div>
+
+                        <input type="hidden" name="booking" value="{{ booking.id }}">
+
+                        <div class="d-grid gap-2">
+                            <button type="submit" class="btn btn-warning btn-lg">
+                                <i class="fas fa-paper-plane"></i> Enviar Reseña
+                            </button>
+                            <a href="{% url 'booking_detail' booking.id %}" class="btn btn-outline-secondary">
+                                <i class="fas fa-arrow-left"></i> Volver
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.star-rating {
+    direction: rtl;
+    display: inline-flex;
+    font-size: 3rem;
+}
+
+.star-rating input[type="radio"] {
+    display: none;
+}
+
+.star-rating label {
+    color: #ddd;
+    cursor: pointer;
+    transition: color 0.2s;
+}
+
+.star-rating label:hover,
+.star-rating label:hover ~ label {
+    color: #ffc107;
+}
+
+.star-rating input[type="radio"]:checked ~ label {
+    color: #ffc107;
+}
+</style>
+
+<script>
+document.querySelectorAll('.star-rating input').forEach(input => {
+    input.addEventListener('change', function() {
+        const ratingText = document.getElementById('ratingText');
+        const ratings = {
+            '5': '¡Excelente! 🌟',
+            '4': 'Muy bueno 👍',
+            '3': 'Bueno 👌',
+            '2': 'Regular 😐',
+            '1': 'Malo 👎'
+        };
+        ratingText.textContent = ratings[this.value];
+    });
+});
+</script>
+{% endblock %}

@@ -1,0 +1,179 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ provider.get_full_name }} - Liberi{% endblock %}
+
+{% block content %}
+<div class="container mt-4 mb-5">
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{% url 'home' %}">Inicio</a></li>
+            <li class="breadcrumb-item"><a href="{% url 'providers_list' %}">Proveedores</a></li>
+            <li class="breadcrumb-item active">{{ provider.get_full_name }}</li>
+        </ol>
+    </nav>
+
+    <div class="row">
+        <!-- Provider Info -->
+        <div class="col-md-8">
+            <div class="card mb-4">
+                <div class="card-body">
+                    <div class="d-flex align-items-start mb-3">
+                        <div class="flex-shrink-0">
+                            <div class="bg-primary text-white rounded-circle d-flex align-items-center justify-content-center"
+                                 style="width: 80px; height: 80px; font-size: 36px;">
+                                <i class="fas fa-user"></i>
+                            </div>
+                        </div>
+                        <div class="flex-grow-1 ms-4">
+                            <h2>{{ provider.get_full_name }}</h2>
+                            <p class="text-muted mb-2">
+                                {{ provider_profile.category.icon }} 
+                                {{ provider_profile.category.name }}
+                            </p>
+                            {% if provider_profile.status == 'approved' %}
+                            <span class="badge bg-success">
+                                <i class="fas fa-check-circle"></i> Proveedor Verificado
+                            </span>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <hr>
+
+                    <h4><i class="fas fa-info-circle"></i> Sobre mí</h4>
+                    <p>{{ provider_profile.description }}</p>
+
+                    <hr>
+
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h5><i class="fas fa-map-marker-alt"></i> Zonas de Cobertura</h5>
+                            {% for zone in provider_profile.coverage_zones %}
+                                <span class="badge bg-secondary me-1 mb-1">{{ zone }}</span>
+                            {% endfor %}
+                        </div>
+                        {% if provider_profile.avg_travel_cost > 0 %}
+                        <div class="col-md-6">
+                            <h5><i class="fas fa-car"></i> Costo de Traslado</h5>
+                            <p class="lead mb-0">${{ provider_profile.avg_travel_cost }}</p>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Services -->
+            <div class="card mb-4">
+                <div class="card-body">
+                    <h4><i class="fas fa-concierge-bell"></i> Servicios Ofrecidos</h4>
+                    <hr>
+                    
+                    {% if services %}
+                    <div class="row">
+                        {% for service in services %}
+                        <div class="col-md-6 mb-3">
+                            <div class="card">
+                                <div class="card-body">
+                                    <h5 class="card-title">{{ service.name }}</h5>
+                                    <p class="card-text text-muted">
+                                        {{ service.description|truncatewords:15 }}
+                                    </p>
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <span class="text-primary fw-bold">${{ service.base_price }}</span>
+                                        <span class="text-muted">
+                                            <i class="far fa-clock"></i> {{ service.duration_minutes }} min
+                                        </span>
+                                    </div>
+                                    <a href="{% url 'service_detail' service.id %}" 
+                                       class="btn btn-sm btn-primary w-100 mt-2">
+                                        Ver Detalles
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <p class="text-muted">Este proveedor aún no ha agregado servicios</p>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Reviews -->
+            {% if reviews %}
+            <div class="card">
+                <div class="card-body">
+                    <h4><i class="fas fa-star"></i> Reseñas de Clientes</h4>
+                    <hr>
+                    
+                    {% for review in reviews %}
+                    <div class="mb-3 {% if not forloop.last %}border-bottom pb-3{% endif %}">
+                        <div class="d-flex justify-content-between">
+                            <div>
+                                <strong>{{ review.customer.get_full_name }}</strong>
+                                <div class="rating">
+                                    {% for i in "12345" %}
+                                        {% if forloop.counter <= review.rating %}
+                                            <i class="fas fa-star"></i>
+                                        {% else %}
+                                            <i class="far fa-star"></i>
+                                        {% endif %}
+                                    {% endfor %}
+                                </div>
+                            </div>
+                            <small class="text-muted">{{ review.created_at|date:"d/m/Y" }}</small>
+                        </div>
+                        {% if review.comment %}
+                        <p class="mt-2 mb-0">{{ review.comment }}</p>
+                        {% endif %}
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- Sidebar Stats -->
+        <div class="col-md-4">
+            <div class="card sticky-top" style="top: 20px;">
+                <div class="card-body text-center">
+                    {% if rating_avg %}
+                    <div class="mb-3">
+                        <div class="display-4 text-warning">{{ rating_avg }}</div>
+                        <div class="rating">
+                            {% for i in "12345" %}
+                                {% if forloop.counter <= rating_avg %}
+                                    <i class="fas fa-star"></i>
+                                {% else %}
+                                    <i class="far fa-star"></i>
+                                {% endif %}
+                            {% endfor %}
+                        </div>
+                        <p class="text-muted">{{ total_reviews }} reseñas</p>
+                    </div>
+                    {% endif %}
+
+                    <hr>
+
+                    <div class="mb-3">
+                        <h5>{{ services|length }}</h5>
+                        <p class="text-muted mb-0">Servicios</p>
+                    </div>
+
+                    <div class="mb-3">
+                        <h5>{{ completed_bookings }}</h5>
+                        <p class="text-muted mb-0">Trabajos completados</p>
+                    </div>
+
+                    <hr>
+
+                    <a href="{% url 'services_list' %}?provider={{ provider.id }}" 
+                       class="btn btn-primary w-100">
+                        <i class="fas fa-calendar-check"></i> Ver Servicios
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

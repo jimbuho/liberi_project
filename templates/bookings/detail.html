@@ -1,0 +1,276 @@
+{% extends 'base.html' %}
+
+{% block title %}Detalle de Reserva - Liberi{% endblock %}
+
+{% block content %}
+<div class="container mt-4 mb-5">
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{% url 'home' %}">Inicio</a></li>
+            <li class="breadcrumb-item"><a href="{% url 'bookings_list' %}">Mis Reservas</a></li>
+            <li class="breadcrumb-item active">Reserva #{{ booking.id|slice:":8" }}</li>
+        </ol>
+    </nav>
+
+    <div class="row">
+        <div class="col-md-8">
+            <!-- Booking Details Card -->
+            <div class="card mb-4">
+                <div class="card-header bg-primary text-white">
+                    <h4 class="mb-0">
+                        <i class="fas fa-calendar-check"></i> 
+                        Reserva #{{ booking.id|slice:":8" }}
+                    </h4>
+                </div>
+                <div class="card-body">
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <strong>Estado:</strong>
+                            <span class="badge bg-{% if booking.status == 'pending' %}warning{% elif booking.status == 'accepted' %}info{% elif booking.status == 'completed' %}success{% elif booking.status == 'cancelled' %}danger{% else %}secondary{% endif %} fs-6">
+                                {{ booking.get_status_display }}
+                            </span>
+                        </div>
+                        <div class="col-md-6">
+                            <strong>Estado de Pago:</strong>
+                            <span class="badge bg-{% if booking.payment_status == 'paid' %}success{% elif booking.payment_status == 'pending' %}warning{% else %}secondary{% endif %} fs-6">
+                                {{ booking.get_payment_status_display }}
+                            </span>
+                        </div>
+                    </div>
+
+                    <hr>
+
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <h5><i class="fas fa-calendar-alt"></i> Fecha y Hora</h5>
+                            <p class="lead">{{ booking.scheduled_time|date:"d/m/Y H:i" }}</p>
+                        </div>
+                        <div class="col-md-6">
+                            <h5><i class="fas fa-clock"></i> Creada el</h5>
+                            <p class="lead">{{ booking.created_at|date:"d/m/Y H:i" }}</p>
+                        </div>
+                    </div>
+
+                    <hr>
+
+                    <!-- Provider/Customer Info -->
+                    {% if user.profile.role == 'customer' %}
+                    <h5><i class="fas fa-user-tie"></i> Proveedor</h5>
+                    <div class="card bg-light mb-3">
+                        <div class="card-body">
+                            <h6>{{ booking.provider.get_full_name }}</h6>
+                            <p class="mb-1">
+                                <i class="fas fa-phone"></i> {{ booking.provider_phone }}
+                            </p>
+                            <p class="mb-0">
+                                <i class="fas fa-envelope"></i> {{ booking.provider.email }}
+                            </p>
+                            <a href="{% url 'provider_profile' booking.provider.id %}" 
+                               class="btn btn-sm btn-outline-primary mt-2">
+                                Ver Perfil Completo
+                            </a>
+                        </div>
+                    </div>
+                    {% else %}
+                    <h5><i class="fas fa-user"></i> Cliente</h5>
+                    <div class="card bg-light mb-3">
+                        <div class="card-body">
+                            <h6>{{ booking.customer.get_full_name }}</h6>
+                            <p class="mb-1">
+                                <i class="fas fa-phone"></i> {{ booking.customer_phone }}
+                            </p>
+                            <p class="mb-0">
+                                <i class="fas fa-envelope"></i> {{ booking.customer.email }}
+                            </p>
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    <!-- Location -->
+                    {% if booking.location %}
+                    <h5><i class="fas fa-map-marker-alt"></i> Ubicación</h5>
+                    <div class="card bg-light mb-3">
+                        <div class="card-body">
+                            <h6>{{ booking.location.label|title }}</h6>
+                            <p class="mb-1">{{ booking.location.address }}</p>
+                            {% if booking.location.reference %}
+                            <p class="mb-0 text-muted">
+                                <small><i class="fas fa-info-circle"></i> {{ booking.location.reference }}</small>
+                            </p>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    <!-- Services -->
+                    <h5><i class="fas fa-concierge-bell"></i> Servicios Contratados</h5>
+                    <div class="table-responsive">
+                        <table class="table">
+                            <thead>
+                                <tr>
+                                    <th>Servicio</th>
+                                    <th class="text-end">Precio</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for service in booking.service_list %}
+                                <tr>
+                                    <td>{{ service.name }}</td>
+                                    <td class="text-end">${{ service.price }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- Notes -->
+                    {% if booking.notes %}
+                    <h5><i class="fas fa-sticky-note"></i> Notas</h5>
+                    <div class="alert alert-info">
+                        {{ booking.notes }}
+                    </div>
+                    {% endif %}
+
+                    <!-- Actions for Provider -->
+                    {% if user.profile.role == 'provider' and booking.status == 'pending' %}
+                    <hr>
+                    <div class="d-grid gap-2">
+                        <form method="post" action="{% url 'booking_accept' booking.id %}" class="d-inline">
+                            {% csrf_token %}
+                            <button type="submit" class="btn btn-success btn-lg w-100">
+                                <i class="fas fa-check"></i> Aceptar Reserva
+                            </button>
+                        </form>
+                        <form method="post" action="{% url 'booking_reject' booking.id %}" class="d-inline">
+                            {% csrf_token %}
+                            <button type="submit" class="btn btn-danger btn-lg w-100" 
+                                    onclick="return confirm('¿Estás seguro de rechazar esta reserva?')">
+                                <i class="fas fa-times"></i> Rechazar Reserva
+                            </button>
+                        </form>
+                    </div>
+                    {% endif %}
+
+                    {% if user.profile.role == 'provider' and booking.status == 'accepted' %}
+                    <hr>
+                    <form method="post" action="{% url 'booking_complete' booking.id %}">
+                        {% csrf_token %}
+                        <button type="submit" class="btn btn-success btn-lg w-100">
+                            <i class="fas fa-check-circle"></i> Marcar como Completada
+                        </button>
+                    </form>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Review Section (if completed) -->
+            {% if booking.status == 'completed' %}
+                {% if booking.review %}
+                <div class="card">
+                    <div class="card-body">
+                        <h5><i class="fas fa-star"></i> Reseña del Cliente</h5>
+                        <hr>
+                        <div class="rating mb-2">
+                            {% for i in "12345" %}
+                                {% if forloop.counter <= booking.review.rating %}
+                                    <i class="fas fa-star"></i>
+                                {% else %}
+                                    <i class="far fa-star"></i>
+                                {% endif %}
+                            {% endfor %}
+                        </div>
+                        {% if booking.review.comment %}
+                        <p>{{ booking.review.comment }}</p>
+                        {% endif %}
+                        <small class="text-muted">{{ booking.review.created_at|date:"d/m/Y" }}</small>
+                    </div>
+                </div>
+                {% elif user.profile.role == 'customer' %}
+                <div class="card">
+                    <div class="card-body text-center">
+                        <h5><i class="fas fa-star"></i> ¿Cómo fue tu experiencia?</h5>
+                        <p class="text-muted">Ayuda a otros usuarios dejando tu opinión</p>
+                        <a href="{% url 'review_create' booking.id %}" class="btn btn-warning btn-lg">
+                            <i class="fas fa-star"></i> Dejar Reseña
+                        </a>
+                    </div>
+                </div>
+                {% endif %}
+            {% endif %}
+        </div>
+
+        <!-- Sidebar -->
+        <div class="col-md-4">
+            <!-- Payment Summary -->
+            <div class="card mb-4">
+                <div class="card-header bg-light">
+                    <h5 class="mb-0"><i class="fas fa-receipt"></i> Resumen de Pago</h5>
+                </div>
+                <div class="card-body">
+                    {% for service in booking.service_list %}
+                    <div class="d-flex justify-content-between mb-2">
+                        <span>{{ service.name }}</span>
+                        <strong>${{ service.price }}</strong>
+                    </div>
+                    {% endfor %}
+                    <hr>
+                    <div class="d-flex justify-content-between">
+                        <strong>TOTAL:</strong>
+                        <h4 class="text-primary mb-0">${{ booking.total_cost }}</h4>
+                    </div>
+
+                    {% if booking.payment_method %}
+                    <hr>
+                    <p class="mb-0">
+                        <strong>Método de pago:</strong><br>
+                        <span class="text-capitalize">{{ booking.payment_method }}</span>
+                    </p>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Payment Action -->
+            {% if user.profile.role == 'customer' and booking.payment_status == 'pending' and booking.status == 'accepted' %}
+            <div class="card border-primary">
+                <div class="card-body text-center">
+                    <h5 class="text-primary">
+                        <i class="fas fa-credit-card"></i> Pago Pendiente
+                    </h5>
+                    <p class="text-muted">Completa el pago para confirmar tu reserva</p>
+                    <a href="{% url 'payment_process' booking.id %}" class="btn btn-primary btn-lg w-100">
+                        <i class="fas fa-credit-card"></i> Pagar Ahora
+                    </a>
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Contact Options -->
+            <div class="card mt-4">
+                <div class="card-body">
+                    <h5><i class="fas fa-phone"></i> Contacto</h5>
+                    <hr>
+                    {% if user.profile.role == 'customer' %}
+                    <p>¿Tienes dudas? Contacta al proveedor:</p>
+                    <a href="tel:{{ booking.provider_phone }}" class="btn btn-outline-primary w-100 mb-2">
+                        <i class="fas fa-phone"></i> Llamar
+                    </a>
+                    <a href="https://wa.me/{{ booking.provider_phone }}" target="_blank" 
+                       class="btn btn-success w-100">
+                        <i class="fab fa-whatsapp"></i> WhatsApp
+                    </a>
+                    {% else %}
+                    <p>Contacta al cliente:</p>
+                    <a href="tel:{{ booking.customer_phone }}" class="btn btn-outline-primary w-100 mb-2">
+                        <i class="fas fa-phone"></i> Llamar
+                    </a>
+                    <a href="https://wa.me/{{ booking.customer_phone }}" target="_blank" 
+                       class="btn btn-success w-100">
+                        <i class="fab fa-whatsapp"></i> WhatsApp
+                    </a>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

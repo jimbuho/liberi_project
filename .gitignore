@@ -1,0 +1,14 @@
+# Archivos de Python
+*.pyc
+*~
+__pycache__
+myvenv/  # Si tu entorno virtual se llama 'myvenv'
+venv/    # O si se llama 'venv'
+.env
+db.sqlite3
+.DS_Store
+/static_cdn/
+/media/
+
+# Archivos específicos de Django
+/staticfiles/

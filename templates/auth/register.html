@@ -1,0 +1,99 @@
+{% extends 'base.html' %}
+
+{% block title %}Registro - Liberi{% endblock %}
+
+{% block content %}
+<div class="container mt-5 mb-5">
+    <div class="row justify-content-center">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-body p-5">
+                    <h2 class="text-center mb-4">
+                        <i class="fas fa-user-plus"></i> Crear Cuenta
+                    </h2>
+
+                    <form method="post" id="registerForm">
+                        {% csrf_token %}
+                        
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="first_name" class="form-label">Nombre *</label>
+                                <input type="text" class="form-control" id="first_name" name="first_name" required>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="last_name" class="form-label">Apellido *</label>
+                                <input type="text" class="form-control" id="last_name" name="last_name" required>
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="username" class="form-label">Usuario *</label>
+                            <input type="text" class="form-control" id="username" name="username" required>
+                            <small class="text-muted">Solo letras, números y guiones</small>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="email" class="form-label">Email *</label>
+                            <input type="email" class="form-control" id="email" name="email" required>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="phone" class="form-label">Teléfono *</label>
+                            <input type="tel" class="form-control" id="phone" name="phone" 
+                                   placeholder="0999999999" pattern="[0-9]{10}" required>
+                            <small class="text-muted">10 dígitos sin espacios</small>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="password" class="form-label">Contraseña *</label>
+                            <input type="password" class="form-control" id="password" name="password" 
+                                   minlength="8" required>
+                            <small class="text-muted">Mínimo 8 caracteres</small>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="password_confirm" class="form-label">Confirmar Contraseña *</label>
+                            <input type="password" class="form-control" id="password_confirm" 
+                                   name="password_confirm" required>
+                        </div>
+
+                        <div class="mb-3 form-check">
+                            <input type="checkbox" class="form-check-input" id="terms" required>
+                            <label class="form-check-label" for="terms">
+                                Acepto los <a href="#" target="_blank">términos y condiciones</a>
+                            </label>
+                        </div>
+
+                        <button type="submit" class="btn btn-primary w-100 mb-3">
+                            <i class="fas fa-user-plus"></i> Registrarse
+                        </button>
+                    </form>
+
+                    <hr>
+
+                    <div class="text-center">
+                        <p class="mb-0">¿Ya tienes cuenta? 
+                            <a href="{% url 'login' %}">Inicia sesión aquí</a>
+                        </p>
+                        <p class="mt-2">
+                            <a href="{% url 'register_provider' %}">Registrarse como Proveedor</a>
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.getElementById('registerForm').addEventListener('submit', function(e) {
+    const password = document.getElementById('password').value;
+    const password_confirm = document.getElementById('password_confirm').value;
+    
+    if (password !== password_confirm) {
+        e.preventDefault();
+        alert('Las contraseñas no coinciden');
+    }
+});
+</script>
+{% endblock %}

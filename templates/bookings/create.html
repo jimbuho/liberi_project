@@ -1,0 +1,124 @@
+{% extends 'base.html' %}
+
+{% block title %}Nueva Reserva - Liberi{% endblock %}
+
+{% block content %}
+<div class="container mt-4 mb-5">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-body p-4">
+                    <h2 class="text-center mb-4">
+                        <i class="fas fa-calendar-plus"></i> Nueva Reserva
+                    </h2>
+
+                    <form method="post" id="bookingForm">
+                        {% csrf_token %}
+
+                        <!-- Service Info -->
+                        <div class="alert alert-info">
+                            <h5>{{ service.name }}</h5>
+                            <p class="mb-0">
+                                <strong>Proveedor:</strong> {{ service.provider.get_full_name }}<br>
+                                <strong>Precio:</strong> ${{ service.base_price }}<br>
+                                <strong>Duración:</strong> {{ service.duration_minutes }} minutos
+                            </p>
+                        </div>
+
+                        <input type="hidden" name="service_id" value="{{ service.id }}">
+                        <input type="hidden" name="provider_id" value="{{ service.provider.id }}">
+
+                        <!-- Date and Time -->
+                        <div class="mb-3">
+                            <label for="scheduled_time" class="form-label">
+                                <i class="fas fa-calendar-alt"></i> Fecha y Hora *
+                            </label>
+                            <input type="datetime-local" class="form-control" id="scheduled_time" 
+                                   name="scheduled_time" required
+                                   min="{{ today|date:'Y-m-d' }}T08:00"
+                                   max="{{ max_date|date:'Y-m-d' }}T20:00">
+                            <small class="text-muted">Horario disponible: 8:00 AM - 8:00 PM</small>
+                        </div>
+
+                        <!-- Location -->
+                        <div class="mb-3">
+                            <label for="location_id" class="form-label">
+                                <i class="fas fa-map-marker-alt"></i> Ubicación *
+                            </label>
+                            {% if user_locations %}
+                            <select class="form-select" id="location_id" name="location_id" required>
+                                <option value="">Seleccionar ubicación...</option>
+                                {% for location in user_locations %}
+                                <option value="{{ location.id }}">
+                                    {{ location.label|title }} - {{ location.address|truncatewords:8 }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                            {% else %}
+                            <div class="alert alert-warning">
+                                <i class="fas fa-exclamation-triangle"></i>
+                                No tienes ubicaciones guardadas.
+                            </div>
+                            {% endif %}
+                            <div class="mt-2">
+                                <a href="{% url 'location_create' %}?next={{ request.path }}" class="btn btn-sm btn-outline-primary">
+                                    <i class="fas fa-plus"></i> Agregar nueva ubicación
+                                </a>
+                            </div>
+                        </div>
+
+                        <!-- Additional Services (Optional) -->
+                        <div class="mb-3">
+                            <label class="form-label">
+                                <i class="fas fa-plus-circle"></i> Servicios Adicionales (opcional)
+                            </label>
+                            {% if additional_services %}
+                            <div class="card">
+                                <div class="card-body">
+                                    {% for additional in additional_services %}
+                                    <div class="form-check">
+                                        <input class="form-check-input service-checkbox" type="checkbox" 
+                                               name="additional_services" value="{{ additional.id }}"
+                                               data-price="{{ additional.base_price }}"
+                                               data-name="{{ additional.name }}"
+                                               id="service{{ additional.id }}">
+                                        <label class="form-check-label" for="service{{ additional.id }}">
+                                            {{ additional.name }} - <strong>${{ additional.base_price }}</strong>
+                                            <small class="text-muted">({{ additional.duration_minutes }} min)</small>
+                                        </label>
+                                    </div>
+                                    {% endfor %}
+                                </div>
+                            </div>
+                            {% else %}
+                            <p class="text-muted">No hay servicios adicionales disponibles</p>
+                            {% endif %}
+                        </div>
+
+                        <!-- Notes -->
+                        <div class="mb-3">
+                            <label for="notes" class="form-label">
+                                <i class="fas fa-sticky-note"></i> Notas / Instrucciones (opcional)
+                            </label>
+                            <textarea class="form-control" id="notes" name="notes" rows="3"
+                                      placeholder="Ej: Preferencias de color, alergias, instrucciones especiales..."></textarea>
+                        </div>
+
+                        <!-- Summary -->
+                        <div class="card bg-light">
+                            <div class="card-body">
+                                <h5 class="card-title">Resumen de la Reserva</h5>
+                                <div id="bookingSummary">
+                                    <div class="d-flex justify-content-between mb-2">
+                                        <span>{{ service.name }}</span>
+                                        <strong>${{ service.base_price }}</strong>
+                                    </div>
+                                    {% if travel_cost > 0 %}
+                                    <div class="d-flex justify-content-between mb-2">
+                                        <span>Costo de traslado</span>
+                                        <strong>${{ travel_cost }}</strong>
+                                    </div>
+                                    {% endif %}
+                                    <div id="additionalServicesList"></div>
+                                    <hr>
+                                    <div class="d-flex justify-content-between">

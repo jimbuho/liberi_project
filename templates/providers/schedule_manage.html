@@ -1,0 +1,80 @@
+{% extends 'base.html' %}
+
+{% block title %}Gestión de Horarios - Liberi{% endblock %}
+
+{% block content %}
+<div class="container mt-4 mb-5">
+    <div class="row">
+        <div class="col-md-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h2>
+                    <i class="fas fa-clock"></i> Mis Horarios de Atención
+                </h2>
+                <div>
+                    <a href="{% url 'provider_schedule_create' %}" class="btn btn-primary">
+                        <i class="fas fa-plus"></i> Agregar Horario
+                    </a>
+                    <a href="{% url 'dashboard' %}" class="btn btn-outline-secondary">
+                        <i class="fas fa-arrow-left"></i> Volver
+                    </a>
+                </div>
+            </div>
+
+            {% if schedules_by_day %}
+            <div class="row">
+                {% for day, day_schedules in schedules_by_day.items %}
+                <div class="col-md-6 mb-4">
+                    <div class="card">
+                        <div class="card-header bg-primary text-white">
+                            <h5 class="mb-0">{{ day }}</h5>
+                        </div>
+                        <div class="card-body">
+                            {% for schedule in day_schedules %}
+                            <div class="d-flex justify-content-between align-items-center mb-2 pb-2 {% if not forloop.last %}border-bottom{% endif %}">
+                                <div>
+                                    <i class="far fa-clock"></i>
+                                    <strong>{{ schedule.start_time|time:"H:i" }}</strong> 
+                                    - 
+                                    <strong>{{ schedule.end_time|time:"H:i" }}</strong>
+                                    {% if not schedule.is_active %}
+                                    <span class="badge bg-secondary">Inactivo</span>
+                                    {% endif %}
+                                </div>
+                                <form method="post" action="{% url 'provider_schedule_delete' schedule.id %}" 
+                                      onsubmit="return confirm('¿Eliminar este horario?')">
+                                    {% csrf_token %}
+                                    <button type="submit" class="btn btn-sm btn-outline-danger">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                </form>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <div class="alert alert-info text-center">
+                <i class="fas fa-info-circle fa-3x mb-3"></i>
+                <h4>No has configurado horarios aún</h4>
+                <p>Agrega los días y horas en que estás disponible para atender clientes</p>
+                <a href="{% url 'provider_schedule_create' %}" class="btn btn-primary">
+                    <i class="fas fa-plus"></i> Agregar Mi Primer Horario
+                </a>
+            </div>
+            {% endif %}
+
+            <div class="alert alert-warning mt-4">
+                <strong><i class="fas fa-lightbulb"></i> Consejos:</strong>
+                <ul class="mb-0 mt-2">
+                    <li>Configura horarios realistas que puedas cumplir</li>
+                    <li>Los clientes solo podrán reservar en estos horarios</li>
+                    <li>Los horarios ocupados por reservas existentes no aparecerán disponibles</li>
+                    <li>Puedes agregar múltiples franjas horarias por día</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,221 @@
+{% extends 'base.html' %}
+
+{% block title %}Agregar Ubicación - Liberi{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<style>
+    #map {
+        height: 400px;
+        width: 100%;
+        border-radius: 10px;
+        margin-bottom: 20px;
+    }
+    .location-search {
+        position: relative;
+        z-index: 1000;
+        margin-bottom: 10px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container mt-4 mb-5">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-body p-4">
+                    <h2 class="text-center mb-4">
+                        <i class="fas fa-map-marker-alt"></i> Agregar Ubicación
+                    </h2>
+
+                    <form method="post" id="locationForm">
+                        {% csrf_token %}
+
+                        <div class="mb-3">
+                            <label for="label" class="form-label">Etiqueta *</label>
+                            <select class="form-select" id="label" name="label" required>
+                                <option value="casa">🏠 Casa</option>
+                                <option value="oficina">🏢 Oficina</option>
+                                <option value="trabajo">💼 Trabajo</option>
+                                <option value="otro">📍 Otro</option>
+                            </select>
+                        </div>
+
+                        <!-- Buscador de Dirección -->
+                        <div class="mb-3">
+                            <label for="searchAddress" class="form-label">Buscar Dirección</label>
+                            <div class="input-group">
+                                <input type="text" class="form-control" id="searchAddress" 
+                                       placeholder="Ej: Av. 6 de Diciembre, Quito">
+                                <button class="btn btn-primary" type="button" onclick="searchLocation()">
+                                    <i class="fas fa-search"></i> Buscar
+                                </button>
+                            </div>
+                            <small class="text-muted">O haz clic directamente en el mapa</small>
+                        </div>
+
+                        <!-- Mapa -->
+                        <div id="map"></div>
+
+                        <!-- Zona -->
+                        <div class="mb-3">
+                            <label for="zone" class="form-label">Zona *</label>
+                            <select class="form-select" id="zone" name="zone" required>
+                                <option value="">Selecciona tu zona...</option>
+                                {% for zone in zones %}
+                                <option value="{{ zone.id }}">{{ zone.name }}</option>
+                                {% endfor %}
+                            </select>
+                            <small class="text-muted">Esto ayuda a encontrar proveedores cerca de ti</small>
+                        </div>
+
+                        <!-- Dirección (auto-completada) -->
+                        <div class="mb-3">
+                            <label for="address" class="form-label">Dirección Completa *</label>
+                            <textarea class="form-control" id="address" name="address" 
+                                      rows="2" required readonly
+                                      placeholder="La dirección se completará al seleccionar en el mapa"></textarea>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="reference" class="form-label">Referencia (opcional)</label>
+                            <input type="text" class="form-control" id="reference" name="reference"
+                                   placeholder="Ej: Edificio azul, portón negro, junto al parque">
+                        </div>
+
+                        <!-- Coordenadas (ocultas) -->
+                        <input type="hidden" id="latitude" name="latitude" required>
+                        <input type="hidden" id="longitude" name="longitude" required>
+
+                        <div class="alert alert-info">
+                            <i class="fas fa-info-circle"></i>
+                            <strong>Instrucciones:</strong>
+                            <ul class="mb-0 mt-2">
+                                <li>Busca tu dirección o haz zoom en el mapa</li>
+                                <li>Haz clic en el punto exacto de tu ubicación</li>
+                                <li>Verifica que la dirección sea correcta</li>
+                            </ul>
+                        </div>
+
+                        <div class="d-grid gap-2">
+                            <button type="submit" class="btn btn-primary btn-lg" id="submitBtn" disabled>
+                                <i class="fas fa-save"></i> Guardar Ubicación
+                            </button>
+                            <a href="{% url 'dashboard' %}" class="btn btn-outline-secondary">
+                                <i class="fas fa-arrow-left"></i> Cancelar
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+// Inicializar mapa centrado en Quito, Ecuador
+let map = L.map('map').setView([-0.1807, -78.4678], 13);
+
+// Agregar capa de OpenStreetMap
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '© OpenStreetMap contributors',
+    maxZoom: 19
+}).addTo(map);
+
+// Marcador
+let marker = null;
+
+// Click en el mapa
+map.on('click', function(e) {
+    const lat = e.latlng.lat;
+    const lng = e.latlng.lng;
+    
+    // Actualizar marcador
+    if (marker) {
+        marker.setLatLng(e.latlng);
+    } else {
+        marker = L.marker(e.latlng).addTo(map);
+    }
+    
+    // Guardar coordenadas
+    document.getElementById('latitude').value = lat;
+    document.getElementById('longitude').value = lng;
+    
+    // Obtener dirección (Reverse Geocoding)
+    fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=18&addressdetails=1`)
+        .then(response => response.json())
+        .then(data => {
+            const address = data.display_name || `${lat}, ${lng}`;
+            document.getElementById('address').value = address;
+            document.getElementById('submitBtn').disabled = false;
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            document.getElementById('address').value = `Lat: ${lat}, Lng: ${lng}`;
+            document.getElementById('submitBtn').disabled = false;
+        });
+});
+
+// Buscar ubicación
+function searchLocation() {
+    const query = document.getElementById('searchAddress').value;
+    if (!query) {
+        alert('Por favor ingresa una dirección');
+        return;
+    }
+    
+    fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}, Quito, Ecuador&limit=1`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.length > 0) {
+                const lat = parseFloat(data[0].lat);
+                const lng = parseFloat(data[0].lon);
+                
+                // Centrar mapa
+                map.setView([lat, lng], 16);
+                
+                // Agregar marcador
+                if (marker) {
+                    marker.setLatLng([lat, lng]);
+                } else {
+                    marker = L.marker([lat, lng]).addTo(map);
+                }
+                
+                // Actualizar campos
+                document.getElementById('latitude').value = lat;
+                document.getElementById('longitude').value = lng;
+                document.getElementById('address').value = data[0].display_name;
+                document.getElementById('submitBtn').disabled = false;
+            } else {
+                alert('No se encontró la dirección. Intenta con otra búsqueda o selecciona en el mapa.');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Error al buscar la dirección');
+        });
+}
+
+// Obtener ubicación actual del usuario
+if (navigator.geolocation) {
+    navigator.geolocation.getCurrentPosition(function(position) {
+        const userLat = position.coords.latitude;
+        const userLng = position.coords.longitude;
+        map.setView([userLat, userLng], 15);
+        
+        // Agregar marcador temporal
+        L.marker([userLat, userLng], {
+            icon: L.icon({
+                iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-blue.png',
+                iconSize: [25, 41],
+                iconAnchor: [12, 41]
+            })
+        }).addTo(map).bindPopup('📍 Tu ubicación actual').openPopup();
+    });
+}
+</script>
+{% endblock %}
