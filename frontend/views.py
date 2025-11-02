@@ -4,13 +4,15 @@ from django.contrib.auth import login, authenticate, logout
 from django.contrib import messages
 from django.utils import timezone
 from django.db.models import Q, Avg, Count, Sum
-from datetime import timedelta, datetime, time
+from datetime import timedelta, datetime
 from django.contrib.auth.models import User
+from django.http import JsonResponse
 
 from core.models import (
     Profile, Category, Service, ProviderProfile, 
     Booking, Location, Review, AuditLog,
-    Zone, ProviderSchedule, ProviderUnavailability
+    Zone, ProviderSchedule, ProviderUnavailability,
+    ProviderZoneCost, SystemConfig
 )
 
 # ============================================================================
@@ -31,17 +33,41 @@ def home(request):
 
 @login_required
 def services_list(request):
-    """Listado de servicios con filtros mejorados"""
+    """Listado de servicios con filtros mejorados por zona"""
     services = Service.objects.filter(available=True).select_related('provider')
     categories = Category.objects.all()
     zones = Zone.objects.filter(active=True).order_by('name')
+    
+    # Obtener zona actual del usuario (de sesión o ubicación)
+    current_zone_id = request.session.get('current_zone_id')
+    current_zone = Zone.objects.filter(id=current_zone_id).first() if current_zone_id else None
+    
+    # Si no hay zona en sesión, intentar obtener de la última ubicación del usuario
+    if not current_zone and hasattr(request.user, 'locations'):
+        last_location = request.user.locations.order_by('-created_at').first()
+        if last_location and last_location.zone:
+            current_zone = last_location.zone
+            request.session['current_zone_id'] = current_zone.id
     
     # Filtros
     category_id = request.GET.get('category')
     search = request.GET.get('search')
     min_price = request.GET.get('min_price')
     max_price = request.GET.get('max_price')
-    zone_id = request.GET.get('zone')  # ← NUEVO FILTRO
+    zone_id = request.GET.get('zone')
+    
+    # Si se selecciona una zona, guardarla en sesión
+    if zone_id:
+        request.session['current_zone_id'] = zone_id
+        current_zone = Zone.objects.filter(id=zone_id).first()
+    
+    # FILTRO PRINCIPAL: Solo mostrar servicios de proveedores que cubren la zona actual
+    if current_zone:
+        services = services.filter(
+            provider__provider_profile__coverage_zones=current_zone,
+            provider__provider_profile__is_active=True,
+            provider__provider_profile__status='approved'
+        )
     
     if category_id:
         services = services.filter(provider__provider_profile__category_id=category_id)
@@ -57,39 +83,88 @@ def services_list(request):
     if max_price:
         services = services.filter(base_price__lte=max_price)
     
-    # Filtrar por zona
-    if zone_id:
-        services = services.filter(
-            provider__provider_profile__coverage_zones__id=zone_id,
-            provider__provider_profile__is_active=True  # Solo proveedores activos
-        )
-    
     # Filtrar solo proveedores activos y aprobados
     services = services.filter(
         provider__provider_profile__status='approved',
         provider__provider_profile__is_active=True
-    )
+    ).distinct()
     
-    # Agregar rating promedio
+    # Agregar rating promedio y costo de movilización por zona
+    from core.models import ProviderZoneCost, SystemConfig
+    
     for service in services:
+        # Rating
         rating = Review.objects.filter(
             booking__provider=service.provider
         ).aggregate(Avg('rating'))
         service.provider_rating = round(rating['rating__avg'] or 0, 1)
+        
+        # Costo de movilización según zona actual
+        if current_zone:
+            zone_cost = ProviderZoneCost.objects.filter(
+                provider=service.provider,
+                zone=current_zone
+            ).first()
+            
+            if zone_cost:
+                service.travel_cost = zone_cost.travel_cost
+            else:
+                # Usar costo por defecto del sistema
+                service.travel_cost = SystemConfig.get_config('default_travel_cost', 2.50)
+        else:
+            service.travel_cost = service.provider.provider_profile.avg_travel_cost
+    
+    # Mensaje si no hay zona seleccionada
+    show_zone_warning = not current_zone
     
     context = {
         'services': services,
         'categories': categories,
         'zones': zones,
-        'selected_zone': Zone.objects.filter(id=zone_id).first() if zone_id else None,
+        'current_zone': current_zone,
         'selected_category': Category.objects.filter(id=category_id).first() if category_id else None,
+        'show_zone_warning': show_zone_warning,
     }
     return render(request, 'services/list.html', context)
 
 
 def service_detail(request, service_id):
-    """Detalle de un servicio"""
+    """Detalle de un servicio con validación de zona"""
+    from core.models import ProviderZoneCost, SystemConfig
+    
     service = get_object_or_404(Service, id=service_id)
+    
+    # Obtener zona actual
+    current_zone_id = request.session.get('current_zone_id')
+    current_zone = Zone.objects.filter(id=current_zone_id).first() if current_zone_id else None
+    
+    # Verificar si el proveedor cubre la zona actual
+    can_book = False
+    zone_not_covered = False
+    travel_cost = 0
+    
+    if current_zone:
+        provider_covers_zone = service.provider.provider_profile.coverage_zones.filter(
+            id=current_zone.id
+        ).exists()
+        
+        if provider_covers_zone:
+            can_book = True
+            # Obtener costo específico para esta zona
+            zone_cost = ProviderZoneCost.objects.filter(
+                provider=service.provider,
+                zone=current_zone
+            ).first()
+            
+            if zone_cost:
+                travel_cost = zone_cost.travel_cost
+            else:
+                travel_cost = SystemConfig.get_config('default_travel_cost', 2.50)
+        else:
+            zone_not_covered = True
+    else:
+        # Si no hay zona seleccionada, usar costo promedio
+        travel_cost = service.provider.provider_profile.avg_travel_cost
     
     # Reviews del proveedor
     reviews = Review.objects.filter(
@@ -104,16 +179,17 @@ def service_detail(request, service_id):
         total=Count('id')
     )
     
-    # Ubicaciones del usuario (si está logueado)
+    # Ubicaciones del usuario que coincidan con zonas del proveedor
     user_locations = []
+    valid_locations = []
     if request.user.is_authenticated:
-        user_locations = Location.objects.filter(customer=request.user)
+        user_locations = Location.objects.filter(customer=request.user).select_related('zone')
+        
+        # Filtrar solo ubicaciones en zonas que el proveedor cubre
+        provider_zone_ids = service.provider.provider_profile.coverage_zones.values_list('id', flat=True)
+        valid_locations = [loc for loc in user_locations if loc.zone_id in provider_zone_ids]
     
     # Calcular costo total
-    travel_cost = 0
-    if hasattr(service.provider, 'provider_profile'):
-        travel_cost = service.provider.provider_profile.avg_travel_cost
-    
     total_cost = service.base_price + travel_cost
     
     context = {
@@ -122,12 +198,15 @@ def service_detail(request, service_id):
         'provider_rating': round(rating_data['avg_rating'] or 0, 1),
         'total_reviews': rating_data['total'],
         'user_locations': user_locations,
+        'valid_locations': valid_locations,
         'travel_cost': travel_cost,
         'total_cost': total_cost,
         'today': timezone.now().date(),
+        'current_zone': current_zone,
+        'can_book': can_book,
+        'zone_not_covered': zone_not_covered,
     }
     return render(request, 'services/detail.html', context)
-
 
 def providers_list(request):
     """Listado de proveedores"""
@@ -535,9 +614,13 @@ def booking_detail(request, booking_id):
     return render(request, 'bookings/detail.html', context)
 
 
+# Reemplazar la función booking_create en frontend/views.py
+
 @login_required
 def booking_create(request):
-    """Crear una nueva reserva con validaciones mejoradas"""
+    """Crear una nueva reserva con validaciones mejoradas por zona"""
+    from core.models import ProviderZoneCost, SystemConfig
+    
     if request.method != 'POST':
         return redirect('services_list')
     
@@ -558,6 +641,23 @@ def booking_create(request):
     provider = get_object_or_404(User, id=provider_id)
     location = get_object_or_404(Location, id=location_id, customer=request.user)
     
+    # VALIDACIÓN CRÍTICA: Verificar que la zona de la ubicación esté en la cobertura del proveedor
+    if not location.zone:
+        messages.error(request, 'La ubicación seleccionada no tiene zona asignada')
+        return redirect('service_detail', service_id=service.id)
+    
+    provider_covers_zone = provider.provider_profile.coverage_zones.filter(
+        id=location.zone_id
+    ).exists()
+    
+    if not provider_covers_zone:
+        messages.error(
+            request,
+            f'El proveedor no cubre la zona {location.zone.name}. '
+            'Por favor selecciona otra ubicación o busca otro proveedor.'
+        )
+        return redirect('service_detail', service_id=service.id)
+    
     # Combinar fecha y hora
     try:
         scheduled_datetime = datetime.strptime(
@@ -569,10 +669,14 @@ def booking_create(request):
         messages.error(request, 'Fecha u hora inválida')
         return redirect('service_detail', service_id=service.id)
     
-    # Validar que sea al menos 1 hora en el futuro
+    # Validar tiempo mínimo de anticipación (configurable)
+    min_hours = SystemConfig.get_config('min_booking_hours', 1)
     now = timezone.now()
-    if scheduled_datetime < now + timedelta(hours=1):
-        messages.error(request, 'La reserva debe ser al menos 1 hora en el futuro')
+    if scheduled_datetime < now + timedelta(hours=min_hours):
+        messages.error(
+            request,
+            f'La reserva debe ser al menos {min_hours} hora(s) en el futuro'
+        )
         return redirect('service_detail', service_id=service.id)
     
     # Verificar que el horario esté disponible
@@ -587,11 +691,6 @@ def booking_create(request):
         messages.error(request, 'El horario seleccionado ya no está disponible')
         return redirect('service_detail', service_id=service.id)
     
-    # Verificar matching de zonas
-    if location.zone not in provider.provider_profile.coverage_zones.all():
-        messages.error(request, 'El proveedor no cubre la zona de tu ubicación')
-        return redirect('service_detail', service_id=service.id)
-    
     # Crear lista de servicios
     service_list = [{
         'service_id': service.id,
@@ -601,9 +700,19 @@ def booking_create(request):
     
     total_cost = float(service.base_price)
     
-    # Agregar costo de traslado
-    if hasattr(provider, 'provider_profile'):
-        total_cost += float(provider.provider_profile.avg_travel_cost)
+    # Agregar costo de traslado según zona específica
+    zone_cost = ProviderZoneCost.objects.filter(
+        provider=provider,
+        zone=location.zone
+    ).first()
+    
+    if zone_cost:
+        travel_cost = float(zone_cost.travel_cost)
+    else:
+        # Usar configuración por defecto
+        travel_cost = float(SystemConfig.get_config('default_travel_cost', 2.50))
+    
+    total_cost += travel_cost
     
     # Crear reserva
     booking = Booking.objects.create(
@@ -622,10 +731,17 @@ def booking_create(request):
     AuditLog.objects.create(
         user=request.user,
         action='Reserva creada',
-        metadata={'booking_id': str(booking.id)}
+        metadata={
+            'booking_id': str(booking.id),
+            'zone': location.zone.name,
+            'travel_cost': str(travel_cost)
+        }
     )
     
-    messages.success(request, '¡Reserva creada exitosamente! El proveedor la revisará pronto.')
+    messages.success(
+        request,
+        '¡Reserva creada exitosamente! El proveedor la revisará pronto.'
+    )
     return redirect('booking_detail', booking_id=booking.id)
 
 
@@ -1368,3 +1484,206 @@ def provider_toggle_active(request):
     )
     
     return redirect('dashboard')
+
+@login_required
+def provider_zone_costs_manage(request):
+    """Gestión de costos de movilización por zona"""
+    if request.user.profile.role != 'provider':
+        messages.error(request, 'Solo los proveedores pueden gestionar costos por zona')
+        return redirect('dashboard')
+    
+    if not hasattr(request.user, 'provider_profile'):
+        messages.error(request, 'No tienes un perfil de proveedor')
+        return redirect('dashboard')
+    
+    # Obtener zonas de cobertura del proveedor
+    coverage_zones = request.user.provider_profile.coverage_zones.all()
+    
+    # Obtener costos configurados
+    zone_costs = ProviderZoneCost.objects.filter(
+        provider=request.user
+    ).select_related('zone')
+    
+    # Crear diccionario para fácil acceso
+    costs_dict = {zc.zone_id: zc for zc in zone_costs}
+    
+    # Preparar datos para template
+    zones_with_costs = []
+    for zone in coverage_zones:
+        zone_cost = costs_dict.get(zone.id)
+        zones_with_costs.append({
+            'zone': zone,
+            'cost': zone_cost.travel_cost if zone_cost else None,
+            'cost_id': zone_cost.id if zone_cost else None
+        })
+    
+    # Obtener configuración máxima
+    max_travel_cost = SystemConfig.get_config('max_travel_cost', 5)
+    default_travel_cost = SystemConfig.get_config('default_travel_cost', 2.50)
+    
+    context = {
+        'zones_with_costs': zones_with_costs,
+        'max_travel_cost': max_travel_cost,
+        'default_travel_cost': default_travel_cost,
+    }
+    return render(request, 'providers/zone_costs_manage.html', context)
+
+
+@login_required
+def provider_zone_cost_update(request):
+    """Actualizar o crear costo por zona"""
+    if request.method != 'POST':
+        return redirect('provider_zone_costs_manage')
+    
+    if request.user.profile.role != 'provider':
+        messages.error(request, 'No autorizado')
+        return redirect('dashboard')
+    
+    zone_id = request.POST.get('zone_id')
+    travel_cost = request.POST.get('travel_cost')
+    
+    try:
+        from decimal import Decimal
+        zone = get_object_or_404(Zone, id=zone_id)
+        cost = Decimal(travel_cost)
+        
+        # Validar máximo
+        max_cost = SystemConfig.get_config('max_travel_cost', 5)
+        if cost > max_cost:
+            messages.error(request, f'El costo no puede superar ${max_cost} USD')
+            return redirect('provider_zone_costs_manage')
+        
+        # Validar que la zona esté en su cobertura
+        if not request.user.provider_profile.coverage_zones.filter(id=zone_id).exists():
+            messages.error(request, 'Esta zona no está en tu cobertura')
+            return redirect('provider_zone_costs_manage')
+        
+        # Crear o actualizar
+        zone_cost, created = ProviderZoneCost.objects.update_or_create(
+            provider=request.user,
+            zone=zone,
+            defaults={'travel_cost': cost}
+        )
+        
+        action = 'configurado' if created else 'actualizado'
+        messages.success(request, f'Costo de traslado {action} para {zone.name}')
+        
+        # Log
+        AuditLog.objects.create(
+            user=request.user,
+            action=f'Costo de zona {action}',
+            metadata={
+                'zone': zone.name,
+                'cost': str(cost)
+            }
+        )
+        
+    except Exception as e:
+        messages.error(request, f'Error al guardar: {str(e)}')
+    
+    return redirect('provider_zone_costs_manage')
+
+
+@login_required
+def provider_zone_cost_delete(request, zone_id):
+    """Eliminar configuración de costo por zona (volver a usar default)"""
+    if request.method != 'POST':
+        return redirect('provider_zone_costs_manage')
+    
+    zone_cost = get_object_or_404(
+        ProviderZoneCost,
+        provider=request.user,
+        zone_id=zone_id
+    )
+    
+    zone_name = zone_cost.zone.name
+    zone_cost.delete()
+    
+    messages.success(request, f'Configuración eliminada para {zone_name}. Se usará el costo por defecto.')
+    
+    return redirect('provider_zone_costs_manage')
+
+
+@login_required
+def set_current_zone(request):
+    """Establecer zona actual del usuario (AJAX)"""
+    if request.method != 'POST':
+        return JsonResponse({'error': 'Método no permitido'}, status=405)
+    
+    zone_id = request.POST.get('zone_id')
+    
+    if zone_id:
+        try:
+            zone = Zone.objects.get(id=zone_id, active=True)
+            request.session['current_zone_id'] = zone.id
+            return JsonResponse({
+                'success': True,
+                'zone_name': zone.name,
+                'message': f'Ubicación establecida en {zone.name}'
+            })
+        except Zone.DoesNotExist:
+            return JsonResponse({'error': 'Zona no encontrada'}, status=404)
+    else:
+        # Limpiar zona actual
+        request.session.pop('current_zone_id', None)
+        return JsonResponse({
+            'success': True,
+            'message': 'Zona limpiada'
+        })
+
+
+@login_required
+def detect_user_location(request):
+    """Detectar ubicación del usuario y sugerir zona (AJAX)"""
+    if request.method != 'POST':
+        return JsonResponse({'error': 'Método no permitido'}, status=405)
+    
+    import json
+    data = json.loads(request.body)
+    lat = data.get('latitude')
+    lng = data.get('longitude')
+    
+    if not lat or not lng:
+        return JsonResponse({'error': 'Coordenadas requeridas'}, status=400)
+    
+    # Aquí podrías implementar lógica para determinar la zona según coordenadas
+    # Por simplicidad, buscaremos si el usuario tiene una ubicación cercana guardada
+    
+    from decimal import Decimal
+    user_locations = Location.objects.filter(
+        customer=request.user
+    ).select_related('zone')
+    
+    # Buscar ubicación más cercana (simplificado)
+    closest_location = None
+    min_distance = float('inf')
+    
+    for location in user_locations:
+        # Calcular distancia simple (no es preciso, pero funciona para MVP)
+        lat_diff = abs(float(location.latitude) - float(lat))
+        lng_diff = abs(float(location.longitude) - float(lng))
+        distance = lat_diff + lng_diff
+        
+        if distance < min_distance:
+            min_distance = distance
+            closest_location = location
+    
+    # Si hay una ubicación cercana (< 0.01 grados ~ 1km)
+    if closest_location and min_distance < 0.01:
+        zone = closest_location.zone
+        request.session['current_zone_id'] = zone.id
+        
+        return JsonResponse({
+            'success': True,
+            'zone_id': zone.id,
+            'zone_name': zone.name,
+            'location_name': closest_location.label,
+            'message': f'Ubicación detectada: {closest_location.label} en {zone.name}'
+        })
+    else:
+        # No se encontró ubicación cercana
+        return JsonResponse({
+            'success': False,
+            'message': 'No se encontró una ubicación guardada cercana. Por favor selecciona tu zona.',
+            'requires_selection': True
+        })

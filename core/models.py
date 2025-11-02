@@ -262,3 +262,80 @@ class ProviderUnavailability(models.Model):
 
     def __str__(self):
         return f"{self.provider.username} - {self.start_date} a {self.end_date}"
+    
+class SystemConfig(models.Model):
+    """Configuraciones parametrizables del sistema"""
+    key = models.CharField('Clave', max_length=100, unique=True)
+    value = models.TextField('Valor')
+    description = models.TextField('Descripción', blank=True)
+    value_type = models.CharField('Tipo de Valor', max_length=20, 
+                                   choices=[
+                                       ('string', 'Texto'),
+                                       ('integer', 'Número Entero'),
+                                       ('decimal', 'Número Decimal'),
+                                       ('boolean', 'Verdadero/Falso'),
+                                   ], default='string')
+    updated_at = models.DateTimeField('Última actualización', auto_now=True)
+    updated_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True,
+                                   verbose_name='Actualizado por')
+
+    class Meta:
+        db_table = 'system_config'
+        verbose_name = 'Configuración del Sistema'
+        verbose_name_plural = 'Configuraciones del Sistema'
+        ordering = ['key']
+
+    def __str__(self):
+        return f"{self.key}: {self.value}"
+
+    def get_value(self):
+        """Convierte el valor al tipo correcto"""
+        if self.value_type == 'integer':
+            return int(self.value)
+        elif self.value_type == 'decimal':
+            from decimal import Decimal
+            return Decimal(self.value)
+        elif self.value_type == 'boolean':
+            return self.value.lower() in ('true', '1', 'yes', 'si')
+        return self.value
+
+    @classmethod
+    def get_config(cls, key, default=None):
+        """Obtiene una configuración por su clave"""
+        try:
+            config = cls.objects.get(key=key)
+            return config.get_value()
+        except cls.DoesNotExist:
+            return default
+
+
+class ProviderZoneCost(models.Model):
+    """Costos de movilización por zona para cada proveedor"""
+    provider = models.ForeignKey(User, on_delete=models.CASCADE,
+                                related_name='zone_costs',
+                                verbose_name='Proveedor')
+    zone = models.ForeignKey(Zone, on_delete=models.CASCADE,
+                            verbose_name='Zona')
+    travel_cost = models.DecimalField('Costo de traslado', max_digits=6, 
+                                      decimal_places=2, default=0)
+    created_at = models.DateTimeField('Fecha de creación', auto_now_add=True)
+    updated_at = models.DateTimeField('Última actualización', auto_now=True)
+
+    class Meta:
+        db_table = 'provider_zone_costs'
+        verbose_name = 'Costo de Zona'
+        verbose_name_plural = 'Costos por Zona'
+        unique_together = ['provider', 'zone']
+        ordering = ['provider', 'zone']
+
+    def __str__(self):
+        return f"{self.provider.username} - {self.zone.name}: ${self.travel_cost}"
+
+    def clean(self):
+        from django.core.exceptions import ValidationError
+        # Validar que no exceda el máximo configurado
+        max_cost = SystemConfig.get_config('max_travel_cost', 5)
+        if self.travel_cost > max_cost:
+            raise ValidationError(
+                f'El costo de traslado no puede superar ${max_cost} USD'
+            )

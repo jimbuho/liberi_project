@@ -4,7 +4,7 @@ from django.contrib.auth.models import User
 from django.utils.html import format_html
 from .models import (
     Profile, Category, ProviderProfile, Service, Location, Booking, Review, AuditLog,
-    Zone, ProviderSchedule, ProviderUnavailability
+    Zone, ProviderSchedule, ProviderUnavailability, SystemConfig, ProviderZoneCost
 )
 
 # Inline para Profile en User admin
@@ -270,3 +270,59 @@ class AuditLogAdmin(admin.ModelAdmin):
     
     def has_delete_permission(self, request, obj=None):
         return False
+    
+@admin.register(SystemConfig)
+class SystemConfigAdmin(admin.ModelAdmin):
+    list_display = ['key', 'value', 'value_type', 'description_short', 'updated_at', 'updated_by']
+    list_filter = ['value_type', 'updated_at']
+    search_fields = ['key', 'description']
+    readonly_fields = ['updated_at', 'updated_by']
+    
+    fieldsets = (
+        ('Información', {
+            'fields': ('key', 'value', 'value_type')
+        }),
+        ('Descripción', {
+            'fields': ('description',)
+        }),
+        ('Auditoría', {
+            'fields': ('updated_at', 'updated_by'),
+            'classes': ('collapse',)
+        }),
+    )
+    
+    def description_short(self, obj):
+        return obj.description[:50] + '...' if len(obj.description) > 50 else obj.description
+    description_short.short_description = 'Descripción'
+    
+    def save_model(self, request, obj, form, change):
+        obj.updated_by = request.user
+        super().save_model(request, obj, form, change)
+    
+    def has_delete_permission(self, request, obj=None):
+        # No permitir eliminar configuraciones críticas
+        if obj and obj.key in ['max_travel_cost', 'min_booking_hours']:
+            return False
+        return super().has_delete_permission(request, obj)
+
+
+@admin.register(ProviderZoneCost)
+class ProviderZoneCostAdmin(admin.ModelAdmin):
+    list_display = ['provider', 'zone', 'travel_cost', 'updated_at']
+    list_filter = ['zone', 'provider__provider_profile__category']
+    search_fields = ['provider__username', 'provider__first_name', 'provider__last_name', 'zone__name']
+    autocomplete_fields = ['provider', 'zone']
+    readonly_fields = ['created_at', 'updated_at']
+    
+    fieldsets = (
+        ('Información', {
+            'fields': ('provider', 'zone', 'travel_cost')
+        }),
+        ('Fechas', {
+            'fields': ('created_at', 'updated_at'),
+            'classes': ('collapse',)
+        }),
+    )
+    
+    def get_queryset(self, request):
+        return super().get_queryset(request).select_related('provider', 'zone')

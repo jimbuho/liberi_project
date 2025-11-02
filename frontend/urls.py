@@ -59,4 +59,13 @@ urlpatterns = [
     
     # Provider Toggle Active
     path('provider/toggle-active/', views.provider_toggle_active, name='provider_toggle_active'),
+
+    # Zone Costs Management (Provider)
+    path('provider/zone-costs/', views.provider_zone_costs_manage, name='provider_zone_costs_manage'),
+    path('provider/zone-costs/update/', views.provider_zone_cost_update, name='provider_zone_cost_update'),
+    path('provider/zone-costs/<int:zone_id>/delete/', views.provider_zone_cost_delete, name='provider_zone_cost_delete'),
+    
+    # Location Detection & Zone Selection
+    path('api/set-zone/', views.set_current_zone, name='set_current_zone'),
+    path('api/detect-location/', views.detect_user_location, name='detect_location'),
 ]

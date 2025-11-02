@@ -2,7 +2,7 @@ from django.core.management.base import BaseCommand
 from django.contrib.auth.models import User
 from core.models import (
     Profile, Category, ProviderProfile, Service, Zone, 
-    ProviderSchedule, ProviderUnavailability
+    ProviderSchedule, ProviderUnavailability, ProviderZoneCost
 )
 from decimal import Decimal
 from datetime import time, date, timedelta
@@ -306,3 +306,63 @@ class Command(BaseCommand):
         self.stdout.write('  Cliente:')
         self.stdout.write('    • cliente_test / password123')
         self.stdout.write('='*60 + '\n')
+
+        # 6. Configurar costos por zona para proveedores
+        self.stdout.write('\n💰 Configurando costos por zona...')
+        
+        # María - costos diferenciados
+        maria = User.objects.get(username='maria_beauty')
+        maria_costs = [
+            ('Quito Norte', 2.50),
+            ('Quito Centro', 3.00),
+            ('Cumbayá', 4.00),
+        ]
+        for zone_name, cost in maria_costs:
+            zone = zones[zone_name]
+            ProviderZoneCost.objects.get_or_create(
+                provider=maria,
+                zone=zone,
+                defaults={'travel_cost': Decimal(str(cost))}
+            )
+            self.stdout.write(f'  ✅ {maria.username}: {zone_name} = ${cost}')
+        
+        # Carlos - costos uniformes
+        carlos = User.objects.get(username='carlos_clean')
+        carlos_zones = ['Quito Norte', 'Quito Centro', 'Quito Sur', 'Cumbayá']
+        for zone_name in carlos_zones:
+            zone = zones[zone_name]
+            ProviderZoneCost.objects.get_or_create(
+                provider=carlos,
+                zone=zone,
+                defaults={'travel_cost': Decimal('3.50')}
+            )
+        self.stdout.write(f'  ✅ {carlos.username}: Todas las zonas = $3.50')
+        
+        # Ana - costos por distancia
+        ana = User.objects.get(username='ana_stylist')
+        ana_costs = [
+            ('Cumbayá', 2.00),
+            ('Tumbaco', 2.50),
+            ('Quito Norte', 4.50),
+        ]
+        for zone_name, cost in ana_costs:
+            zone = zones[zone_name]
+            ProviderZoneCost.objects.get_or_create(
+                provider=ana,
+                zone=zone,
+                defaults={'travel_cost': Decimal(str(cost))}
+            )
+            self.stdout.write(f'  ✅ {ana.username}: {zone_name} = ${cost}')
+        
+        # Summary (actualizar el resumen final)
+        self.stdout.write(self.style.SUCCESS('\n🎉 Seeding completado!'))
+        self.stdout.write('\n' + '='*60)
+        self.stdout.write('📊 RESUMEN:')
+        self.stdout.write(f'  • Zonas: {Zone.objects.count()}')
+        self.stdout.write(f'  • Categorías: {Category.objects.count()}')
+        self.stdout.write(f'  • Proveedores: {ProviderProfile.objects.count()}')
+        self.stdout.write(f'  • Servicios: {Service.objects.count()}')
+        self.stdout.write(f'  • Horarios: {ProviderSchedule.objects.count()}')
+        self.stdout.write(f'  • Costos por Zona: {ProviderZoneCost.objects.count()}')
+        self.stdout.write(f'  • Clientes: {Profile.objects.filter(role="customer").count()}')
+        self.stdout.write('='*60)

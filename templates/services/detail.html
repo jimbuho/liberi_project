@@ -12,6 +12,21 @@
         </ol>
     </nav>
 
+    <!-- Alerta de zona no cubierta -->
+    {% if zone_not_covered and current_zone %}
+    <div class="alert alert-warning">
+        <h5><i class="fas fa-exclamation-triangle"></i> Este proveedor no cubre tu zona actual</h5>
+        <p class="mb-0">
+            Actualmente estás en <strong>{{ current_zone.name }}</strong>, pero este proveedor no ofrece servicios en esa zona.
+            <br>
+            <strong>Zonas disponibles:</strong>
+            {% for zone in service.provider.provider_profile.coverage_zones.all %}
+                <span class="badge bg-secondary">{{ zone.name }}</span>
+            {% endfor %}
+        </p>
+    </div>
+    {% endif %}
+
     <div class="row">
         <!-- Service Details -->
         <div class="col-md-8">
@@ -55,6 +70,14 @@
                             </h5>
                         </div>
                     </div>
+
+                    <!-- Zonas de cobertura -->
+                    <div class="alert alert-info">
+                        <strong><i class="fas fa-map-marker-alt"></i> Zonas de Cobertura:</strong><br>
+                        {% for zone in service.provider.provider_profile.coverage_zones.all %}
+                            <span class="badge bg-primary me-1">{{ zone.name }}</span>
+                        {% endfor %}
+                    </div>
                 </div>
             </div>
 
@@ -70,20 +93,6 @@
                             
                             {% if service.provider.provider_profile %}
                             <p class="text-muted">{{ service.provider.provider_profile.description }}</p>
-                            
-                            <div class="mb-2">
-                                <strong><i class="fas fa-map-marker-alt"></i> Zonas de cobertura:</strong><br>
-                                {% for zone in service.provider.provider_profile.coverage_zones.all %}
-                                    <span class="badge bg-secondary">{{ zone }}</span>
-                                {% endfor %}
-                            </div>
-                            
-                            {% if service.provider.provider_profile.avg_travel_cost > 0 %}
-                            <div class="mb-2">
-                                <strong><i class="fas fa-car"></i> Costo de traslado:</strong> 
-                                ${{ service.provider.provider_profile.avg_travel_cost }}
-                            </div>
-                            {% endif %}
                             {% endif %}
                         </div>
                         
@@ -156,52 +165,65 @@
                     
                     {% if user.is_authenticated %}
                         {% if user.profile.role == 'customer' %}
-                            <form method="post" action="{% url 'booking_create' %}">
-                                {% csrf_token %}
-                                <input type="hidden" name="service_id" value="{{ service.id }}">
-                                <input type="hidden" name="provider_id" value="{{ service.provider.id }}">
-                                
+                            {% if zone_not_covered %}
+                                <!-- No puede reservar - zona no cubierta -->
+                                <div class="alert alert-danger text-center">
+                                    <i class="fas fa-ban fa-3x mb-3"></i>
+                                    <p><strong>No disponible en tu zona</strong></p>
+                                    <p class="small mb-0">
+                                        Este proveedor no cubre <strong>{{ current_zone.name }}</strong>
+                                    </p>
+                                </div>
+                                <a href="{% url 'services_list' %}" class="btn btn-outline-primary w-100">
+                                    <i class="fas fa-search"></i> Buscar Otros Servicios
+                                </a>
+                            {% elif not can_book and not current_zone %}
+                                <!-- No hay zona seleccionada -->
+                                <div class="alert alert-warning text-center">
+                                    <i class="fas fa-map-marker-alt fa-3x mb-3"></i>
+                                    <p><strong>Selecciona tu zona</strong></p>
+                                    <p class="small mb-0">Para reservar, primero indica dónde te encuentras</p>
+                                </div>
+                                <a href="{% url 'services_list' %}" class="btn btn-primary w-100">
+                                    <i class="fas fa-map-marked-alt"></i> Seleccionar Zona
+                                </a>
+                            {% else %}
+                                <!-- PUEDE RESERVAR -->
+                                {% if not valid_locations %}
+                                <div class="alert alert-warning">
+                                    <i class="fas fa-exclamation-triangle"></i>
+                                    No tienes ubicaciones en las zonas que cubre este proveedor.
+                                    <a href="{% url 'location_create' %}?next={{ request.path }}" class="alert-link">
+                                        Agregar ubicación
+                                    </a>
+                                </div>
+                                {% endif %}
+
                                 <div class="mb-3">
-                                    <label class="form-label">Fecha y Hora</label>
-                                    <input type="datetime-local" class="form-control" 
-                                           name="scheduled_time" required
-                                           min="{{ today|date:'Y-m-d' }}T08:00">
+                                    <label class="form-label">
+                                        <i class="fas fa-map-marker-alt"></i> Zona Actual
+                                    </label>
+                                    <div class="alert alert-success mb-0">
+                                        <strong>{{ current_zone.name }}</strong>
+                                    </div>
+                                </div>
+
+                                <div class="mb-3">
+                                    <label class="form-label">Costo de Servicio</label>
+                                    <div class="d-flex justify-content-between">
+                                        <span>Servicio:</span>
+                                        <strong>${{ service.base_price }}</strong>
+                                    </div>
                                 </div>
                                 
                                 <div class="mb-3">
-                                    <label class="form-label">Ubicación</label>
-                                    <select class="form-select" name="location_id" required>
-                                        <option value="">Seleccionar...</option>
-                                        {% for location in user_locations %}
-                                        <option value="{{ location.id }}">
-                                            {{ location.label }} - {{ location.address|truncatewords:5 }}
-                                        </option>
-                                        {% endfor %}
-                                    </select>
-                                    <small class="text-muted">
-                                        <a href="{% url 'location_create' %}">+ Agregar nueva ubicación</a>
-                                    </small>
-                                </div>
-                                
-                                <div class="mb-3">
-                                    <label class="form-label">Notas (opcional)</label>
-                                    <textarea class="form-control" name="notes" rows="3"
-                                              placeholder="Instrucciones especiales..."></textarea>
+                                    <div class="d-flex justify-content-between">
+                                        <span>Traslado a {{ current_zone.name }}:</span>
+                                        <strong>${{ travel_cost }}</strong>
+                                    </div>
                                 </div>
                                 
                                 <hr>
-                                
-                                <div class="d-flex justify-content-between mb-3">
-                                    <span>Servicio:</span>
-                                    <strong>${{ service.base_price }}</strong>
-                                </div>
-                                
-                                {% if service.provider.provider_profile.avg_travel_cost > 0 %}
-                                <div class="d-flex justify-content-between mb-3">
-                                    <span>Traslado:</span>
-                                    <strong>${{ service.provider.provider_profile.avg_travel_cost }}</strong>
-                                </div>
-                                {% endif %}
                                 
                                 <div class="d-flex justify-content-between mb-3">
                                     <strong>Total:</strong>
@@ -210,10 +232,20 @@
                                     </h4>
                                 </div>
                                 
-                                <button type="submit" class="btn btn-primary w-100 btn-lg">
+                                {% if valid_locations %}
+                                <a href="{% url 'booking_create_step1' service.id %}{% if current_zone %}?zone={{ current_zone.id }}{% endif %}" 
+                                   class="btn btn-primary w-100 btn-lg">
                                     <i class="fas fa-calendar-check"></i> Reservar Ahora
+                                </a>
+                                {% else %}
+                                <button type="button" class="btn btn-primary w-100 btn-lg" disabled>
+                                    <i class="fas fa-ban"></i> Reservar Ahora
                                 </button>
-                            </form>
+                                <small class="text-danger d-block text-center mt-2">
+                                    Agrega una ubicación para continuar
+                                </small>
+                                {% endif %}
+                            {% endif %}
                         {% else %}
                             <div class="alert alert-warning">
                                 <i class="fas fa-info-circle"></i> 

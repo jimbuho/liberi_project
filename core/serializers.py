@@ -5,7 +5,7 @@ from django.utils import timezone
 from datetime import datetime, timedelta
 from .models import (
     Profile, Category, ProviderProfile, Service, Location, Booking, Review,
-    Zone, ProviderSchedule, ProviderUnavailability  # ← AGREGAR
+    Zone, ProviderSchedule, ProviderUnavailability, ProviderZoneCost, SystemConfig
 )
 
 
@@ -216,6 +216,25 @@ class ReviewSerializer(serializers.ModelSerializer):
         if hasattr(value, 'review'):
             raise serializers.ValidationError("Esta reserva ya tiene una reseña")
         return value
+
+class ProviderZoneCostSerializer(serializers.ModelSerializer):
+    """Serializer para costos por zona del proveedor"""
+    zone_name = serializers.CharField(source='zone.name', read_only=True)
+    zone_city = serializers.CharField(source='zone.city', read_only=True)
+    
+    class Meta:
+        model = ProviderZoneCost
+        fields = ['id', 'zone', 'zone_name', 'zone_city', 'travel_cost', 'created_at']
+        read_only_fields = ['created_at']
+    
+    def validate_travel_cost(self, value):
+        """Validar que no exceda el máximo"""
+        max_cost = SystemConfig.get_config('max_travel_cost', 5)
+        if value > max_cost:
+            raise serializers.ValidationError(
+                f'El costo de traslado no puede superar ${max_cost} USD'
+            )
+        return value
     
 class ProviderProfileSerializer(serializers.ModelSerializer):
     user = UserSerializer(read_only=True)
@@ -227,6 +246,7 @@ class ProviderProfileSerializer(serializers.ModelSerializer):
         source='coverage_zones',
         write_only=True
     )
+    zone_costs = ProviderZoneCostSerializer(source='user.zone_costs', many=True, read_only=True)
     rating_avg = serializers.SerializerMethodField()
     total_reviews = serializers.SerializerMethodField()
     schedules = ProviderScheduleSerializer(many=True, read_only=True)
@@ -245,3 +265,15 @@ class ProviderProfileSerializer(serializers.ModelSerializer):
     
     def get_total_reviews(self, obj):
         return Review.objects.filter(booking__provider=obj.user).count()
+
+class SystemConfigSerializer(serializers.ModelSerializer):
+    """Serializer para configuraciones del sistema"""
+    typed_value = serializers.SerializerMethodField()
+    
+    class Meta:
+        model = SystemConfig
+        fields = ['id', 'key', 'value', 'typed_value', 'description', 'value_type', 'updated_at']
+        read_only_fields = ['updated_at']
+    
+    def get_typed_value(self, obj):
+        return obj.get_value()

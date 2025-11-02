@@ -1,0 +1,132 @@
+{% extends 'base.html' %}
+
+{% block title %}Costos por Zona - Liberi{% endblock %}
+
+{% block content %}
+<div class="container mt-4 mb-5">
+    <div class="row">
+        <div class="col-md-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h2>
+                    <i class="fas fa-dollar-sign"></i> Costos de Movilización por Zona
+                </h2>
+                <a href="{% url 'dashboard' %}" class="btn btn-outline-secondary">
+                    <i class="fas fa-arrow-left"></i> Volver
+                </a>
+            </div>
+
+            <div class="alert alert-info">
+                <strong><i class="fas fa-info-circle"></i> ¿Cómo funciona?</strong>
+                <ul class="mb-0 mt-2">
+                    <li>Configura un costo de traslado específico para cada zona que cubres</li>
+                    <li>Si no configuras un costo, se usará el valor por defecto: <strong>${{ default_travel_cost }}</strong></li>
+                    <li>El costo máximo permitido es: <strong>${{ max_travel_cost }} USD</strong></li>
+                    <li>Este costo se sumará al precio de tus servicios</li>
+                </ul>
+            </div>
+
+            {% if zones_with_costs %}
+            <div class="row">
+                {% for item in zones_with_costs %}
+                <div class="col-md-6 mb-3">
+                    <div class="card">
+                        <div class="card-body">
+                            <h5 class="card-title">
+                                <i class="fas fa-map-marker-alt"></i> {{ item.zone.name }}
+                            </h5>
+                            <p class="text-muted">{{ item.zone.city }}</p>
+
+                            <form method="post" action="{% url 'provider_zone_cost_update' %}">
+                                {% csrf_token %}
+                                <input type="hidden" name="zone_id" value="{{ item.zone.id }}">
+                                
+                                <div class="input-group mb-3">
+                                    <span class="input-group-text">$</span>
+                                    <input type="number" 
+                                           class="form-control" 
+                                           name="travel_cost" 
+                                           step="0.50" 
+                                           min="0" 
+                                           max="{{ max_travel_cost }}"
+                                           value="{{ item.cost|default:default_travel_cost }}"
+                                           required>
+                                    <span class="input-group-text">USD</span>
+                                </div>
+
+                                <div class="d-grid gap-2">
+                                    <button type="submit" class="btn btn-primary">
+                                        <i class="fas fa-save"></i> Guardar
+                                    </button>
+                                    
+                                    {% if item.cost %}
+                                    <button type="button" 
+                                            class="btn btn-outline-secondary btn-sm"
+                                            onclick="resetToDefault({{ item.zone.id }})">
+                                        <i class="fas fa-undo"></i> Usar valor por defecto
+                                    </button>
+                                    {% endif %}
+                                </div>
+                            </form>
+
+                            {% if item.cost %}
+                            <div class="mt-2 text-center">
+                                <small class="text-success">
+                                    <i class="fas fa-check-circle"></i> Configurado
+                                </small>
+                            </div>
+                            {% else %}
+                            <div class="mt-2 text-center">
+                                <small class="text-muted">
+                                    <i class="fas fa-info-circle"></i> Usando valor por defecto
+                                </small>
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <div class="alert alert-warning text-center">
+                <i class="fas fa-exclamation-triangle fa-3x mb-3"></i>
+                <h4>No tienes zonas de cobertura configuradas</h4>
+                <p>Primero debes agregar zonas de cobertura a tu perfil</p>
+            </div>
+            {% endif %}
+
+            <div class="card mt-4">
+                <div class="card-body">
+                    <h5><i class="fas fa-lightbulb"></i> Consejos</h5>
+                    <hr>
+                    <ul class="mb-0">
+                        <li>Considera la distancia real que debes recorrer a cada zona</li>
+                        <li>Ten en cuenta el costo de combustible y tiempo de traslado</li>
+                        <li>Zonas más alejadas pueden tener un costo mayor</li>
+                        <li>Mantén tus costos competitivos para atraer más clientes</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function resetToDefault(zoneId) {
+    if (confirm('¿Volver a usar el costo por defecto (${{ default_travel_cost }})?')) {
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = `/provider/zone-costs/${zoneId}/delete/`;
+        
+        const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+        const csrfInput = document.createElement('input');
+        csrfInput.type = 'hidden';
+        csrfInput.name = 'csrfmiddlewaretoken';
+        csrfInput.value = csrfToken;
+        
+        form.appendChild(csrfInput);
+        document.body.appendChild(form);
+        form.submit();
+    }
+}
+</script>
+{% endblock %}

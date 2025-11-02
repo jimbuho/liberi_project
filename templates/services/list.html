@@ -4,6 +4,48 @@
 
 {% block content %}
 <div class="container mt-4">
+    <!-- Selector de Zona Flotante -->
+    <div class="card mb-3 border-primary" id="zoneSelector">
+        <div class="card-body p-3">
+            <div class="row align-items-center">
+                <div class="col-md-8">
+                    <h5 class="mb-1">
+                        <i class="fas fa-map-marker-alt text-primary"></i>
+                        {% if current_zone %}
+                            Tu ubicación: <strong>{{ current_zone.name }}</strong>
+                        {% else %}
+                            <span class="text-danger">¿Dónde te encuentras?</span>
+                        {% endif %}
+                    </h5>
+                    <small class="text-muted">
+                        {% if current_zone %}
+                            Mostrando servicios disponibles en esta zona
+                        {% else %}
+                            Selecciona tu zona para ver servicios disponibles
+                        {% endif %}
+                    </small>
+                </div>
+                <div class="col-md-4 text-end">
+                    <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#zoneModal">
+                        <i class="fas fa-map-marked-alt"></i> Cambiar Zona
+                    </button>
+                    <button type="button" class="btn btn-outline-primary" onclick="detectLocation()">
+                        <i class="fas fa-crosshairs"></i> Detectar
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Alerta si no hay zona seleccionada -->
+    {% if show_zone_warning %}
+    <div class="alert alert-warning alert-dismissible fade show" role="alert">
+        <strong><i class="fas fa-exclamation-triangle"></i> ¡Atención!</strong>
+        Para ver servicios disponibles en tu área, por favor selecciona tu zona actual.
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+    {% endif %}
+
     <div class="row">
         <!-- Sidebar Filters -->
         <div class="col-md-3">
@@ -66,6 +108,11 @@
                                    value="{{ request.GET.search }}">
                         </div>
 
+                        <!-- Mantener zona actual en filtros -->
+                        {% if current_zone %}
+                        <input type="hidden" name="zone" value="{{ current_zone.id }}">
+                        {% endif %}
+
                         <button type="submit" class="btn btn-primary w-100">
                             <i class="fas fa-search"></i> Buscar
                         </button>
@@ -85,7 +132,7 @@
                     {% if request.GET.category %}
                         Servicios de {{ selected_category.name }}
                     {% else %}
-                        Todos los Servicios
+                        Servicios Disponibles
                     {% endif %}
                 </h2>
                 <span class="badge bg-primary">{{ services|length }} servicios</span>
@@ -132,7 +179,12 @@
                                 {% endif %}
 
                                 <div class="d-flex justify-content-between align-items-center mt-2">
-                                    <span class="service-price">${{ service.base_price }}</span>
+                                    <div>
+                                        <span class="service-price">${{ service.base_price }}</span>
+                                        {% if service.travel_cost %}
+                                        <br><small class="text-muted">+ ${{ service.travel_cost }} traslado</small>
+                                        {% endif %}
+                                    </div>
                                     <span class="text-muted">
                                         <i class="far fa-clock"></i> {{ service.duration_minutes }} min
                                     </span>
@@ -151,10 +203,110 @@
                 <div class="alert alert-info text-center">
                     <i class="fas fa-info-circle fa-3x mb-3"></i>
                     <h4>No se encontraron servicios</h4>
-                    <p>Intenta ajustar los filtros o buscar con otros términos</p>
+                    {% if current_zone %}
+                    <p>No hay servicios disponibles en <strong>{{ current_zone.name }}</strong></p>
+                    <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#zoneModal">
+                        <i class="fas fa-map-marked-alt"></i> Cambiar de Zona
+                    </button>
+                    {% else %}
+                    <p>Por favor selecciona tu zona para ver servicios disponibles</p>
+                    <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#zoneModal">
+                        <i class="fas fa-map-marked-alt"></i> Seleccionar Zona
+                    </button>
+                    {% endif %}
                 </div>
             {% endif %}
         </div>
     </div>
 </div>
+
+<!-- Modal de Selección de Zona -->
+<div class="modal fade" id="zoneModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="fas fa-map-marker-alt"></i> Selecciona tu Zona
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p class="text-muted">
+                    Selecciona la zona donde te encuentras para ver servicios disponibles cerca de ti
+                </p>
+                
+                <div class="list-group">
+                    {% for zone in zones %}
+                    <a href="?zone={{ zone.id }}" 
+                       class="list-group-item list-group-item-action {% if current_zone.id == zone.id %}active{% endif %}">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <h6 class="mb-0">{{ zone.name }}</h6>
+                                <small>{{ zone.city }}</small>
+                            </div>
+                            {% if current_zone.id == zone.id %}
+                            <i class="fas fa-check-circle"></i>
+                            {% endif %}
+                        </div>
+                    </a>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function detectLocation() {
+    if (!navigator.geolocation) {
+        alert('Tu navegador no soporta geolocalización');
+        return;
+    }
+    
+    const btn = event.target;
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Detectando...';
+    
+    navigator.geolocation.getCurrentPosition(
+        async function(position) {
+            const lat = position.coords.latitude;
+            const lng = position.coords.longitude;
+            
+            try {
+                const response = await fetch('/api/detect-location/', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': '{{ csrf_token }}'
+                    },
+                    body: JSON.stringify({ latitude: lat, longitude: lng })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    alert(data.message);
+                    window.location.reload();
+                } else {
+                    if (data.requires_selection) {
+                        alert(data.message);
+                        const modal = new bootstrap.Modal(document.getElementById('zoneModal'));
+                        modal.show();
+                    }
+                }
+            } catch (error) {
+                alert('Error al detectar ubicación');
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fas fa-crosshairs"></i> Detectar';
+            }
+        },
+        function(error) {
+            alert('No se pudo obtener tu ubicación. Por favor selecciona tu zona manualmente.');
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fas fa-crosshairs"></i> Detectar';
+        }
+    );
+}
+</script>
 {% endblock %}
