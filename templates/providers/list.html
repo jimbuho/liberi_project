@@ -77,11 +77,11 @@
                     <div class="mb-2">
                         <small class="text-muted">
                             <i class="fas fa-map-marker-alt"></i>
-                            {% for zone in provider_profile.coverage_zones|slice:":2" %}
+                            {% for zone in provider_profile.coverage_zones.all|slice:":2" %}
                                 {{ zone }}{% if not forloop.last %}, {% endif %}
                             {% endfor %}
-                            {% if provider_profile.coverage_zones|length > 2 %}
-                                +{{ provider_profile.coverage_zones|length|add:"-2" }} más
+                            {% if provider_profile.coverage_zones.all|length > 2 %}
+                                +{{ provider_profile.coverage_zones.all|length|add:"-2" }} más
                             {% endif %}
                         </small>
                     </div>

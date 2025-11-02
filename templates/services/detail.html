@@ -73,7 +73,7 @@
                             
                             <div class="mb-2">
                                 <strong><i class="fas fa-map-marker-alt"></i> Zonas de cobertura:</strong><br>
-                                {% for zone in service.provider.provider_profile.coverage_zones %}
+                                {% for zone in service.provider.provider_profile.coverage_zones.all %}
                                     <span class="badge bg-secondary">{{ zone }}</span>
                                 {% endfor %}
                             </div>

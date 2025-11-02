@@ -11,3 +11,107 @@
                     <h2 class="text-center mb-4">
                         <i class="fas fa-calendar-times"></i> Registrar Inactividad
                     </h2>
+
+                    <p class="text-muted text-center mb-4">
+                        Define los días que NO estarás disponible para atender clientes
+                    </p>
+
+                    <form method="post">
+                        {% csrf_token %}
+
+                        <div class="mb-3">
+                            <label for="start_date" class="form-label">Fecha de Inicio *</label>
+                            <input type="date" class="form-control" id="start_date" 
+                                   name="start_date" required
+                                   min="{{ min_date|date:'Y-m-d' }}">
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="end_date" class="form-label">Fecha de Fin *</label>
+                            <input type="date" class="form-control" id="end_date" 
+                                   name="end_date" required
+                                   min="{{ min_date|date:'Y-m-d' }}">
+                            <small class="text-muted">
+                                Puede ser el mismo día si es solo 1 día de inactividad
+                            </small>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="reason" class="form-label">Motivo (opcional)</label>
+                            <input type="text" class="form-control" id="reason" 
+                                   name="reason" maxlength="255"
+                                   placeholder="Ej: Vacaciones, día festivo, compromiso personal">
+                            <small class="text-muted">Solo para tu referencia</small>
+                        </div>
+
+                        <div class="alert alert-info">
+                            <i class="fas fa-info-circle"></i>
+                            <strong>Importante:</strong>
+                            <ul class="mb-0 mt-2">
+                                <li>Durante estos días NO aparecerás en búsquedas</li>
+                                <li>Los clientes NO podrán reservar servicios</li>
+                                <li>Reservas existentes no se verán afectadas</li>
+                            </ul>
+                        </div>
+
+                        <div class="alert alert-warning">
+                            <i class="fas fa-exclamation-triangle"></i>
+                            <strong>Consejo:</strong> Si solo necesitas un descanso corto, 
+                            mejor desactiva temporalmente tu cuenta desde el Dashboard.
+                        </div>
+
+                        <div class="d-grid gap-2">
+                            <button type="submit" class="btn btn-warning btn-lg">
+                                <i class="fas fa-save"></i> Registrar Inactividad
+                            </button>
+                            <a href="{% url 'provider_unavailability_manage' %}" class="btn btn-outline-secondary">
+                                <i class="fas fa-arrow-left"></i> Cancelar
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Quick Examples -->
+            <div class="card mt-4">
+                <div class="card-body">
+                    <h6><i class="fas fa-lightbulb"></i> Ejemplos de uso</h6>
+                    <hr>
+                    <ul class="mb-0">
+                        <li class="mb-2">
+                            <strong>Un solo día:</strong> Fecha inicio y fin iguales
+                            <br><small class="text-muted">Ej: 25/12/2024 - 25/12/2024 (Navidad)</small>
+                        </li>
+                        <li class="mb-2">
+                            <strong>Vacaciones:</strong> Rango de fechas
+                            <br><small class="text-muted">Ej: 01/01/2025 - 15/01/2025</small>
+                        </li>
+                        <li class="mb-0">
+                            <strong>Fin de semana largo:</strong> Viernes a lunes
+                            <br><small class="text-muted">Ej: 01/11/2024 - 04/11/2024</small>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Validar que end_date >= start_date
+document.getElementById('start_date').addEventListener('change', function() {
+    const startDate = this.value;
+    document.getElementById('end_date').min = startDate;
+});
+
+document.getElementById('end_date').addEventListener('change', function() {
+    const startDate = document.getElementById('start_date').value;
+    const endDate = this.value;
+    
+    if (startDate && endDate < startDate) {
+        alert('La fecha de fin no puede ser anterior a la fecha de inicio');
+        this.value = startDate;
+    }
+});
+</script>
+{% endblock %}

@@ -3,14 +3,14 @@ from django.contrib.auth.decorators import login_required
 from django.contrib.auth import login, authenticate, logout
 from django.contrib import messages
 from django.utils import timezone
-from django.db.models import Q, Avg, Count
+from django.db.models import Q, Avg, Count, Sum
 from datetime import timedelta, datetime, time
 from django.contrib.auth.models import User
 
 from core.models import (
     Profile, Category, Service, ProviderProfile, 
     Booking, Location, Review, AuditLog,
-    Zone, ProviderSchedule, ProviderUnavailability  # ← AGREGAR
+    Zone, ProviderSchedule, ProviderUnavailability
 )
 
 # ============================================================================
@@ -133,7 +133,7 @@ def providers_list(request):
     """Listado de proveedores"""
     providers = ProviderProfile.objects.filter(
         status='approved'
-    ).select_related('user', 'category')
+    ).select_related('user', 'category').prefetch_related('coverage_zones')
     
     categories = Category.objects.all()
     
@@ -335,14 +335,23 @@ def register_provider_view(request):
         )
         
         # Crear perfil de proveedor
-        ProviderProfile.objects.create(
+        provider_profile = ProviderProfile.objects.create(
             user=user,
             category_id=category_id,
             description=description,
-            coverage_zones=coverage_zones,
+            # NOTA: Quita 'coverage_zones' de aquí
             avg_travel_cost=avg_travel_cost,
             status='pending'
         )
+
+        zone_objects = []
+        for zone_name in coverage_zones:
+            # get_or_create es una buena práctica para asegurar que la zona exista
+            zone, created = Zone.objects.get_or_create(name=zone_name)
+            zone_objects.append(zone)
+
+        # Paso B: Usar .set() para establecer la relación
+        provider_profile.coverage_zones.set(zone_objects)
         
         # Login automático
         login(request, user)
@@ -439,7 +448,7 @@ def dashboard_provider(request):
     total_earnings = bookings.filter(
         status='completed',
         payment_status='paid'
-    ).aggregate(total=models.Sum('total_cost'))['total'] or 0
+    ).aggregate(total=Sum('total_cost'))['total'] or 0
     
     # Reservas recientes
     recent_bookings = bookings.order_by('-created_at')[:5]

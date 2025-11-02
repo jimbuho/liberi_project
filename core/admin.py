@@ -2,7 +2,10 @@ from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 from django.contrib.auth.models import User
 from django.utils.html import format_html
-from .models import Profile, Category, ProviderProfile, Service, Location, Booking, Review, AuditLog
+from .models import (
+    Profile, Category, ProviderProfile, Service, Location, Booking, Review, AuditLog,
+    Zone, ProviderSchedule, ProviderUnavailability
+)
 
 # Inline para Profile en User admin
 class ProfileInline(admin.StackedInline):
@@ -70,11 +73,32 @@ class CategoryAdmin(admin.ModelAdmin):
 
 @admin.register(ProviderProfile)
 class ProviderProfileAdmin(admin.ModelAdmin):
-    list_display = ['user', 'category', 'status', 'avg_travel_cost', 'rating', 'created_at']
-    list_filter = ['status', 'category', 'created_at']
+    list_display = ['user', 'category', 'status', 'is_active', 'avg_travel_cost', 'rating', 'created_at']
+    list_filter = ['status', 'is_active', 'category', 'created_at']
     search_fields = ['user__username', 'user__email', 'description']
     readonly_fields = ['created_at', 'updated_at']
-    actions = ['approve_providers', 'reject_providers']
+    filter_horizontal = ['coverage_zones']
+    actions = ['approve_providers', 'reject_providers', 'activate_providers', 'deactivate_providers']
+    
+    fieldsets = (
+        ('Información Básica', {
+            'fields': ('user', 'category', 'description')
+        }),
+        ('Cobertura y Costos', {
+            'fields': ('coverage_zones', 'avg_travel_cost')
+        }),
+        ('Estado', {
+            'fields': ('status', 'is_active')
+        }),
+        ('Documentos', {
+            'fields': ('signed_contract_url', 'id_card_front', 'id_card_back'),
+            'classes': ('collapse',)
+        }),
+        ('Fechas', {
+            'fields': ('created_at', 'updated_at'),
+            'classes': ('collapse',)
+        }),
+    )
     
     def rating(self, obj):
         from django.db.models import Avg
@@ -88,3 +112,161 @@ class ProviderProfileAdmin(admin.ModelAdmin):
         updated = queryset.update(status='approved')
         self.message_user(request, f'{updated} proveedor(es) aprobado(s).')
     approve_providers.short_description = 'Aprobar proveedores'
+    
+    def reject_providers(self, request, queryset):
+        updated = queryset.update(status='rejected')
+        self.message_user(request, f'{updated} proveedor(es) rechazado(s).')
+    reject_providers.short_description = 'Rechazar proveedores'
+    
+    def activate_providers(self, request, queryset):
+        updated = queryset.update(is_active=True)
+        self.message_user(request, f'{updated} proveedor(es) activado(s).')
+    activate_providers.short_description = 'Activar proveedores'
+    
+    def deactivate_providers(self, request, queryset):
+        updated = queryset.update(is_active=False)
+        self.message_user(request, f'{updated} proveedor(es) desactivado(s).')
+    deactivate_providers.short_description = 'Desactivar proveedores'
+
+
+@admin.register(Service)
+class ServiceAdmin(admin.ModelAdmin):
+    list_display = ['name', 'provider', 'category_name', 'base_price', 'duration_minutes', 'available', 'created_at']
+    list_filter = ['available', 'created_at', 'provider__provider_profile__category']
+    search_fields = ['name', 'description', 'provider__username']
+    readonly_fields = ['created_at', 'updated_at']
+    
+    def category_name(self, obj):
+        if hasattr(obj.provider, 'provider_profile'):
+            return obj.provider.provider_profile.category.name
+        return '-'
+    category_name.short_description = 'Categoría'
+
+
+@admin.register(Zone)
+class ZoneAdmin(admin.ModelAdmin):
+    list_display = ['name', 'city', 'active', 'provider_count', 'created_at']
+    list_filter = ['active', 'city']
+    search_fields = ['name', 'city']
+    actions = ['activate_zones', 'deactivate_zones']
+    
+    def provider_count(self, obj):
+        return obj.providers.count()
+    provider_count.short_description = 'Proveedores'
+    
+    def activate_zones(self, request, queryset):
+        updated = queryset.update(active=True)
+        self.message_user(request, f'{updated} zona(s) activada(s).')
+    activate_zones.short_description = 'Activar zonas'
+    
+    def deactivate_zones(self, request, queryset):
+        updated = queryset.update(active=False)
+        self.message_user(request, f'{updated} zona(s) desactivada(s).')
+    deactivate_zones.short_description = 'Desactivar zonas'
+
+
+@admin.register(Location)
+class LocationAdmin(admin.ModelAdmin):
+    list_display = ['customer', 'label', 'zone', 'address_short', 'created_at']
+    list_filter = ['label', 'zone']
+    search_fields = ['customer__username', 'address', 'zone__name']
+    readonly_fields = ['created_at']
+    
+    def address_short(self, obj):
+        return obj.address[:50] + '...' if len(obj.address) > 50 else obj.address
+    address_short.short_description = 'Dirección'
+
+
+@admin.register(ProviderSchedule)
+class ProviderScheduleAdmin(admin.ModelAdmin):
+    list_display = ['provider', 'day_name', 'start_time', 'end_time', 'is_active']
+    list_filter = ['day_of_week', 'is_active', 'provider__provider_profile__category']
+    search_fields = ['provider__username']
+    
+    def day_name(self, obj):
+        return obj.get_day_of_week_display()
+    day_name.short_description = 'Día'
+
+
+@admin.register(ProviderUnavailability)
+class ProviderUnavailabilityAdmin(admin.ModelAdmin):
+    list_display = ['provider', 'start_date', 'end_date', 'reason', 'duration_days', 'created_at']
+    list_filter = ['start_date', 'provider__provider_profile__category']
+    search_fields = ['provider__username', 'reason']
+    date_hierarchy = 'start_date'
+    
+    def duration_days(self, obj):
+        delta = obj.end_date - obj.start_date
+        return delta.days + 1
+    duration_days.short_description = 'Días'
+
+
+@admin.register(Booking)
+class BookingAdmin(admin.ModelAdmin):
+    list_display = ['booking_id', 'customer', 'provider', 'status', 'payment_status', 'total_cost', 'scheduled_time']
+    list_filter = ['status', 'payment_status', 'created_at']
+    search_fields = ['customer__username', 'provider__username', 'id']
+    readonly_fields = ['id', 'created_at', 'updated_at']
+    date_hierarchy = 'scheduled_time'
+    
+    fieldsets = (
+        ('Información de la Reserva', {
+            'fields': ('id', 'customer', 'provider', 'service_list', 'total_cost')
+        }),
+        ('Ubicación y Tiempo', {
+            'fields': ('location', 'scheduled_time')
+        }),
+        ('Estado', {
+            'fields': ('status', 'payment_status', 'payment_method')
+        }),
+        ('Notas', {
+            'fields': ('notes',),
+            'classes': ('collapse',)
+        }),
+        ('Fechas', {
+            'fields': ('created_at', 'updated_at'),
+            'classes': ('collapse',)
+        }),
+    )
+    
+    def booking_id(self, obj):
+        return str(obj.id)[:8]
+    booking_id.short_description = 'ID'
+
+
+@admin.register(Review)
+class ReviewAdmin(admin.ModelAdmin):
+    list_display = ['booking_id', 'customer', 'provider_name', 'rating', 'has_comment', 'created_at']
+    list_filter = ['rating', 'created_at']
+    search_fields = ['customer__username', 'booking__provider__username', 'comment']
+    readonly_fields = ['created_at']
+    
+    def booking_id(self, obj):
+        return str(obj.booking.id)[:8]
+    booking_id.short_description = 'Reserva'
+    
+    def provider_name(self, obj):
+        return obj.booking.provider.get_full_name()
+    provider_name.short_description = 'Proveedor'
+    
+    def has_comment(self, obj):
+        return '✓' if obj.comment else '✗'
+    has_comment.short_description = 'Comentario'
+
+
+@admin.register(AuditLog)
+class AuditLogAdmin(admin.ModelAdmin):
+    list_display = ['user', 'action', 'timestamp', 'ip_address']
+    list_filter = ['action', 'timestamp']
+    search_fields = ['user__username', 'action']
+    readonly_fields = ['user', 'action', 'timestamp', 'metadata', 'ip_address']
+    date_hierarchy = 'timestamp'
+    
+    def has_add_permission(self, request):
+        return False
+    
+    def has_change_permission(self, request, obj=None):
+        return False
+    
+    def has_delete_permission(self, request, obj=None):
+        return False
