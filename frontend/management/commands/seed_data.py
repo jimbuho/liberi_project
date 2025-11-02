@@ -2,7 +2,8 @@ from django.core.management.base import BaseCommand
 from django.contrib.auth.models import User
 from core.models import (
     Profile, Category, ProviderProfile, Service, Zone, 
-    ProviderSchedule, ProviderUnavailability, ProviderZoneCost
+    ProviderSchedule, ProviderUnavailability, ProviderZoneCost,
+    PaymentMethod, BankAccount
 )
 from decimal import Decimal
 from datetime import time, date, timedelta
@@ -366,3 +367,138 @@ class Command(BaseCommand):
         self.stdout.write(f'  • Costos por Zona: {ProviderZoneCost.objects.count()}')
         self.stdout.write(f'  • Clientes: {Profile.objects.filter(role="customer").count()}')
         self.stdout.write('='*60)
+
+        # 7. Crear métodos de pago
+        payphone, created = PaymentMethod.objects.get_or_create(
+            code='payphone',
+            defaults={
+                'name': 'PayPhone',
+                'description': 'Pago instantáneo a través de PayPhone. Rápido y seguro.',
+                'is_active': True,
+                'requires_proof': False,
+                'requires_reference': False,
+                'display_order': 1,
+                'icon': '💳'
+            }
+        )
+        if created:
+            print("✅ PayPhone creado")
+        else:
+            print("ℹ️  PayPhone ya existe")
+
+        # 2. Transferencia Bancaria (Activo)
+        transfer, created = PaymentMethod.objects.get_or_create(
+            code='bank_transfer',
+            defaults={
+                'name': 'Transferencia Bancaria',
+                'description': 'Realiza una transferencia a nuestra cuenta bancaria y sube el comprobante.',
+                'is_active': True,
+                'requires_proof': True,
+                'requires_reference': True,
+                'display_order': 2,
+                'icon': '🏦'
+            }
+        )
+        if created:
+            print("✅ Transferencia Bancaria creada")
+        else:
+            print("ℹ️  Transferencia Bancaria ya existe")
+
+        # 3. Tarjeta de Crédito (Inactivo por defecto)
+        card, created = PaymentMethod.objects.get_or_create(
+            code='credit_card',
+            defaults={
+                'name': 'Tarjeta de Crédito/Débito',
+                'description': 'Paga con tu tarjeta de crédito o débito de forma segura.',
+                'is_active': False,
+                'requires_proof': False,
+                'requires_reference': False,
+                'display_order': 3,
+                'icon': '💳'
+            }
+        )
+        if created:
+            print("✅ Tarjeta de Crédito creada (inactiva)")
+        else:
+            print("ℹ️  Tarjeta de Crédito ya existe")
+
+        # 4. Efectivo (Inactivo por defecto)
+        cash, created = PaymentMethod.objects.get_or_create(
+            code='cash',
+            defaults={
+                'name': 'Efectivo',
+                'description': 'Pago en efectivo al momento de la prestación del servicio.',
+                'is_active': False,
+                'requires_proof': False,
+                'requires_reference': False,
+                'display_order': 4,
+                'icon': '💵'
+            }
+        )
+        if created:
+            print("✅ Efectivo creado (inactivo)")
+        else:
+            print("ℹ️  Efectivo ya existe")
+
+        # ============================================
+        # CUENTAS BANCARIAS
+        # ============================================
+
+        # 1. Banco Pichincha
+        pichincha, created = BankAccount.objects.get_or_create(
+            bank_name='Banco Pichincha',
+            account_number='2100123456',
+            defaults={
+                'account_type': 'savings',
+                'account_holder': 'Liberi S.A.',
+                'identification': '1234567890001',
+                'is_active': True,
+                'display_order': 1,
+                'notes': 'Transferencias disponibles 24/7'
+            }
+        )
+        if created:
+            print("✅ Cuenta Banco Pichincha creada")
+        else:
+            print("ℹ️  Cuenta Banco Pichincha ya existe")
+
+        # 2. Banco Guayaquil
+        guayaquil, created = BankAccount.objects.get_or_create(
+            bank_name='Banco Guayaquil',
+            account_number='0012345678',
+            defaults={
+                'account_type': 'checking',
+                'account_holder': 'Liberi S.A.',
+                'identification': '1234567890001',
+                'is_active': True,
+                'display_order': 2,
+                'notes': 'Cuenta corriente empresarial'
+            }
+        )
+        if created:
+            print("✅ Cuenta Banco Guayaquil creada")
+        else:
+            print("ℹ️  Cuenta Banco Guayaquil ya existe")
+
+        # 3. Banco del Pacífico (Inactiva por defecto)
+        pacifico, created = BankAccount.objects.get_or_create(
+            bank_name='Banco del Pacífico',
+            account_number='7654321098',
+            defaults={
+                'account_type': 'savings',
+                'account_holder': 'Liberi S.A.',
+                'identification': '1234567890001',
+                'is_active': False,
+                'display_order': 3,
+                'notes': 'Cuenta de respaldo'
+            }
+        )
+        if created:
+            print("✅ Cuenta Banco del Pacífico creada (inactiva)")
+        else:
+            print("ℹ️  Cuenta Banco del Pacífico ya existe")
+
+        print("\n✨ ¡Seed completado exitosamente!")
+        print(f"📊 Métodos de Pago: {PaymentMethod.objects.count()}")
+        print(f"🏦 Cuentas Bancarias: {BankAccount.objects.count()}")
+

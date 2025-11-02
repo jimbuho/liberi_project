@@ -1,4 +1,6 @@
 from django.urls import path
+from django.conf import settings
+from django.conf.urls.static import static
 from . import views
 
 urlpatterns = [
@@ -25,6 +27,7 @@ urlpatterns = [
     path('bookings/<uuid:booking_id>/accept/', views.booking_accept, name='booking_accept'),
     path('bookings/<uuid:booking_id>/reject/', views.booking_reject, name='booking_reject'),
     path('bookings/<uuid:booking_id>/complete/', views.booking_complete, name='booking_complete'),
+    path('bookings/<int:booking_id>/payment/', views.bank_transfer_v2, name='payment_process'),
     
     # Locations
     path('locations/create/', views.location_create, name='location_create'),
@@ -76,7 +79,9 @@ urlpatterns = [
     path('payments/bank-transfer-v2/', views.bank_transfer_v2, name='bank_transfer_v2'),
 
     # API de Notificaciones
-    path('api/notifications/', views.get_notifications, name='get_notifications'),
-    path('api/notifications/<int:notification_id>/read/', views.mark_notification_read, name='mark_notification_read'),
-    path('api/notifications/mark-all-read/', views.mark_all_notifications_read, name='mark_all_notifications_read'),
-]
+    path('api/notifications/', views.api_notifications_list, name='api_notifications_list'),
+    path('api/notifications/count/', views.api_notifications_count, name='api_notifications_count'),
+    path('api/notifications/<int:notification_id>/mark-read/', views.api_notification_mark_read, name='api_notification_mark_read'),
+    path('api/notifications/mark-all-read/', views.api_notifications_mark_all_read, name='api_notifications_mark_all_read'),
+
+] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

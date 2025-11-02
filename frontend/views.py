@@ -1882,159 +1882,207 @@ def payment_process_v2(request, booking_id):
     return render(request, 'payments/process_v2.html', context)
 
 
+# ============================================
+# VISTA: Proceso de Pago v2 (Con Imagen)
+# ============================================
+
 @login_required
-def bank_transfer_v2(request):
-    """Registrar transferencia bancaria con imagen"""
+def bank_transfer_v2(request, booking_id):
+    """
+    Vista mejorada para procesar pagos por transferencia bancaria
+    con soporte para upload de imagen de comprobante
+    """
+    booking = get_object_or_404(Booking, id=booking_id, customer=request.user)
+    
+    # Verificar que la reserva no esté ya pagada
+    if booking.is_paid:
+        messages.info(request, 'Esta reserva ya ha sido pagada.')
+        return redirect('booking_detail', booking_id=booking.id)
+    
+    # Obtener métodos de pago activos
+    payment_methods = PaymentMethod.objects.filter(is_active=True).order_by('display_order')
+    
+    # Obtener cuentas bancarias activas
+    bank_accounts = BankAccount.objects.filter(is_active=True).order_by('display_order')
+    
     if request.method == 'POST':
-        booking_id = request.POST.get('booking_id')
-        reference = request.POST.get('reference')
+        payment_method_id = request.POST.get('payment_method')
+        payment_method = get_object_or_404(PaymentMethod, id=payment_method_id, is_active=True)
+        
+        # Datos comunes
+        reference_code = request.POST.get('reference_code', '')
         bank_account_id = request.POST.get('bank_account')
-        proof_image = request.FILES.get('proof_image')
-        
-        booking = get_object_or_404(Booking, id=booking_id, customer=request.user)
-        
-        # Obtener o crear el método de pago de transferencia
-        payment_method = PaymentMethod.objects.filter(code='bank_transfer').first()
-        
-        # Obtener cuenta bancaria seleccionada
         bank_account = None
-        if bank_account_id:
-            bank_account = BankAccount.objects.filter(id=bank_account_id).first()
         
-        # Crear comprobante de pago
+        if bank_account_id:
+            bank_account = get_object_or_404(BankAccount, id=bank_account_id, is_active=True)
+        
+        # Validaciones
+        if payment_method.requires_reference and not reference_code:
+            messages.error(request, 'El código de referencia es obligatorio para este método de pago.')
+            return render(request, 'payments/payment_process_v2.html', {
+                'booking': booking,
+                'payment_methods': payment_methods,
+                'bank_accounts': bank_accounts,
+            })
+        
+        # Manejo de imagen de comprobante
+        proof_image = request.FILES.get('proof_image')
+        if payment_method.requires_proof and not proof_image:
+            messages.error(request, 'Debes subir una imagen del comprobante de pago.')
+            return render(request, 'payments/payment_process_v2.html', {
+                'booking': booking,
+                'payment_methods': payment_methods,
+                'bank_accounts': bank_accounts,
+            })
+        
+        # Crear el comprobante de pago
         payment_proof = PaymentProof.objects.create(
             booking=booking,
             payment_method=payment_method,
             bank_account=bank_account,
-            reference_code=reference,
-            proof_image=proof_image,
-            verified=False
+            reference_code=reference_code,
+            proof_image=proof_image
         )
         
-        # Actualizar reserva
-        booking.payment_method = 'bank_transfer'
-        booking.payment_status = 'pending'
-        booking.save()
+        # Actualizar estado de la reserva si no requiere verificación
+        if not payment_method.requires_proof:
+            booking.is_paid = True
+            booking.payment_status = 'completed'
+            booking.save()
+            
+            # Notificar al proveedor
+            Notification.objects.create(
+                user=booking.provider,
+                notification_type='payment_received',
+                title='Pago Recibido',
+                message=f'El cliente {booking.customer.get_full_name()} ha realizado el pago para la reserva #{booking.id}.',
+                booking=booking,
+                action_url=f'/bookings/{booking.id}/'
+            )
+        else:
+            # Si requiere verificación, marcar como pendiente
+            booking.payment_status = 'pending_verification'
+            booking.save()
+            
+            # Notificar al proveedor que se recibió el comprobante
+            Notification.objects.create(
+                user=booking.provider,
+                notification_type='payment_received',
+                title='Comprobante de Pago Recibido',
+                message=f'El cliente {booking.customer.get_full_name()} ha enviado un comprobante de pago para la reserva #{booking.id}. Pendiente de verificación.',
+                booking=booking,
+                action_url=f'/bookings/{booking.id}/'
+            )
         
-        # Crear notificación para el proveedor
-        Notification.objects.create(
-            user=booking.provider,
-            notification_type='payment_received',
-            title='Comprobante de Pago Recibido',
-            message=f'{booking.customer.get_full_name()} ha subido un comprobante de transferencia para la reserva #{str(booking.id)[:8]}',
-            booking=booking,
-            action_url=f'/bookings/{booking.id}/'
+        messages.success(request, 
+            'Tu pago ha sido registrado exitosamente. ' +
+            ('El proveedor ha sido notificado.' if not payment_method.requires_proof 
+             else 'Tu comprobante será verificado pronto.')
         )
         
-        # Log
-        AuditLog.objects.create(
-            user=request.user,
-            action='Transferencia bancaria registrada con comprobante',
-            metadata={
-                'booking_id': str(booking.id),
-                'reference': reference,
-                'has_image': bool(proof_image)
-            }
-        )
-        
-        messages.success(
-            request,
-            'Transferencia registrada. Tu comprobante será verificado pronto.'
-        )
         return redirect('booking_detail', booking_id=booking.id)
     
-    return redirect('bookings_list')
-
-
-# Vista para obtener notificaciones (API JSON)
-@login_required
-def get_notifications(request):
-    """Obtener notificaciones del usuario (AJAX)"""
-    notifications = Notification.objects.filter(
-        user=request.user
-    ).order_by('-created_at')[:20]
-    
-    unread_count = notifications.filter(is_read=False).count()
-    
-    notifications_data = []
-    for notif in notifications:
-        notifications_data.append({
-            'id': notif.id,
-            'type': notif.notification_type,
-            'title': notif.title,
-            'message': notif.message,
-            'action_url': notif.action_url,
-            'is_read': notif.is_read,
-            'created_at': notif.created_at.strftime('%d/%m/%Y %H:%M'),
-            'time_ago': get_time_ago(notif.created_at)
-        })
-    
-    return JsonResponse({
-        'notifications': notifications_data,
-        'unread_count': unread_count
+    # GET request
+    return render(request, 'payments/payment_process_v2.html', {
+        'booking': booking,
+        'payment_methods': payment_methods,
+        'bank_accounts': bank_accounts,
     })
 
 
+# ============================================
+# APIs para Notificaciones
+# ============================================
+
 @login_required
-def mark_notification_read(request, notification_id):
-    """Marcar notificación como leída"""
+def api_notifications_list(request):
+    """Retorna las notificaciones del usuario en formato JSON"""
+    notifications = Notification.objects.filter(user=request.user)[:20]
+    
+    data = {
+        'notifications': [
+            {
+                'id': n.id,
+                'title': n.title,
+                'message': n.message,
+                'notification_type': n.notification_type,
+                'is_read': n.is_read,
+                'action_url': n.action_url or '#',
+                'created_at': n.created_at.strftime('%d/%m/%Y %H:%M'),
+            }
+            for n in notifications
+        ]
+    }
+    
+    return JsonResponse(data)
+
+
+@login_required
+def api_notifications_count(request):
+    """Retorna el conteo de notificaciones no leídas"""
+    count = Notification.objects.filter(user=request.user, is_read=False).count()
+    return JsonResponse({'count': count})
+
+
+@login_required
+def api_notification_mark_read(request, notification_id):
+    """Marca una notificación como leída"""
     if request.method == 'POST':
-        notification = get_object_or_404(
-            Notification,
-            id=notification_id,
-            user=request.user
+        notification = get_object_or_404(Notification, id=notification_id, user=request.user)
+        notification.is_read = True
+        notification.save()
+        return JsonResponse({'success': True})
+    return JsonResponse({'success': False}, status=400)
+
+
+@login_required
+def api_notifications_mark_all_read(request):
+    """Marca todas las notificaciones del usuario como leídas"""
+    if request.method == 'POST':
+        Notification.objects.filter(user=request.user, is_read=False).update(is_read=True)
+        return JsonResponse({'success': True})
+    return JsonResponse({'success': False}, status=400)
+
+
+# ============================================
+# Funciones Auxiliares para Crear Notificaciones
+# ============================================
+
+def create_booking_notification(booking, notification_type):
+    """
+    Función auxiliar para crear notificaciones relacionadas con reservas
+    """
+    notification_configs = {
+        'booking_created': {
+            'user': booking.provider,
+            'title': 'Nueva Reserva',
+            'message': f'{booking.customer.get_full_name()} ha creado una nueva reserva.',
+        },
+        'booking_accepted': {
+            'user': booking.customer,
+            'title': 'Reserva Aceptada',
+            'message': f'Tu reserva con {booking.provider.get_full_name()} ha sido aceptada.',
+        },
+        'booking_rejected': {
+            'user': booking.customer,
+            'title': 'Reserva Rechazada',
+            'message': f'Tu reserva con {booking.provider.get_full_name()} ha sido rechazada.',
+        },
+        'booking_completed': {
+            'user': booking.customer,
+            'title': 'Reserva Completada',
+            'message': f'Tu reserva con {booking.provider.get_full_name()} ha sido completada. ¡No olvides dejar una reseña!',
+        },
+    }
+    
+    config = notification_configs.get(notification_type)
+    if config:
+        Notification.objects.create(
+            user=config['user'],
+            notification_type=notification_type,
+            title=config['title'],
+            message=config['message'],
+            booking=booking,
+            action_url=f'/bookings/{booking.id}/'
         )
-        notification.mark_as_read()
-        
-        return JsonResponse({'success': True})
-    
-    return JsonResponse({'success': False}, status=400)
-
-
-@login_required
-def mark_all_notifications_read(request):
-    """Marcar todas las notificaciones como leídas"""
-    if request.method == 'POST':
-        Notification.objects.filter(
-            user=request.user,
-            is_read=False
-        ).update(is_read=True, read_at=timezone.now())
-        
-        return JsonResponse({'success': True})
-    
-    return JsonResponse({'success': False}, status=400)
-
-
-def get_time_ago(dt):
-    """Calcular tiempo transcurrido desde una fecha"""
-    now = timezone.now()
-    diff = now - dt
-    
-    seconds = diff.total_seconds()
-    
-    if seconds < 60:
-        return 'Hace un momento'
-    elif seconds < 3600:
-        minutes = int(seconds / 60)
-        return f'Hace {minutes} minuto{"s" if minutes != 1 else ""}'
-    elif seconds < 86400:
-        hours = int(seconds / 3600)
-        return f'Hace {hours} hora{"s" if hours != 1 else ""}'
-    elif seconds < 604800:
-        days = int(seconds / 86400)
-        return f'Hace {days} día{"s" if days != 1 else ""}'
-    else:
-        return dt.strftime('%d/%m/%Y')
-
-
-# Función helper para crear notificaciones
-def create_notification(user, notification_type, title, message, booking=None, action_url=''):
-    """Crear una notificación para un usuario"""
-    return Notification.objects.create(
-        user=user,
-        notification_type=notification_type,
-        title=title,
-        message=message,
-        booking=booking,
-        action_url=action_url
-    )

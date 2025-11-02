@@ -15,7 +15,7 @@
     <!-- Font Awesome -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
-    <!-- Custom CSS -->
+    <!-- Custom CSS - NUEVO: CSS actualizado con colores turquesa -->
     <link rel="stylesheet" href="{% static 'css/liberi.css' %}">
 
     {% block extra_css %}{% endblock %}
@@ -173,18 +173,25 @@
                 .then(response => response.json())
                 .then(data => {
                     updateNotificationsList(data.notifications);
-                    updateNotificationCount(data.unread_count);
+                    updateNotificationCount(data.unread_count || data.notifications.filter(n => !n.is_read).length);
                 })
                 .catch(error => {
                     console.error('Error loading notifications:', error);
+                    // Mostrar mensaje de error amigable
+                    document.getElementById('notificationsList').innerHTML = `
+                        <div class="text-center py-4">
+                            <i class="fas fa-exclamation-triangle fa-2x text-warning mb-2"></i>
+                            <p class="text-muted mb-0">Error al cargar notificaciones</p>
+                        </div>
+                    `;
                 });
         }
         
         function loadNotificationsCount() {
-            fetch('/api/notifications/')
+            fetch('/api/notifications/count/')
                 .then(response => response.json())
                 .then(data => {
-                    updateNotificationCount(data.unread_count);
+                    updateNotificationCount(data.count);
                 })
                 .catch(error => {
                     console.error('Error loading notification count:', error);
@@ -194,28 +201,33 @@
         function updateNotificationsList(notifications) {
             const container = document.getElementById('notificationsList');
             
-            if (notifications.length === 0) {
+            if (!notifications || notifications.length === 0) {
                 container.innerHTML = `
                     <div class="text-center py-4">
                         <i class="fas fa-bell-slash fa-2x text-muted mb-2"></i>
                         <p class="text-muted mb-0">No tienes notificaciones</p>
                     </div>
                 `;
+                document.getElementById('markAllRead').style.display = 'none';
                 return;
             }
             
             let html = '';
+            let hasUnread = false;
+            
             notifications.forEach(notif => {
                 const unreadClass = notif.is_read ? '' : 'unread';
                 const unreadIcon = notif.is_read ? '' : '<i class="fas fa-circle text-primary" style="font-size: 0.5rem;"></i> ';
                 
+                if (!notif.is_read) hasUnread = true;
+                
                 html += `
-                    <li class="notification-item ${unreadClass}" onclick="handleNotificationClick(${notif.id}, '${notif.action_url}')">
+                    <li class="notification-item ${unreadClass}" onclick="handleNotificationClick(${notif.id}, '${notif.action_url || ''}')">
                         <div class="notification-title">
                             ${unreadIcon}${notif.title}
                         </div>
                         <div class="notification-message">${notif.message}</div>
-                        <div class="notification-time">${notif.time_ago}</div>
+                        <div class="notification-time">${notif.created_at || notif.time_ago || ''}</div>
                     </li>
                 `;
             });
@@ -223,7 +235,6 @@
             container.innerHTML = html;
             
             // Mostrar botón de marcar todas como leídas si hay no leídas
-            const hasUnread = notifications.some(n => !n.is_read);
             document.getElementById('markAllRead').style.display = hasUnread ? 'block' : 'none';
         }
         
@@ -239,20 +250,39 @@
         
         function handleNotificationClick(notificationId, actionUrl) {
             // Marcar como leída
-            fetch(`/api/notifications/${notificationId}/read/`, {
+            fetch(`/api/notifications/${notificationId}/mark-read/`, {
                 method: 'POST',
                 headers: {
-                    'X-CSRFToken': '{{ csrf_token }}',
+                    'X-CSRFToken': getCookie('csrftoken'),
                     'Content-Type': 'application/json'
                 }
             }).then(() => {
                 // Redirigir si hay URL
-                if (actionUrl) {
+                if (actionUrl && actionUrl !== '' && actionUrl !== 'None') {
                     window.location.href = actionUrl;
                 } else {
                     loadNotifications();
                 }
+            }).catch(error => {
+                console.error('Error marking notification as read:', error);
+                loadNotifications();
             });
+        }
+        
+        // Función para obtener cookie CSRF
+        function getCookie(name) {
+            let cookieValue = null;
+            if (document.cookie && document.cookie !== '') {
+                const cookies = document.cookie.split(';');
+                for (let i = 0; i < cookies.length; i++) {
+                    const cookie = cookies[i].trim();
+                    if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                        break;
+                    }
+                }
+            }
+            return cookieValue;
         }
         
         // Marcar todas como leídas
@@ -263,11 +293,13 @@
             fetch('/api/notifications/mark-all-read/', {
                 method: 'POST',
                 headers: {
-                    'X-CSRFToken': '{{ csrf_token }}',
+                    'X-CSRFToken': getCookie('csrftoken'),
                     'Content-Type': 'application/json'
                 }
             }).then(() => {
                 loadNotifications();
+            }).catch(error => {
+                console.error('Error marking all as read:', error);
             });
         });
     </script>

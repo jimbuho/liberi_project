@@ -1,6 +1,8 @@
 from django.db import models
 from django.contrib.auth.models import User
 from django.utils import timezone
+from django.conf import settings
+
 import uuid
 
 # Extender el User de Django con un Profile
@@ -340,133 +342,228 @@ class ProviderZoneCost(models.Model):
             raise ValidationError(
                 f'El costo de traslado no puede superar ${max_cost} USD'
             )
-        
-# Agregar estos modelos al final de core/models.py
 
 class PaymentMethod(models.Model):
-    """Métodos de pago disponibles en la plataforma"""
-    PAYMENT_TYPES = [
+    """
+    Modelo para gestionar los métodos de pago disponibles en la plataforma
+    """
+    PAYMENT_METHOD_CHOICES = [
         ('payphone', 'PayPhone'),
         ('bank_transfer', 'Transferencia Bancaria'),
         ('credit_card', 'Tarjeta de Crédito'),
         ('cash', 'Efectivo'),
     ]
     
-    name = models.CharField('Nombre', max_length=100)
-    code = models.CharField('Código', max_length=50, unique=True, choices=PAYMENT_TYPES)
-    description = models.TextField('Descripción', blank=True)
-    icon = models.CharField('Icono (Font Awesome)', max_length=50, default='fa-credit-card')
-    is_active = models.BooleanField('Activo', default=True)
-    order = models.IntegerField('Orden', default=0)
+    name = models.CharField(
+        max_length=100, 
+        verbose_name='Nombre del Método'
+    )
+    code = models.CharField(
+        max_length=50, 
+        unique=True, 
+        verbose_name='Código',
+        help_text='Código único para identificar el método (ej: payphone, bank_transfer)'
+    )
+    description = models.TextField(
+        blank=True, 
+        null=True, 
+        verbose_name='Descripción',
+        help_text='Descripción que verá el usuario'
+    )
+    is_active = models.BooleanField(
+        default=True, 
+        verbose_name='Activo',
+        help_text='Activar/Desactivar este método de pago'
+    )
+    requires_proof = models.BooleanField(
+        default=False, 
+        verbose_name='Requiere Comprobante',
+        help_text='¿Este método requiere que el usuario suba una imagen de comprobante?'
+    )
+    requires_reference = models.BooleanField(
+        default=False, 
+        verbose_name='Requiere Referencia',
+        help_text='¿Este método requiere un código de referencia o número de transacción?'
+    )
+    display_order = models.IntegerField(
+        default=0, 
+        verbose_name='Orden de Visualización',
+        help_text='Orden en que aparecerá en la lista (menor número = primero)'
+    )
+    icon = models.CharField(
+        max_length=50, 
+        blank=True, 
+        null=True, 
+        verbose_name='Ícono',
+        help_text='Emoji o código de ícono (ej: 💳, 🏦)'
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
     
-    # Configuraciones específicas
-    requires_proof = models.BooleanField('Requiere Comprobante', default=False,
-                                        help_text='Si requiere subir imagen de comprobante')
-    requires_reference = models.BooleanField('Requiere Referencia', default=False,
-                                            help_text='Si requiere código/número de referencia')
-    
-    created_at = models.DateTimeField('Fecha de creación', auto_now_add=True)
-    updated_at = models.DateTimeField('Última actualización', auto_now=True)
-
     class Meta:
-        db_table = 'payment_methods'
         verbose_name = 'Método de Pago'
         verbose_name_plural = 'Métodos de Pago'
-        ordering = ['order', 'name']
-
+        ordering = ['display_order', 'name']
+    
     def __str__(self):
-        status = "✓" if self.is_active else "✗"
-        return f"{status} {self.name}"
+        return f"{self.name} {'(Activo)' if self.is_active else '(Inactivo)'}"
 
+
+# ============================================
+# MODELO: BankAccount
+# ============================================
 
 class BankAccount(models.Model):
-    """Cuentas bancarias para recibir transferencias"""
-    BANK_CHOICES = [
-        ('pichincha', 'Banco Pichincha'),
-        ('guayaquil', 'Banco Guayaquil'),
-        ('pacifico', 'Banco del Pacífico'),
-        ('produbanco', 'Produbanco'),
-        ('internacional', 'Banco Internacional'),
-        ('bolivariano', 'Banco Bolivariano'),
-        ('austro', 'Banco del Austro'),
-        ('other', 'Otro'),
-    ]
-    
-    ACCOUNT_TYPES = [
-        ('savings', 'Ahorro'),
+    """
+    Modelo para gestionar las cuentas bancarias de la empresa
+    """
+    ACCOUNT_TYPE_CHOICES = [
+        ('savings', 'Ahorros'),
         ('checking', 'Corriente'),
     ]
     
-    bank_name = models.CharField('Banco', max_length=100, choices=BANK_CHOICES)
-    account_type = models.CharField('Tipo de Cuenta', max_length=20, choices=ACCOUNT_TYPES)
-    account_number = models.CharField('Número de Cuenta', max_length=50)
-    account_holder = models.CharField('Titular', max_length=200)
-    id_number = models.CharField('RUC/Cédula', max_length=20)
+    bank_name = models.CharField(
+        max_length=100, 
+        verbose_name='Nombre del Banco',
+        help_text='Ej: Banco Pichincha, Banco Guayaquil'
+    )
+    account_type = models.CharField(
+        max_length=20,
+        choices=ACCOUNT_TYPE_CHOICES,
+        verbose_name='Tipo de Cuenta'
+    )
+    account_number = models.CharField(
+        max_length=50, 
+        verbose_name='Número de Cuenta'
+    )
+    account_holder = models.CharField(
+        max_length=200, 
+        verbose_name='Titular de la Cuenta',
+        help_text='Nombre completo o razón social del titular'
+    )
+    identification = models.CharField(
+        max_length=20, 
+        blank=True, 
+        null=True, 
+        verbose_name='RUC/CI',
+        help_text='RUC o cédula del titular'
+    )
+    is_active = models.BooleanField(
+        default=True, 
+        verbose_name='Activa',
+        help_text='Activar/Desactivar esta cuenta bancaria'
+    )
+    display_order = models.IntegerField(
+        default=0, 
+        verbose_name='Orden de Visualización',
+        help_text='Orden en que aparecerá en la lista (menor número = primero)'
+    )
+    notes = models.TextField(
+        blank=True, 
+        null=True, 
+        verbose_name='Notas para el Usuario',
+        help_text='Información adicional que verá el usuario (ej: horarios de transferencia)'
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
     
-    is_active = models.BooleanField('Activa', default=True)
-    order = models.IntegerField('Orden', default=0)
-    notes = models.TextField('Notas', blank=True,
-                             help_text='Información adicional para el usuario')
-    
-    created_at = models.DateTimeField('Fecha de creación', auto_now_add=True)
-    updated_at = models.DateTimeField('Última actualización', auto_now=True)
-
     class Meta:
-        db_table = 'bank_accounts'
         verbose_name = 'Cuenta Bancaria'
         verbose_name_plural = 'Cuentas Bancarias'
-        ordering = ['order', 'bank_name']
-
-    def __str__(self):
-        status = "✓" if self.is_active else "✗"
-        return f"{status} {self.get_bank_name_display()} - {self.account_number}"
+        ordering = ['display_order', 'bank_name']
     
-    def get_masked_account(self):
-        """Retorna el número de cuenta parcialmente oculto"""
-        if len(self.account_number) > 4:
-            return f"****{self.account_number[-4:]}"
-        return self.account_number
+    def __str__(self):
+        return f"{self.bank_name} - {self.get_account_type_display()} - ****{self.account_number[-4:]}"
 
+
+# ============================================
+# MODELO: PaymentProof
+# ============================================
 
 class PaymentProof(models.Model):
-    """Comprobantes de pago subidos por usuarios"""
-    booking = models.OneToOneField(Booking, on_delete=models.CASCADE,
-                                   related_name='payment_proof',
-                                   verbose_name='Reserva')
-    payment_method = models.ForeignKey(PaymentMethod, on_delete=models.SET_NULL,
-                                      null=True, verbose_name='Método de Pago')
+    """
+    Modelo para almacenar los comprobantes de pago subidos por los usuarios
+    """
+    booking = models.ForeignKey(
+        'Booking',  # Asume que ya tienes un modelo Booking
+        on_delete=models.CASCADE,
+        related_name='payment_proofs',
+        verbose_name='Reserva'
+    )
+    payment_method = models.ForeignKey(
+        PaymentMethod,
+        on_delete=models.PROTECT,
+        verbose_name='Método de Pago'
+    )
+    bank_account = models.ForeignKey(
+        BankAccount,
+        on_delete=models.SET_NULL,
+        blank=True,
+        null=True,
+        verbose_name='Cuenta Bancaria',
+        help_text='Cuenta bancaria a la que se realizó la transferencia'
+    )
+    reference_code = models.CharField(
+        max_length=100, 
+        blank=True, 
+        null=True, 
+        verbose_name='Código de Referencia',
+        help_text='Número de comprobante o referencia de la transacción'
+    )
+    proof_image = models.ImageField(
+        upload_to='payment_proofs/',
+        blank=True,
+        null=True,
+        verbose_name='Comprobante de Pago',
+        help_text='Imagen o foto del comprobante de pago'
+    )
+    verified = models.BooleanField(
+        default=False, 
+        verbose_name='Verificado',
+        help_text='¿El pago ha sido verificado por un administrador?'
+    )
+    verified_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        blank=True,
+        null=True,
+        related_name='verified_payments',
+        verbose_name='Verificado Por'
+    )
+    verified_at = models.DateTimeField(
+        blank=True, 
+        null=True, 
+        verbose_name='Fecha de Verificación'
+    )
+    notes = models.TextField(
+        blank=True, 
+        null=True, 
+        verbose_name='Notas del Admin',
+        help_text='Notas internas del administrador sobre este pago'
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
     
-    reference_code = models.CharField('Código de Referencia', max_length=100, blank=True)
-    proof_image = models.ImageField('Imagen del Comprobante', 
-                                    upload_to='payment_proofs/',
-                                    blank=True, null=True)
-    
-    bank_account = models.ForeignKey(BankAccount, on_delete=models.SET_NULL,
-                                    null=True, blank=True,
-                                    verbose_name='Cuenta Bancaria')
-    
-    notes = models.TextField('Notas', blank=True)
-    verified = models.BooleanField('Verificado', default=False)
-    verified_by = models.ForeignKey(User, on_delete=models.SET_NULL,
-                                   null=True, blank=True,
-                                   related_name='verified_payments',
-                                   verbose_name='Verificado por')
-    verified_at = models.DateTimeField('Fecha de Verificación', null=True, blank=True)
-    
-    created_at = models.DateTimeField('Fecha de creación', auto_now_add=True)
-
     class Meta:
-        db_table = 'payment_proofs'
         verbose_name = 'Comprobante de Pago'
         verbose_name_plural = 'Comprobantes de Pago'
         ordering = ['-created_at']
-
+        indexes = [
+            models.Index(fields=['booking', 'verified']),
+        ]
+    
     def __str__(self):
-        return f"Comprobante - Reserva #{str(self.booking.id)[:8]}"
+        return f"Comprobante #{self.id} - Reserva #{self.booking.id} - {'Verificado' if self.verified else 'Pendiente'}"
 
+
+# ============================================
+# MODELO: Notification
+# ============================================
 
 class Notification(models.Model):
-    """Sistema de notificaciones para usuarios"""
+    """
+    Modelo para gestionar las notificaciones de usuarios
+    """
     NOTIFICATION_TYPES = [
         ('booking_created', 'Nueva Reserva'),
         ('booking_accepted', 'Reserva Aceptada'),
@@ -475,32 +572,48 @@ class Notification(models.Model):
         ('payment_received', 'Pago Recibido'),
         ('payment_verified', 'Pago Verificado'),
         ('review_received', 'Nueva Reseña'),
-        ('system', 'Sistema'),
+        ('system', 'Notificación del Sistema'),
     ]
     
-    user = models.ForeignKey(User, on_delete=models.CASCADE,
-                            related_name='notifications',
-                            verbose_name='Usuario')
-    notification_type = models.CharField('Tipo', max_length=50, choices=NOTIFICATION_TYPES)
-    title = models.CharField('Título', max_length=200)
-    message = models.TextField('Mensaje')
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='notifications',
+        verbose_name='Usuario'
+    )
+    notification_type = models.CharField(
+        max_length=50,
+        choices=NOTIFICATION_TYPES,
+        verbose_name='Tipo'
+    )
+    title = models.CharField(
+        max_length=200, 
+        verbose_name='Título'
+    )
+    message = models.TextField(
+        verbose_name='Mensaje'
+    )
+    is_read = models.BooleanField(
+        default=False, 
+        verbose_name='Leída'
+    )
+    booking = models.ForeignKey(
+        'Booking',  # Asume que ya tienes un modelo Booking
+        on_delete=models.CASCADE,
+        blank=True,
+        null=True,
+        verbose_name='Reserva Relacionada'
+    )
+    action_url = models.CharField(
+        max_length=500, 
+        blank=True, 
+        null=True, 
+        verbose_name='URL de Acción',
+        help_text='URL a la que se redirigirá al hacer clic en la notificación'
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
     
-    # Relacionado
-    booking = models.ForeignKey(Booking, on_delete=models.CASCADE,
-                               null=True, blank=True,
-                               verbose_name='Reserva')
-    
-    # URL de acción
-    action_url = models.CharField('URL de Acción', max_length=500, blank=True)
-    
-    # Estado
-    is_read = models.BooleanField('Leída', default=False)
-    read_at = models.DateTimeField('Leída el', null=True, blank=True)
-    
-    created_at = models.DateTimeField('Fecha de creación', auto_now_add=True)
-
     class Meta:
-        db_table = 'notifications'
         verbose_name = 'Notificación'
         verbose_name_plural = 'Notificaciones'
         ordering = ['-created_at']
@@ -508,14 +621,12 @@ class Notification(models.Model):
             models.Index(fields=['user', 'is_read']),
             models.Index(fields=['-created_at']),
         ]
-
+    
     def __str__(self):
-        read_icon = "✓" if self.is_read else "●"
-        return f"{read_icon} {self.title} - {self.user.username}"
+        return f"{self.user.username} - {self.title} - {'Leída' if self.is_read else 'No leída'}"
     
     def mark_as_read(self):
         """Marca la notificación como leída"""
         if not self.is_read:
             self.is_read = True
-            self.read_at = timezone.now()
-            self.save(update_fields=['is_read', 'read_at'])
+            self.save(update_fields=['is_read'])

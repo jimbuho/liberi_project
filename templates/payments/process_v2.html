@@ -1,0 +1,273 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Procesar Pago - Reserva #{{ booking.id }} | Liberi{% endblock %}
+
+{% block content %}
+<div class="container" style="max-width: 800px; padding: 2rem 1rem;">
+    <!-- Header -->
+    <div style="margin-bottom: 2rem;">
+        <a href="{% url 'booking_detail' booking.id %}" style="color: var(--primary); text-decoration: none; display: inline-flex; align-items: center; gap: 0.5rem; margin-bottom: 1rem;">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
+                <line x1="19" y1="12" x2="5" y2="12"></line>
+                <polyline points="12 19 5 12 12 5"></polyline>
+            </svg>
+            Volver a la reserva
+        </a>
+        
+        <h1 style="font-size: 2rem; font-weight: 700; color: var(--gray-900); margin-bottom: 0.5rem;">
+            Procesar Pago
+        </h1>
+        <p style="color: var(--gray-600); font-size: 1rem;">
+            Reserva #{{ booking.id }} - Total: ${{ booking.total_cost }}
+        </p>
+    </div>
+
+    <!-- Información de la Reserva -->
+    <div class="card" style="margin-bottom: 2rem;">
+        <div class="card-header">
+            <h2 class="card-title">Resumen de la Reserva</h2>
+        </div>
+        <div class="card-body">
+            <div style="display: grid; gap: 1rem;">
+                <div style="display: flex; justify-content: space-between;">
+                    <span style="color: var(--gray-600);">Proveedor:</span>
+                    <span style="font-weight: 600;">{{ booking.provider.get_full_name }}</span>
+                </div>
+                <div style="display: flex; justify-content: space-between;">
+                    <span style="color: var(--gray-600);">Fecha:</span>
+                    <span style="font-weight: 600;">{{ booking.scheduled_time|date:"d/m/Y H:i" }}</span>
+                </div>
+                <div style="display: flex; justify-content: space-between;">
+                    <span style="color: var(--gray-600);">Servicios:</span>
+                    <span style="font-weight: 600;">{{ booking.service_list|length }} servicio(s)</span>
+                </div>
+                <div style="display: flex; justify-content: space-between; padding-top: 1rem; border-top: 2px solid var(--gray-200); font-size: 1.25rem;">
+                    <span style="font-weight: 700;">Total a Pagar:</span>
+                    <span style="font-weight: 700; color: var(--primary);">${{ booking.total_cost }}</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Formulario de Pago -->
+    <form method="post" enctype="multipart/form-data" id="paymentForm">
+        {% csrf_token %}
+        
+        <!-- Métodos de Pago -->
+        <div class="card" style="margin-bottom: 2rem;">
+            <div class="card-header">
+                <h2 class="card-title">Selecciona el Método de Pago</h2>
+            </div>
+            <div class="card-body">
+                <div class="payment-methods">
+                    {% for method in payment_methods %}
+                    <div class="payment-method-card" data-method-id="{{ method.id }}" onclick="selectPaymentMethod({{ method.id }})">
+                        <div class="payment-method-header">
+                            <div style="display: flex; align-items: center; gap: 1rem;">
+                                <input type="radio" name="payment_method" value="{{ method.id }}" id="method_{{ method.id }}" required>
+                                <label for="method_{{ method.id }}" style="font-size: 1.125rem; cursor: pointer; margin: 0;">
+                                    {{ method.name }}
+                                </label>
+                            </div>
+                            {% if method.icon %}
+                            <span style="font-size: 2rem;">{{ method.icon }}</span>
+                            {% endif %}
+                        </div>
+                        
+                        {% if method.description %}
+                        <p style="color: var(--gray-600); font-size: 0.875rem; margin-top: 0.5rem;">
+                            {{ method.description }}
+                        </p>
+                        {% endif %}
+                        
+                        <!-- Detalles del método (se muestra cuando está seleccionado) -->
+                        <div class="payment-method-details">
+                            {% if method.code == 'bank_transfer' %}
+                                <!-- Campos específicos para transferencia bancaria -->
+                                
+                                <!-- Selección de Cuenta Bancaria -->
+                                <div class="form-group">
+                                    <label class="form-label required">Cuenta Bancaria de Destino</label>
+                                    <select name="bank_account" id="bankAccountSelect" class="form-control form-select" required>
+                                        <option value="">Selecciona una cuenta...</option>
+                                        {% for account in bank_accounts %}
+                                        <option value="{{ account.id }}" 
+                                                data-bank="{{ account.bank_name }}"
+                                                data-type="{{ account.get_account_type_display }}"
+                                                data-number="{{ account.account_number }}"
+                                                data-holder="{{ account.account_holder }}">
+                                            {{ account.bank_name }} - {{ account.get_account_type_display }}
+                                        </option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                                
+                                <!-- Información de la Cuenta Seleccionada -->
+                                <div id="bankAccountInfo" class="bank-account-info" style="display: none;">
+                                    <div class="bank-account-row">
+                                        <span class="bank-account-label">Banco:</span>
+                                        <span class="bank-account-value" id="displayBank">-</span>
+                                    </div>
+                                    <div class="bank-account-row">
+                                        <span class="bank-account-label">Tipo de Cuenta:</span>
+                                        <span class="bank-account-value" id="displayType">-</span>
+                                    </div>
+                                    <div class="bank-account-row">
+                                        <span class="bank-account-label">Número de Cuenta:</span>
+                                        <span class="bank-account-value" id="displayNumber">-</span>
+                                    </div>
+                                    <div class="bank-account-row">
+                                        <span class="bank-account-label">Titular:</span>
+                                        <span class="bank-account-value" id="displayHolder">-</span>
+                                    </div>
+                                </div>
+                                
+                                <!-- Código de Referencia -->
+                                {% if method.requires_reference %}
+                                <div class="form-group">
+                                    <label for="reference_code" class="form-label required">
+                                        Código de Referencia / Número de Comprobante
+                                    </label>
+                                    <input type="text" 
+                                           class="form-control" 
+                                           id="reference_code" 
+                                           name="reference_code" 
+                                           placeholder="Ej: 123456789" 
+                                           required>
+                                    <span class="form-help-text">
+                                        Ingresa el número de comprobante que aparece en tu transferencia
+                                    </span>
+                                </div>
+                                {% endif %}
+                                
+                                <!-- Upload de Comprobante -->
+                                {% if method.requires_proof %}
+                                <div class="form-group">
+                                    <label class="form-label required">Comprobante de Pago</label>
+                                    <div class="image-upload-wrapper">
+                                        <label for="proof_image" class="image-upload-label">
+                                            <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" style="margin: 0 auto 0.5rem; display: block; color: var(--gray-400);">
+                                                <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                                                <circle cx="8.5" cy="8.5" r="1.5"></circle>
+                                                <polyline points="21 15 16 10 5 21"></polyline>
+                                            </svg>
+                                            <span style="display: block; font-weight: 500; color: var(--gray-700);">
+                                                Haz clic para subir una imagen
+                                            </span>
+                                            <span style="display: block; font-size: 0.875rem; color: var(--gray-500); margin-top: 0.25rem;">
+                                                JPG, PNG o PDF (Max. 5MB)
+                                            </span>
+                                        </label>
+                                        <input type="file" 
+                                               id="proof_image" 
+                                               name="proof_image" 
+                                               class="image-upload-input" 
+                                               accept="image/jpeg,image/png,image/jpg,application/pdf"
+                                               required
+                                               onchange="previewImage(event)">
+                                    </div>
+                                    
+                                    <!-- Preview de la Imagen -->
+                                    <div id="imagePreviewContainer" style="display: none; margin-top: 1rem;">
+                                        <img id="imagePreview" class="image-preview" src="" alt="Preview">
+                                        <button type="button" onclick="clearImage()" class="btn btn-sm btn-danger" style="margin-top: 0.5rem;">
+                                            Eliminar imagen
+                                        </button>
+                                    </div>
+                                </div>
+                                {% endif %}
+                                
+                            {% elif method.code == 'payphone' %}
+                                <p style="color: var(--gray-600); font-size: 0.875rem;">
+                                    Serás redirigido a PayPhone para completar el pago de forma segura.
+                                </p>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+        
+        <!-- Botones de Acción -->
+        <div style="display: flex; gap: 1rem; justify-content: flex-end;">
+            <a href="{% url 'booking_detail' booking.id %}" class="btn btn-secondary">
+                Cancelar
+            </a>
+            <button type="submit" class="btn btn-primary btn-lg">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
+                    <polyline points="20 6 9 17 4 12"></polyline>
+                </svg>
+                Confirmar Pago
+            </button>
+        </div>
+    </form>
+</div>
+
+<script>
+// Selección de método de pago
+function selectPaymentMethod(methodId) {
+    // Remover la clase 'selected' de todos
+    document.querySelectorAll('.payment-method-card').forEach(card => {
+        card.classList.remove('selected');
+    });
+    
+    // Agregar la clase 'selected' al método clickeado
+    const selectedCard = document.querySelector(`[data-method-id="${methodId}"]`);
+    selectedCard.classList.add('selected');
+    
+    // Marcar el radio button
+    document.getElementById(`method_${methodId}`).checked = true;
+}
+
+// Mostrar información de la cuenta bancaria seleccionada
+document.getElementById('bankAccountSelect')?.addEventListener('change', function() {
+    const option = this.options[this.selectedIndex];
+    const infoDiv = document.getElementById('bankAccountInfo');
+    
+    if (this.value) {
+        document.getElementById('displayBank').textContent = option.dataset.bank;
+        document.getElementById('displayType').textContent = option.dataset.type;
+        document.getElementById('displayNumber').textContent = option.dataset.number;
+        document.getElementById('displayHolder').textContent = option.dataset.holder;
+        infoDiv.style.display = 'block';
+    } else {
+        infoDiv.style.display = 'none';
+    }
+});
+
+// Preview de imagen
+function previewImage(event) {
+    const file = event.target.files[0];
+    if (file) {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            const preview = document.getElementById('imagePreview');
+            const container = document.getElementById('imagePreviewContainer');
+            preview.src = e.target.result;
+            container.style.display = 'block';
+        };
+        reader.readAsDataURL(file);
+    }
+}
+
+// Limpiar imagen
+function clearImage() {
+    document.getElementById('proof_image').value = '';
+    document.getElementById('imagePreviewContainer').style.display = 'none';
+    document.getElementById('imagePreview').src = '';
+}
+
+// Validación del formulario
+document.getElementById('paymentForm').addEventListener('submit', function(e) {
+    const selectedMethod = document.querySelector('input[name="payment_method"]:checked');
+    
+    if (!selectedMethod) {
+        e.preventDefault();
+        alert('Por favor, selecciona un método de pago.');
+        return;
+    }
+});
+</script>
+{% endblock %}
