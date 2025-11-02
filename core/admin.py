@@ -4,7 +4,8 @@ from django.contrib.auth.models import User
 from django.utils.html import format_html
 from .models import (
     Profile, Category, ProviderProfile, Service, Location, Booking, Review, AuditLog,
-    Zone, ProviderSchedule, ProviderUnavailability, SystemConfig, ProviderZoneCost
+    Zone, ProviderSchedule, ProviderUnavailability, SystemConfig, ProviderZoneCost,
+    PaymentMethod, BankAccount, PaymentProof, Notification
 )
 
 # Inline para Profile en User admin
@@ -326,3 +327,181 @@ class ProviderZoneCostAdmin(admin.ModelAdmin):
     
     def get_queryset(self, request):
         return super().get_queryset(request).select_related('provider', 'zone')
+
+@admin.register(PaymentMethod)
+class PaymentMethodAdmin(admin.ModelAdmin):
+    list_display = ['name', 'code', 'is_active', 'requires_proof', 'requires_reference', 'order', 'updated_at']
+    list_filter = ['is_active', 'code']
+    search_fields = ['name', 'description']
+    ordering = ['order', 'name']
+    
+    fieldsets = (
+        ('Información Básica', {
+            'fields': ('name', 'code', 'icon', 'description')
+        }),
+        ('Configuración', {
+            'fields': ('is_active', 'order', 'requires_proof', 'requires_reference')
+        }),
+        ('Fechas', {
+            'fields': ('created_at', 'updated_at'),
+            'classes': ('collapse',)
+        }),
+    )
+    
+    readonly_fields = ['created_at', 'updated_at']
+    
+    actions = ['activate_methods', 'deactivate_methods']
+    
+    def activate_methods(self, request, queryset):
+        updated = queryset.update(is_active=True)
+        self.message_user(request, f'{updated} método(s) de pago activado(s).')
+    activate_methods.short_description = 'Activar métodos seleccionados'
+    
+    def deactivate_methods(self, request, queryset):
+        updated = queryset.update(is_active=False)
+        self.message_user(request, f'{updated} método(s) de pago desactivado(s).')
+    deactivate_methods.short_description = 'Desactivar métodos seleccionados'
+
+
+@admin.register(BankAccount)
+class BankAccountAdmin(admin.ModelAdmin):
+    list_display = ['account_holder', 'bank_name', 'account_type', 'masked_number', 'is_active', 'order']
+    list_filter = ['is_active', 'bank_name', 'account_type']
+    search_fields = ['account_holder', 'account_number', 'id_number']
+    ordering = ['order', 'bank_name']
+    
+    fieldsets = (
+        ('Información Bancaria', {
+            'fields': ('bank_name', 'account_type', 'account_number', 'account_holder', 'id_number')
+        }),
+        ('Configuración', {
+            'fields': ('is_active', 'order', 'notes')
+        }),
+        ('Fechas', {
+            'fields': ('created_at', 'updated_at'),
+            'classes': ('collapse',)
+        }),
+    )
+    
+    readonly_fields = ['created_at', 'updated_at']
+    
+    actions = ['activate_accounts', 'deactivate_accounts']
+    
+    def masked_number(self, obj):
+        return obj.get_masked_account()
+    masked_number.short_description = 'Número'
+    
+    def activate_accounts(self, request, queryset):
+        updated = queryset.update(is_active=True)
+        self.message_user(request, f'{updated} cuenta(s) activada(s).')
+    activate_accounts.short_description = 'Activar cuentas seleccionadas'
+    
+    def deactivate_accounts(self, request, queryset):
+        updated = queryset.update(is_active=False)
+        self.message_user(request, f'{updated} cuenta(s) desactivada(s).')
+    deactivate_accounts.short_description = 'Desactivar cuentas seleccionadas'
+
+
+@admin.register(PaymentProof)
+class PaymentProofAdmin(admin.ModelAdmin):
+    list_display = ['booking_id_short', 'payment_method', 'reference_code', 'has_image', 'verified', 'verified_by', 'created_at']
+    list_filter = ['verified', 'payment_method', 'created_at']
+    search_fields = ['booking__id', 'reference_code', 'booking__customer__username']
+    readonly_fields = ['booking', 'created_at', 'verified_at']
+    date_hierarchy = 'created_at'
+    
+    fieldsets = (
+        ('Reserva', {
+            'fields': ('booking',)
+        }),
+        ('Comprobante', {
+            'fields': ('payment_method', 'bank_account', 'reference_code', 'proof_image', 'notes')
+        }),
+        ('Verificación', {
+            'fields': ('verified', 'verified_by', 'verified_at')
+        }),
+        ('Fechas', {
+            'fields': ('created_at',),
+            'classes': ('collapse',)
+        }),
+    )
+    
+    actions = ['verify_proofs', 'unverify_proofs']
+    
+    def booking_id_short(self, obj):
+        return str(obj.booking.id)[:8]
+    booking_id_short.short_description = 'Reserva'
+    
+    def has_image(self, obj):
+        return '✓' if obj.proof_image else '✗'
+    has_image.short_description = 'Imagen'
+    
+    def verify_proofs(self, request, queryset):
+        from django.utils import timezone
+        updated = 0
+        for proof in queryset:
+            if not proof.verified:
+                proof.verified = True
+                proof.verified_by = request.user
+                proof.verified_at = timezone.now()
+                proof.save()
+                
+                # Actualizar estado de pago de la reserva
+                proof.booking.payment_status = 'paid'
+                proof.booking.save()
+                
+                updated += 1
+        
+        self.message_user(request, f'{updated} comprobante(s) verificado(s) y pago(s) confirmado(s).')
+    verify_proofs.short_description = 'Verificar y confirmar pago'
+    
+    def unverify_proofs(self, request, queryset):
+        updated = queryset.update(verified=False, verified_by=None, verified_at=None)
+        self.message_user(request, f'{updated} comprobante(s) marcado(s) como no verificado(s).')
+    unverify_proofs.short_description = 'Marcar como no verificado'
+
+
+@admin.register(Notification)
+class NotificationAdmin(admin.ModelAdmin):
+    list_display = ['user', 'title', 'notification_type', 'is_read', 'created_at']
+    list_filter = ['is_read', 'notification_type', 'created_at']
+    search_fields = ['user__username', 'title', 'message']
+    readonly_fields = ['user', 'notification_type', 'title', 'message', 'booking', 'action_url', 'created_at', 'read_at']
+    date_hierarchy = 'created_at'
+    
+    fieldsets = (
+        ('Usuario', {
+            'fields': ('user',)
+        }),
+        ('Notificación', {
+            'fields': ('notification_type', 'title', 'message', 'action_url', 'booking')
+        }),
+        ('Estado', {
+            'fields': ('is_read', 'read_at')
+        }),
+        ('Fechas', {
+            'fields': ('created_at',),
+            'classes': ('collapse',)
+        }),
+    )
+    
+    actions = ['mark_as_read', 'mark_as_unread']
+    
+    def has_add_permission(self, request):
+        return False
+    
+    def mark_as_read(self, request, queryset):
+        from django.utils import timezone
+        updated = 0
+        for notification in queryset.filter(is_read=False):
+            notification.is_read = True
+            notification.read_at = timezone.now()
+            notification.save(update_fields=['is_read', 'read_at'])
+            updated += 1
+        self.message_user(request, f'{updated} notificación(es) marcada(s) como leída(s).')
+    mark_as_read.short_description = 'Marcar como leída'
+    
+    def mark_as_unread(self, request, queryset):
+        updated = queryset.update(is_read=False, read_at=None)
+        self.message_user(request, f'{updated} notificación(es) marcada(s) como no leída(s).')
+    mark_as_unread.short_description = 'Marcar como no leída'

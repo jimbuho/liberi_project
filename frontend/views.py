@@ -12,7 +12,8 @@ from core.models import (
     Profile, Category, Service, ProviderProfile, 
     Booking, Location, Review, AuditLog,
     Zone, ProviderSchedule, ProviderUnavailability,
-    ProviderZoneCost, SystemConfig
+    ProviderZoneCost, SystemConfig,
+    PaymentMethod, BankAccount, PaymentProof, Notification
 )
 
 # ============================================================================
@@ -1851,3 +1852,189 @@ def provider_coverage_remove(request, zone_id):
         messages.error(request, f'Error al remover zona: {str(e)}')
     
     return redirect('provider_coverage_manage')
+
+@login_required
+def payment_process_v2(request, booking_id):
+    """Página de selección de método de pago (versión 2 con métodos administrables)"""
+    booking = get_object_or_404(Booking, id=booking_id)
+    
+    # Verificar que sea el cliente
+    if booking.customer != request.user:
+        messages.error(request, 'No tienes acceso a esta reserva')
+        return redirect('bookings_list')
+    
+    # Verificar que no esté pagada
+    if booking.payment_status == 'paid':
+        messages.info(request, 'Esta reserva ya está pagada')
+        return redirect('booking_detail', booking_id=booking.id)
+    
+    # Obtener métodos de pago activos
+    payment_methods = PaymentMethod.objects.filter(is_active=True).order_by('order')
+    
+    # Obtener cuentas bancarias activas (para transferencias)
+    bank_accounts = BankAccount.objects.filter(is_active=True).order_by('order')
+    
+    context = {
+        'booking': booking,
+        'payment_methods': payment_methods,
+        'bank_accounts': bank_accounts,
+    }
+    return render(request, 'payments/process_v2.html', context)
+
+
+@login_required
+def bank_transfer_v2(request):
+    """Registrar transferencia bancaria con imagen"""
+    if request.method == 'POST':
+        booking_id = request.POST.get('booking_id')
+        reference = request.POST.get('reference')
+        bank_account_id = request.POST.get('bank_account')
+        proof_image = request.FILES.get('proof_image')
+        
+        booking = get_object_or_404(Booking, id=booking_id, customer=request.user)
+        
+        # Obtener o crear el método de pago de transferencia
+        payment_method = PaymentMethod.objects.filter(code='bank_transfer').first()
+        
+        # Obtener cuenta bancaria seleccionada
+        bank_account = None
+        if bank_account_id:
+            bank_account = BankAccount.objects.filter(id=bank_account_id).first()
+        
+        # Crear comprobante de pago
+        payment_proof = PaymentProof.objects.create(
+            booking=booking,
+            payment_method=payment_method,
+            bank_account=bank_account,
+            reference_code=reference,
+            proof_image=proof_image,
+            verified=False
+        )
+        
+        # Actualizar reserva
+        booking.payment_method = 'bank_transfer'
+        booking.payment_status = 'pending'
+        booking.save()
+        
+        # Crear notificación para el proveedor
+        Notification.objects.create(
+            user=booking.provider,
+            notification_type='payment_received',
+            title='Comprobante de Pago Recibido',
+            message=f'{booking.customer.get_full_name()} ha subido un comprobante de transferencia para la reserva #{str(booking.id)[:8]}',
+            booking=booking,
+            action_url=f'/bookings/{booking.id}/'
+        )
+        
+        # Log
+        AuditLog.objects.create(
+            user=request.user,
+            action='Transferencia bancaria registrada con comprobante',
+            metadata={
+                'booking_id': str(booking.id),
+                'reference': reference,
+                'has_image': bool(proof_image)
+            }
+        )
+        
+        messages.success(
+            request,
+            'Transferencia registrada. Tu comprobante será verificado pronto.'
+        )
+        return redirect('booking_detail', booking_id=booking.id)
+    
+    return redirect('bookings_list')
+
+
+# Vista para obtener notificaciones (API JSON)
+@login_required
+def get_notifications(request):
+    """Obtener notificaciones del usuario (AJAX)"""
+    notifications = Notification.objects.filter(
+        user=request.user
+    ).order_by('-created_at')[:20]
+    
+    unread_count = notifications.filter(is_read=False).count()
+    
+    notifications_data = []
+    for notif in notifications:
+        notifications_data.append({
+            'id': notif.id,
+            'type': notif.notification_type,
+            'title': notif.title,
+            'message': notif.message,
+            'action_url': notif.action_url,
+            'is_read': notif.is_read,
+            'created_at': notif.created_at.strftime('%d/%m/%Y %H:%M'),
+            'time_ago': get_time_ago(notif.created_at)
+        })
+    
+    return JsonResponse({
+        'notifications': notifications_data,
+        'unread_count': unread_count
+    })
+
+
+@login_required
+def mark_notification_read(request, notification_id):
+    """Marcar notificación como leída"""
+    if request.method == 'POST':
+        notification = get_object_or_404(
+            Notification,
+            id=notification_id,
+            user=request.user
+        )
+        notification.mark_as_read()
+        
+        return JsonResponse({'success': True})
+    
+    return JsonResponse({'success': False}, status=400)
+
+
+@login_required
+def mark_all_notifications_read(request):
+    """Marcar todas las notificaciones como leídas"""
+    if request.method == 'POST':
+        Notification.objects.filter(
+            user=request.user,
+            is_read=False
+        ).update(is_read=True, read_at=timezone.now())
+        
+        return JsonResponse({'success': True})
+    
+    return JsonResponse({'success': False}, status=400)
+
+
+def get_time_ago(dt):
+    """Calcular tiempo transcurrido desde una fecha"""
+    now = timezone.now()
+    diff = now - dt
+    
+    seconds = diff.total_seconds()
+    
+    if seconds < 60:
+        return 'Hace un momento'
+    elif seconds < 3600:
+        minutes = int(seconds / 60)
+        return f'Hace {minutes} minuto{"s" if minutes != 1 else ""}'
+    elif seconds < 86400:
+        hours = int(seconds / 3600)
+        return f'Hace {hours} hora{"s" if hours != 1 else ""}'
+    elif seconds < 604800:
+        days = int(seconds / 86400)
+        return f'Hace {days} día{"s" if days != 1 else ""}'
+    else:
+        return dt.strftime('%d/%m/%Y')
+
+
+# Función helper para crear notificaciones
+def create_notification(user, notification_type, title, message, booking=None, action_url=''):
+    """Crear una notificación para un usuario"""
+    return Notification.objects.create(
+        user=user,
+        notification_type=notification_type,
+        title=title,
+        message=message,
+        booking=booking,
+        action_url=action_url
+    )

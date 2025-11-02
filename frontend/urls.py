@@ -33,12 +33,6 @@ urlpatterns = [
     # Reviews
     path('bookings/<uuid:booking_id>/review/', views.review_create, name='review_create'),
     
-    # Payments (SIN payment_cash - ELIMINADO)
-    path('payments/<uuid:booking_id>/', views.payment_process, name='payment_process'),
-    path('payments/payphone/create/', views.payphone_create, name='payphone_create'),
-    path('payments/bank-transfer/', views.bank_transfer, name='bank_transfer'),
-    # path('payments/cash/', views.payment_cash, name='payment_cash'),  # ← ELIMINAR ESTA LÍNEA
-    
     # Service Management (Provider)
     path('services/create/', views.service_create, name='service_create'),
     path('services/<int:service_id>/edit/', views.service_edit, name='service_edit'),
@@ -73,4 +67,16 @@ urlpatterns = [
     # Location Detection & Zone Selection
     path('api/set-zone/', views.set_current_zone, name='set_current_zone'),
     path('api/detect-location/', views.detect_user_location, name='detect_location'),
+
+    # Pagos v2 (con imagen)
+    path('payments/<uuid:booking_id>/', views.payment_process, name='payment_process'),
+    path('payments/payphone/create/', views.payphone_create, name='payphone_create'),
+    path('payments/bank-transfer/', views.bank_transfer, name='bank_transfer'),
+    path('payments/v2/<uuid:booking_id>/', views.payment_process_v2, name='payment_process_v2'),
+    path('payments/bank-transfer-v2/', views.bank_transfer_v2, name='bank_transfer_v2'),
+
+    # API de Notificaciones
+    path('api/notifications/', views.get_notifications, name='get_notifications'),
+    path('api/notifications/<int:notification_id>/read/', views.mark_notification_read, name='mark_notification_read'),
+    path('api/notifications/mark-all-read/', views.mark_all_notifications_read, name='mark_all_notifications_read'),
 ]
