@@ -59,12 +59,27 @@
                     <div class="card bg-light mb-3">
                         <div class="card-body">
                             <h6>{{ booking.provider.get_full_name }}</h6>
-                            <p class="mb-1">
-                                <i class="fas fa-phone"></i> {{ booking.provider_phone }}
-                            </p>
-                            <p class="mb-0">
-                                <i class="fas fa-envelope"></i> {{ booking.provider.email }}
-                            </p>
+                            
+                            <!-- Mostrar contacto según lógica del backend -->
+                            {% if can_contact %}
+                                <p class="mb-1">
+                                    <i class="fas fa-phone"></i> {{ booking.provider_phone }}
+                                </p>
+                                <p class="mb-1">
+                                    <i class="fas fa-envelope"></i> {{ booking.provider.email }}
+                                </p>
+                                <a href="https://wa.me/593{{ booking.provider_phone }}" 
+                                   target="_blank" 
+                                   class="btn btn-success btn-sm mt-2">
+                                    <i class="fab fa-whatsapp"></i> Contactar por WhatsApp
+                                </a>
+                            {% else %}
+                                <div class="alert alert-{% if booking.payment_status == 'paid' %}info{% else %}warning{% endif %} mt-2 mb-0">
+                                    <i class="fas fa-{% if booking.payment_status == 'paid' %}clock{% else %}lock{% endif %}"></i>
+                                    <small>{{ contact_message }}</small>
+                                </div>
+                            {% endif %}
+                            
                             <a href="{% url 'provider_profile' booking.provider.id %}" 
                                class="btn btn-sm btn-outline-primary mt-2">
                                 Ver Perfil Completo
@@ -76,12 +91,26 @@
                     <div class="card bg-light mb-3">
                         <div class="card-body">
                             <h6>{{ booking.customer.get_full_name }}</h6>
-                            <p class="mb-1">
-                                <i class="fas fa-phone"></i> {{ booking.customer_phone }}
-                            </p>
-                            <p class="mb-0">
-                                <i class="fas fa-envelope"></i> {{ booking.customer.email }}
-                            </p>
+                            
+                            <!-- Proveedor: mostrar según lógica del backend -->
+                            {% if can_contact %}
+                                <p class="mb-1">
+                                    <i class="fas fa-phone"></i> {{ booking.customer_phone }}
+                                </p>
+                                <p class="mb-0">
+                                    <i class="fas fa-envelope"></i> {{ booking.customer.email }}
+                                </p>
+                                <a href="https://wa.me/593{{ booking.customer_phone }}" 
+                                   target="_blank" 
+                                   class="btn btn-success btn-sm mt-2">
+                                    <i class="fab fa-whatsapp"></i> Contactar por WhatsApp
+                                </a>
+                            {% else %}
+                                <div class="alert alert-info mt-2 mb-0">
+                                    <i class="fas fa-clock"></i>
+                                    <small>{{ contact_message }}</small>
+                                </div>
+                            {% endif %}
                         </div>
                     </div>
                     {% endif %}
@@ -151,7 +180,7 @@
                     </div>
                     {% endif %}
 
-                    {% if user.profile.role == 'provider' and booking.status == 'accepted' %}
+                    {% if user.profile.role == 'provider' and booking.status == 'accepted' and booking.payment_status == 'paid' %}
                     <hr>
                     <form method="post" action="{% url 'booking_complete' booking.id %}">
                         {% csrf_token %}
@@ -229,47 +258,62 @@
                 </div>
             </div>
 
-            <!-- Payment Action -->
-            {% if user.profile.role == 'customer' and booking.payment_status == 'pending' and booking.status == 'accepted' %}
-            <div class="card border-primary">
-                <div class="card-body text-center">
-                    <h5 class="text-primary">
-                        <i class="fas fa-credit-card"></i> Pago Pendiente
-                    </h5>
-                    <p class="text-muted">Completa el pago para confirmar tu reserva</p>
-                    <a href="{% url 'payment_process' booking.id %}" class="btn btn-primary btn-lg w-100">
-                        <i class="fas fa-credit-card"></i> Pagar Ahora
-                    </a>
-                </div>
-            </div>
+            <!-- Payment Action - Solo si está ACEPTADA -->
+            {% if user.profile.role == 'customer' and booking.payment_status == 'pending' %}
+                {% if booking.status == 'accepted' %}
+                    <div class="card border-primary">
+                        <div class="card-body text-center">
+                            <h5 class="text-primary">
+                                <i class="fas fa-credit-card"></i> Pago Pendiente
+                            </h5>
+                            <p class="text-muted">El proveedor ha aceptado tu reserva. Completa el pago para confirmar.</p>
+                            <a href="{% url 'payment_process' booking.id %}" class="btn btn-primary btn-lg w-100">
+                                <i class="fas fa-credit-card"></i> Pagar Ahora
+                            </a>
+                        </div>
+                    </div>
+                {% elif booking.status == 'pending' %}
+                    <div class="card border-warning">
+                        <div class="card-body text-center">
+                            <h5 class="text-warning">
+                                <i class="fas fa-hourglass-half"></i> Esperando Confirmación
+                            </h5>
+                            <p class="text-muted small">El proveedor debe aceptar tu reserva antes de que puedas pagar.</p>
+                        </div>
+                    </div>
+                {% endif %}
             {% endif %}
 
-            <!-- Contact Options -->
-            <div class="card mt-4">
+            <!-- Contact Options Card -->
+            {% if can_contact %}
+            <div class="card mt-4 border-success">
                 <div class="card-body">
-                    <h5><i class="fas fa-phone"></i> Contacto</h5>
+                    <h5 class="text-success">
+                        <i class="fas fa-phone"></i> Contacto Disponible
+                    </h5>
                     <hr>
                     {% if user.profile.role == 'customer' %}
-                    <p>¿Tienes dudas? Contacta al proveedor:</p>
-                    <a href="tel:{{ booking.provider_phone }}" class="btn btn-outline-primary w-100 mb-2">
-                        <i class="fas fa-phone"></i> Llamar
-                    </a>
-                    <a href="https://wa.me/{{ booking.provider_phone }}" target="_blank" 
-                       class="btn btn-success w-100">
-                        <i class="fab fa-whatsapp"></i> WhatsApp
-                    </a>
+                        <p class="mb-2">Contacta al proveedor:</p>
+                        <a href="tel:{{ booking.provider_phone }}" class="btn btn-outline-primary w-100 mb-2">
+                            <i class="fas fa-phone"></i> Llamar
+                        </a>
+                        <a href="https://wa.me/593{{ booking.provider_phone }}" target="_blank" 
+                           class="btn btn-success w-100">
+                            <i class="fab fa-whatsapp"></i> WhatsApp
+                        </a>
                     {% else %}
-                    <p>Contacta al cliente:</p>
-                    <a href="tel:{{ booking.customer_phone }}" class="btn btn-outline-primary w-100 mb-2">
-                        <i class="fas fa-phone"></i> Llamar
-                    </a>
-                    <a href="https://wa.me/{{ booking.customer_phone }}" target="_blank" 
-                       class="btn btn-success w-100">
-                        <i class="fab fa-whatsapp"></i> WhatsApp
-                    </a>
+                        <p class="mb-2">Contacta al cliente:</p>
+                        <a href="tel:{{ booking.customer_phone }}" class="btn btn-outline-primary w-100 mb-2">
+                            <i class="fas fa-phone"></i> Llamar
+                        </a>
+                        <a href="https://wa.me/593{{ booking.customer_phone }}" target="_blank" 
+                           class="btn btn-success w-100">
+                            <i class="fab fa-whatsapp"></i> WhatsApp
+                        </a>
                     {% endif %}
                 </div>
             </div>
+            {% endif %}
         </div>
     </div>
 </div>

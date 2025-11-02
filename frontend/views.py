@@ -600,7 +600,7 @@ def bookings_list(request):
 
 @login_required
 def booking_detail(request, booking_id):
-    """Detalle de una reserva"""
+    """Detalle de una reserva con lógica de contacto"""
     booking = get_object_or_404(Booking, id=booking_id)
     
     # Verificar que el usuario tenga acceso
@@ -608,8 +608,46 @@ def booking_detail(request, booking_id):
         messages.error(request, 'No tienes acceso a esta reserva')
         return redirect('bookings_list')
     
+    # LÓGICA DE CONTACTO: Determinar si puede ver WhatsApp/teléfono
+    can_contact = False
+    contact_message = None
+    
+    if request.user.profile.role == 'customer':
+        # Cliente puede contactar si:
+        # 1. Ha pagado
+        # 2. Faltan 2 horas o menos para la cita
+        if booking.payment_status == 'paid':
+            now = timezone.now()
+            time_until_booking = booking.scheduled_time - now
+            hours_until = time_until_booking.total_seconds() / 3600
+            
+            if hours_until <= 2:
+                can_contact = True
+            else:
+                # Calcular horas restantes para mostrar
+                hours_remaining = int(hours_until)
+                contact_message = f'El contacto estará disponible 2 horas antes de tu cita (faltan {hours_remaining} horas)'
+        else:
+            contact_message = 'Completa el pago para acceder a los datos de contacto'
+    
+    elif request.user.profile.role == 'provider':
+        # Proveedor puede contactar si:
+        # 1. Faltan 2 horas o menos para la cita
+        # 2. O ya pasó la hora de la cita (para seguimiento)
+        now = timezone.now()
+        time_until_booking = booking.scheduled_time - now
+        hours_until = time_until_booking.total_seconds() / 3600
+        
+        if hours_until <= 2:
+            can_contact = True
+        else:
+            hours_remaining = int(hours_until)
+            contact_message = f'El contacto estará disponible 2 horas antes de la cita (faltan {hours_remaining} horas)'
+    
     context = {
         'booking': booking,
+        'can_contact': can_contact,
+        'contact_message': contact_message,
     }
     return render(request, 'bookings/detail.html', context)
 
@@ -1041,22 +1079,22 @@ def bank_transfer(request):
     return redirect('bookings_list')
 
 
-@login_required
-def payment_cash(request):
-    """Registrar pago en efectivo acordado"""
-    if request.method == 'POST':
-        booking_id = request.POST.get('booking_id')
+#@login_required
+# def payment_cash(request):
+#     """Registrar pago en efectivo acordado"""
+#     if request.method == 'POST':
+#         booking_id = request.POST.get('booking_id')
         
-        booking = get_object_or_404(Booking, id=booking_id, customer=request.user)
+#         booking = get_object_or_404(Booking, id=booking_id, customer=request.user)
         
-        booking.payment_method = 'cash'
-        booking.payment_status = 'pending'
-        booking.save()
+#         booking.payment_method = 'cash'
+#         booking.payment_status = 'pending'
+#         booking.save()
         
-        messages.success(request, 'Pago en efectivo acordado con el proveedor')
-        return redirect('booking_detail', booking_id=booking.id)
+#         messages.success(request, 'Pago en efectivo acordado con el proveedor')
+#         return redirect('booking_detail', booking_id=booking.id)
     
-    return redirect('bookings_list')
+#     return redirect('bookings_list')
 
 
 # ============================================================================
@@ -1687,3 +1725,129 @@ def detect_user_location(request):
             'message': 'No se encontró una ubicación guardada cercana. Por favor selecciona tu zona.',
             'requires_selection': True
         })
+
+@login_required
+def provider_coverage_manage(request):
+    """Gestión de zonas de cobertura del proveedor"""
+    if request.user.profile.role != 'provider':
+        messages.error(request, 'Solo los proveedores pueden gestionar su cobertura')
+        return redirect('dashboard')
+    
+    if not hasattr(request.user, 'provider_profile'):
+        messages.error(request, 'No tienes un perfil de proveedor')
+        return redirect('dashboard')
+    
+    provider_profile = request.user.provider_profile
+    
+    # Todas las zonas disponibles
+    all_zones = Zone.objects.filter(active=True).order_by('city', 'name')
+    
+    # Zonas actuales del proveedor
+    current_zones = provider_profile.coverage_zones.all()
+    current_zone_ids = set(current_zones.values_list('id', flat=True))
+    
+    # Separar zonas cubiertas y disponibles
+    covered_zones = current_zones
+    available_zones = [z for z in all_zones if z.id not in current_zone_ids]
+    
+    context = {
+        'provider_profile': provider_profile,
+        'covered_zones': covered_zones,
+        'available_zones': available_zones,
+    }
+    return render(request, 'providers/coverage_manage.html', context)
+
+
+@login_required
+def provider_coverage_add(request):
+    """Agregar zona a la cobertura"""
+    if request.method != 'POST':
+        return redirect('provider_coverage_manage')
+    
+    if request.user.profile.role != 'provider':
+        messages.error(request, 'No autorizado')
+        return redirect('dashboard')
+    
+    zone_id = request.POST.get('zone_id')
+    
+    try:
+        zone = get_object_or_404(Zone, id=zone_id, active=True)
+        provider_profile = request.user.provider_profile
+        
+        # Agregar zona
+        provider_profile.coverage_zones.add(zone)
+        
+        messages.success(request, f'Zona {zone.name} agregada a tu cobertura')
+        
+        # Log
+        AuditLog.objects.create(
+            user=request.user,
+            action='Zona agregada a cobertura',
+            metadata={'zone': zone.name}
+        )
+        
+    except Exception as e:
+        messages.error(request, f'Error al agregar zona: {str(e)}')
+    
+    return redirect('provider_coverage_manage')
+
+
+@login_required
+def provider_coverage_remove(request, zone_id):
+    """Remover zona de la cobertura"""
+    if request.method != 'POST':
+        return redirect('provider_coverage_manage')
+    
+    if request.user.profile.role != 'provider':
+        messages.error(request, 'No autorizado')
+        return redirect('dashboard')
+    
+    try:
+        zone = get_object_or_404(Zone, id=zone_id)
+        provider_profile = request.user.provider_profile
+        
+        # Verificar que no sea la única zona
+        if provider_profile.coverage_zones.count() <= 1:
+            messages.error(request, 'Debes mantener al menos una zona de cobertura')
+            return redirect('provider_coverage_manage')
+        
+        # Verificar que no tenga reservas activas en esta zona
+        active_bookings = Booking.objects.filter(
+            provider=request.user,
+            location__zone=zone,
+            status__in=['pending', 'accepted']
+        ).count()
+        
+        if active_bookings > 0:
+            messages.error(
+                request,
+                f'No puedes eliminar {zone.name} porque tienes {active_bookings} '
+                f'reserva(s) activa(s) en esta zona. Completa o cancela primero.'
+            )
+            return redirect('provider_coverage_manage')
+        
+        # Remover zona
+        provider_profile.coverage_zones.remove(zone)
+        
+        # Eliminar configuración de costo para esta zona
+        ProviderZoneCost.objects.filter(
+            provider=request.user,
+            zone=zone
+        ).delete()
+        
+        messages.success(
+            request,
+            f'Zona {zone.name} removida de tu cobertura'
+        )
+        
+        # Log
+        AuditLog.objects.create(
+            user=request.user,
+            action='Zona removida de cobertura',
+            metadata={'zone': zone.name}
+        )
+        
+    except Exception as e:
+        messages.error(request, f'Error al remover zona: {str(e)}')
+    
+    return redirect('provider_coverage_manage')

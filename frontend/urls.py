@@ -33,11 +33,11 @@ urlpatterns = [
     # Reviews
     path('bookings/<uuid:booking_id>/review/', views.review_create, name='review_create'),
     
-    # Payments
+    # Payments (SIN payment_cash - ELIMINADO)
     path('payments/<uuid:booking_id>/', views.payment_process, name='payment_process'),
     path('payments/payphone/create/', views.payphone_create, name='payphone_create'),
     path('payments/bank-transfer/', views.bank_transfer, name='bank_transfer'),
-    path('payments/cash/', views.payment_cash, name='payment_cash'),
+    # path('payments/cash/', views.payment_cash, name='payment_cash'),  # ← ELIMINAR ESTA LÍNEA
     
     # Service Management (Provider)
     path('services/create/', views.service_create, name='service_create'),
@@ -56,11 +56,16 @@ urlpatterns = [
     path('provider/unavailability/', views.provider_unavailability_manage, name='provider_unavailability_manage'),
     path('provider/unavailability/create/', views.provider_unavailability_create, name='provider_unavailability_create'),
     path('provider/unavailability/<int:unavailability_id>/delete/', views.provider_unavailability_delete, name='provider_unavailability_delete'),
+
+    # Provider Coverage Management (NUEVO)
+    path('provider/coverage/', views.provider_coverage_manage, name='provider_coverage_manage'),
+    path('provider/coverage/add/', views.provider_coverage_add, name='provider_coverage_add'),
+    path('provider/coverage/<int:zone_id>/remove/', views.provider_coverage_remove, name='provider_coverage_remove'),
     
     # Provider Toggle Active
     path('provider/toggle-active/', views.provider_toggle_active, name='provider_toggle_active'),
 
-    # Zone Costs Management (Provider)
+     # Zone Costs Management
     path('provider/zone-costs/', views.provider_zone_costs_manage, name='provider_zone_costs_manage'),
     path('provider/zone-costs/update/', views.provider_zone_cost_update, name='provider_zone_cost_update'),
     path('provider/zone-costs/<int:zone_id>/delete/', views.provider_zone_cost_delete, name='provider_zone_cost_delete'),

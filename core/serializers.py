@@ -157,6 +157,8 @@ class BookingSerializer(serializers.ModelSerializer):
     location_details = LocationSerializer(source='location', read_only=True)
     can_review = serializers.SerializerMethodField()
     can_complete = serializers.SerializerMethodField()
+    can_contact = serializers.SerializerMethodField()
+    contact_message = serializers.SerializerMethodField()
     
     class Meta:
         model = Booking
@@ -200,6 +202,49 @@ class BookingSerializer(serializers.ModelSerializer):
         
         return False
 
+    def get_can_contact(self, obj):
+        """Determina si el usuario puede ver datos de contacto"""
+        request = self.context.get('request')
+        if not request or not request.user.is_authenticated:
+            return False
+        
+        user = request.user
+        now = timezone.now()
+        time_until_booking = obj.scheduled_time - now
+        hours_until = time_until_booking.total_seconds() / 3600
+        
+        if user == obj.customer:
+            # Cliente: debe haber pagado y faltar 2 horas o menos
+            return obj.payment_status == 'paid' and hours_until <= 2
+        elif user == obj.provider:
+            # Proveedor: solo faltar 2 horas o menos
+            return hours_until <= 2
+        
+        return False
+    
+    def get_contact_message(self, obj):
+        """Mensaje explicativo si no puede contactar"""
+        request = self.context.get('request')
+        if not request or not request.user.is_authenticated:
+            return None
+        
+        user = request.user
+        now = timezone.now()
+        time_until_booking = obj.scheduled_time - now
+        hours_until = time_until_booking.total_seconds() / 3600
+        
+        if user == obj.customer:
+            if obj.payment_status != 'paid':
+                return 'Completa el pago para acceder a los datos de contacto'
+            elif hours_until > 2:
+                hours_remaining = int(hours_until)
+                return f'El contacto estará disponible 2 horas antes de tu cita (faltan {hours_remaining} horas)'
+        elif user == obj.provider:
+            if hours_until > 2:
+                hours_remaining = int(hours_until)
+                return f'El contacto estará disponible 2 horas antes de la cita (faltan {hours_remaining} horas)'
+        
+        return None
 
 class ReviewSerializer(serializers.ModelSerializer):
     customer_name = serializers.CharField(source='customer.get_full_name', read_only=True)

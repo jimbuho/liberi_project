@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 150" width="100" height="150">
+  <!-- Pin de ubicación turquesa -->
+  <path d="M50,10 C30,10 15,25 15,45 C15,70 50,120 50,120 C50,120 85,70 85,45 C85,25 70,10 50,10 Z" fill="#3FB8C4"/>
+  
+  <!-- Casa blanca dentro del pin -->
+  <g transform="translate(50, 45)">
+    <!-- Techo -->
+    <path d="M-15,-15 L0,-25 L15,-15 L15,-10 L-15,-10 Z" fill="#FFFFFF"/>
+    
+    <!-- Cuerpo de la casa -->
+    <rect x="-15" y="-10" width="30" height="20" fill="#FFFFFF"/>
+    
+    <!-- Puerta -->
+    <rect x="-5" y="0" width="10" height="10" fill="#3FB8C4"/>
+  </g>
+</svg>
