@@ -1,0 +1,238 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Pago por Transferencia Bancaria{% endblock %}
+
+{% block extra_css %}
+<style>
+    .transfer-container {
+        max-width: 800px;
+        margin: 3rem auto;
+        padding: 0 1rem;
+    }
+    
+    .bank-account-card {
+        background: white;
+        border: 2px solid #e8e8e8;
+        border-radius: 10px;
+        padding: 1.5rem;
+        margin-bottom: 1rem;
+        transition: all 0.3s ease;
+    }
+    
+    .bank-account-card:hover {
+        border-color: #5DADE2;
+        box-shadow: 0 4px 12px rgba(93, 173, 226, 0.2);
+    }
+    
+    .bank-logo {
+        width: 60px;
+        height: 60px;
+        background: #f0f8ff;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.5rem;
+        margin-right: 1rem;
+    }
+    
+    .copy-button {
+        cursor: pointer;
+        padding: 0.25rem 0.75rem;
+        background: #e9ecef;
+        border: 1px solid #dee2e6;
+        border-radius: 5px;
+        transition: all 0.3s ease;
+    }
+    
+    .copy-button:hover {
+        background: #5DADE2;
+        color: white;
+        border-color: #5DADE2;
+    }
+    
+    .instructions-card {
+        background: #fff3cd;
+        border-left: 4px solid #ffc107;
+        padding: 1.5rem;
+        border-radius: 5px;
+        margin-bottom: 2rem;
+    }
+    
+    .amount-highlight {
+        background: #f0f8ff;
+        padding: 1.5rem;
+        border-radius: 10px;
+        text-align: center;
+        margin: 2rem 0;
+    }
+    
+    .amount-value {
+        font-size: 3rem;
+        font-weight: 700;
+        color: #5DADE2;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="transfer-container">
+    <!-- Header -->
+    <div class="text-center mb-4">
+        <h1 class="mb-2">Transferencia Bancaria</h1>
+        <p class="text-muted">Sigue los pasos para completar tu pago</p>
+    </div>
+    
+    <!-- Amount to Transfer -->
+    <div class="card shadow-sm">
+        <div class="card-body">
+            <h3 class="text-center mb-3">Monto a Transferir</h3>
+            <div class="amount-highlight">
+                <div class="amount-value">${{ booking.total_cost }}</div>
+                <p class="text-muted mb-0">Reserva #{{ booking.id }}</p>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Instructions -->
+    <div class="instructions-card mt-4">
+        <h5><i class="fas fa-info-circle me-2"></i>Instrucciones</h5>
+        <ol class="mb-0">
+            <li>Realiza la transferencia a una de las cuentas bancarias mostradas abajo</li>
+            <li>Usa el número de reserva <strong>#{{ booking.id }}</strong> como referencia</li>
+            <li>Una vez realizada la transferencia, haz clic en "Confirmar Pago" al final de esta página</li>
+            <li>Nuestro equipo validará tu pago en 1-4 horas hábiles</li>
+        </ol>
+    </div>
+    
+    <!-- Bank Accounts -->
+    <div class="card shadow-sm mb-4">
+        <div class="card-body">
+            <h3 class="mb-4">Cuentas Bancarias Disponibles</h3>
+            
+            {% if bank_accounts %}
+                {% for account in bank_accounts %}
+                <div class="bank-account-card">
+                    <div class="d-flex align-items-start">
+                        <div class="bank-logo">
+                            <i class="fas fa-university text-primary"></i>
+                        </div>
+                        <div class="flex-grow-1">
+                            <h5 class="mb-3">{{ account.bank_name }}</h5>
+                            
+                            <div class="row g-3">
+                                <div class="col-md-6">
+                                    <small class="text-muted d-block">Tipo de Cuenta</small>
+                                    <strong>{{ account.get_account_type_display }}</strong>
+                                </div>
+                                <div class="col-md-6">
+                                    <small class="text-muted d-block">Número de Cuenta</small>
+                                    <div class="d-flex align-items-center gap-2">
+                                        <strong id="account-{{ forloop.counter }}">{{ account.account_number }}</strong>
+                                        <span class="copy-button" onclick="copyToClipboard('account-{{ forloop.counter }}', this)">
+                                            <i class="fas fa-copy"></i>
+                                        </span>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <small class="text-muted d-block">Titular</small>
+                                    <strong>{{ account.account_holder }}</strong>
+                                </div>
+                                <div class="col-md-6">
+                                    <small class="text-muted d-block">RUC/Cédula</small>
+                                    <strong>{{ account.id_number }}</strong>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            {% else %}
+                <div class="alert alert-warning">
+                    <i class="fas fa-exclamation-triangle me-2"></i>
+                    <strong>Atención:</strong> No hay cuentas bancarias configuradas en este momento.
+                    Por favor contacta al soporte para obtener los datos de pago.
+                </div>
+            {% endif %}
+        </div>
+    </div>
+    
+    <!-- Confirmation Form -->
+    <div class="card shadow-sm">
+        <div class="card-body">
+            <h3 class="mb-4">Confirmar Transferencia Realizada</h3>
+            <p class="text-muted mb-4">
+                Una vez que hayas realizado la transferencia, haz clic en el botón de abajo para notificarnos.
+                Nuestro equipo validará tu pago y te notificará por email.
+            </p>
+            
+            <form method="post" action="{% url 'confirm_bank_transfer' booking.id %}">
+                {% csrf_token %}
+                
+                <div class="mb-3">
+                    <label class="form-label">Notas Adicionales (Opcional)</label>
+                    <textarea 
+                        name="notes" 
+                        class="form-control" 
+                        rows="3" 
+                        placeholder="Ej: Número de comprobante, banco utilizado, etc."
+                    ></textarea>
+                    <small class="form-text text-muted">
+                        Puedes incluir cualquier información que nos ayude a identificar tu pago
+                    </small>
+                </div>
+                
+                <div class="alert alert-warning">
+                    <i class="fas fa-exclamation-triangle me-2"></i>
+                    <strong>Importante:</strong> Solo confirma si ya realizaste la transferencia. 
+                    El pago será validado manualmente por nuestro equipo.
+                </div>
+                
+                <div class="d-grid gap-2">
+                    <button type="submit" class="btn btn-success btn-lg">
+                        <i class="fas fa-check-circle me-2"></i>
+                        Confirmar que Realicé la Transferencia
+                    </button>
+                    <a href="{% url 'payment_process' booking.id %}" class="btn btn-outline-secondary">
+                        <i class="fas fa-arrow-left me-2"></i>
+                        Volver a Métodos de Pago
+                    </a>
+                </div>
+            </form>
+        </div>
+    </div>
+    
+    <!-- Help Section -->
+    <div class="alert alert-info mt-4">
+        <h5><i class="fas fa-question-circle me-2"></i>¿Necesitas Ayuda?</h5>
+        <p class="mb-0">
+            Si tienes problemas con tu transferencia o necesitas asistencia, 
+            contáctanos por WhatsApp al <strong>+593 99 123 4567</strong> 
+            o envíanos un email a <strong>pagos@liberi.com</strong>
+        </p>
+    </div>
+</div>
+
+<script>
+function copyToClipboard(elementId, button) {
+    const text = document.getElementById(elementId).textContent;
+    navigator.clipboard.writeText(text).then(() => {
+        const originalHTML = button.innerHTML;
+        button.innerHTML = '<i class="fas fa-check"></i>';
+        button.style.backgroundColor = '#28a745';
+        button.style.color = 'white';
+        button.style.borderColor = '#28a745';
+        
+        setTimeout(() => {
+            button.innerHTML = originalHTML;
+            button.style.backgroundColor = '';
+            button.style.color = '';
+            button.style.borderColor = '';
+        }, 2000);
+    }).catch(err => {
+        alert('Error al copiar: ' + err);
+    });
+}
+</script>
+{% endblock %}

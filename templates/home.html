@@ -1,115 +1,181 @@
 {% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Liberi - Servicios a Domicilio de Calidad{% endblock %}
 
 {% block content %}
 <!-- Hero Section -->
 <section class="hero-section">
-    <div class="container text-center">
-        <h1 class="display-3 fw-bold mb-4">Servicios a Domicilio</h1>
-        <p class="lead mb-4">Belleza y limpieza profesional donde y cuando lo necesites</p>
-        <div class="d-flex gap-3 justify-content-center">
-            <a href="{% url 'services_list' %}" class="btn btn-light btn-lg">
-                <i class="fas fa-search"></i> Buscar Servicios
-            </a>
-            <a href="{% url 'register_provider' %}" class="btn btn-outline-light btn-lg">
-                <i class="fas fa-handshake"></i> Ser Proveedor
-            </a>
+    <div class="container">
+        <div class="hero-content">
+            <h1 class="hero-title">Servicios a Domicilio</h1>
+            <p class="hero-subtitle">
+                Belleza y limpieza profesional donde y cuando lo necesites
+            </p>
+            <div class="hero-buttons">
+                <a href="{% url 'services_list' %}" class="btn-hero btn-hero-primary">
+                    <i class="fas fa-search"></i>
+                    Buscar Servicios
+                </a>
+                {% comment %}
+                <a href="{% url 'become_provider' %}" class="btn-hero btn-hero-secondary">
+                    <i class="fas fa-briefcase"></i>
+                    Ser Proveedor
+                </a>
+                {% endcomment %}
+                <a href="#" class="btn-hero btn-hero-secondary" onclick="alert('Próximamente: Registro de Proveedores'); return false;">
+                    <i class="fas fa-briefcase"></i>
+                    Ser Proveedor
+                </a>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Search Section -->
+<section class="search-section">
+    <div class="container">
+        <div class="search-card">
+            <form action="{% url 'services_list' %}" method="get" class="search-form">
+                <input 
+                    type="text" 
+                    name="q" 
+                    class="search-input" 
+                    placeholder="¿Qué servicio necesitas? Ej: Manicure, Limpieza de hogar..."
+                >
+                <button type="submit" class="btn-search">
+                    <i class="fas fa-search me-2"></i>Buscar
+                </button>
+            </form>
         </div>
     </div>
 </section>
 
 <!-- Categories Section -->
-<section class="container mb-5">
-    <h2 class="text-center mb-5">Nuestras Categorías</h2>
-    <div class="row">
-        {% for category in categories %}
-        <div class="col-md-6 mb-4">
-            <div class="card text-center p-4">
-                <div class="category-icon">{{ category.icon }}</div>
-                <h3>{{ category.name }}</h3>
-                <p class="text-muted">{{ category.description }}</p>
-                <a href="{% url 'services_list' %}?category={{ category.id }}" class="btn btn-primary">
-                    Ver Servicios <i class="fas fa-arrow-right"></i>
+<section class="categories-section">
+    <div class="container">
+        <h2 class="section-title">Nuestras Categorías</h2>
+        <div class="categories-grid">
+            <!-- Beauty Category -->
+            <div class="category-card">
+                <span class="category-icon">💅</span>
+                <h3 class="category-name">Belleza</h3>
+                <p class="category-description">
+                    Servicios de belleza profesional: manicure, pedicure, tratamientos faciales, masajes y más
+                </p>
+                <a href="{% url 'services_list' %}" class="btn-category">
+                    Ver Servicios <i class="fas fa-arrow-right ms-2"></i>
+                </a>
+            </div>
+
+            <!-- Cleaning Category -->
+            <div class="category-card">
+                <span class="category-icon">🧹</span>
+                <h3 class="category-name">Limpieza</h3>
+                <p class="category-description">
+                    Servicios de limpieza para hogar, oficinas, muebles y espacios especiales
+                </p>
+                <a href="{% url 'services_list' %}" class="btn-category">
+                    Ver Servicios <i class="fas fa-arrow-right ms-2"></i>
                 </a>
             </div>
         </div>
-        {% endfor %}
     </div>
 </section>
 
 <!-- Featured Services -->
-<section class="container mb-5">
-    <h2 class="text-center mb-5">Servicios Destacados</h2>
-    <div class="row">
-        {% for service in featured_services %}
-        <div class="col-md-4 mb-4">
-            <div class="card service-card">
-                {% if service.image %}
-                <img src="{{ service.image.url }}" class="card-img-top" alt="{{ service.name }}">
-                {% else %}
-                <div class="card-img-top bg-light d-flex align-items-center justify-content-center" style="height: 200px;">
-                    <i class="fas fa-image fa-3x text-muted"></i>
-                </div>
-                {% endif %}
-                <div class="card-body">
-                    <h5 class="card-title">{{ service.name }}</h5>
-                    <p class="card-text text-muted">{{ service.description|truncatewords:15 }}</p>
-                    <div class="d-flex justify-content-between align-items-center">
-                        <span class="service-price">${{ service.base_price }}</span>
-                        <span class="text-muted">
-                            <i class="far fa-clock"></i> {{ service.duration_minutes }} min
-                        </span>
+<section class="services-section">
+    <div class="container">
+        <h2 class="section-title">Servicios Destacados</h2>
+        <div class="services-grid">
+            {% if featured_services %}
+                {% for service in featured_services %}
+                <div class="service-card">
+                    <div class="service-image">
+                        {% if service.image %}
+                            <img src="{{ service.image.url }}" alt="{{ service.name }}">
+                        {% endif %}
                     </div>
-                    <a href="{% url 'service_detail' service.id %}" class="btn btn-primary w-100 mt-3">
-                        Ver Detalles
-                    </a>
+                    <div class="service-body">
+                        <div class="service-provider">
+                            <i class="fas fa-user-circle"></i>
+                            <span>{{ service.provider.get_full_name|default:service.provider.username }}</span>
+                        </div>
+                        <h3 class="service-title">{{ service.name }}</h3>
+                        <p class="service-description">
+                            {{ service.description|truncatewords:20 }}
+                        </p>
+                        <div class="service-meta">
+                            <div>
+                                <div class="service-price">${{ service.base_price }}</div>
+                                <div class="service-duration">
+                                    <i class="far fa-clock me-1"></i>
+                                    {{ service.duration_minutes }} min
+                                </div>
+                            </div>
+                        </div>
+                        <a href="{% url 'service_detail' service.id %}" class="btn-book">
+                            Ver Detalles
+                        </a>
+                    </div>
                 </div>
-            </div>
+                {% endfor %}
+            {% else %}
+                <div class="col-12 text-center py-5">
+                    <i class="fas fa-info-circle text-muted" style="font-size: 3rem;"></i>
+                    <p class="text-muted mt-3">
+                        Pronto tendremos servicios destacados disponibles
+                    </p>
+                </div>
+            {% endif %}
         </div>
-        {% endfor %}
     </div>
 </section>
 
-<!-- How it Works -->
-<section class="container mb-5">
-    <h2 class="text-center mb-5">¿Cómo Funciona?</h2>
-    <div class="row text-center">
-        <div class="col-md-3">
-            <div class="mb-3">
-                <i class="fas fa-search fa-4x text-primary"></i>
+<!-- How It Works Section -->
+<section class="how-it-works-section py-5 bg-light">
+    <div class="container">
+        <h2 class="section-title">¿Cómo Funciona?</h2>
+        <div class="row mt-5">
+            <div class="col-md-4 text-center mb-4">
+                <div class="step-icon">
+                    <i class="fas fa-search fa-3x text-primary mb-3"></i>
+                </div>
+                <h4>1. Busca</h4>
+                <p class="text-muted">
+                    Encuentra el servicio que necesitas entre nuestra amplia oferta de profesionales verificados
+                </p>
             </div>
-            <h4>1. Busca</h4>
-            <p class="text-muted">Explora servicios y proveedores en tu zona</p>
-        </div>
-        <div class="col-md-3">
-            <div class="mb-3">
-                <i class="fas fa-calendar-check fa-4x text-primary"></i>
+            <div class="col-md-4 text-center mb-4">
+                <div class="step-icon">
+                    <i class="fas fa-calendar-check fa-3x text-primary mb-3"></i>
+                </div>
+                <h4>2. Reserva</h4>
+                <p class="text-muted">
+                    Selecciona fecha y hora que mejor te convenga y confirma tu reserva
+                </p>
             </div>
-            <h4>2. Reserva</h4>
-            <p class="text-muted">Selecciona fecha y hora conveniente</p>
-        </div>
-        <div class="col-md-3">
-            <div class="mb-3">
-                <i class="fas fa-credit-card fa-4x text-primary"></i>
+            <div class="col-md-4 text-center mb-4">
+                <div class="step-icon">
+                    <i class="fas fa-home fa-3x text-primary mb-3"></i>
+                </div>
+                <h4>3. Disfruta</h4>
+                <p class="text-muted">
+                    Recibe el servicio en la comodidad de tu hogar con total garantía de calidad
+                </p>
             </div>
-            <h4>3. Paga</h4>
-            <p class="text-muted">Pago seguro online o efectivo</p>
-        </div>
-        <div class="col-md-3">
-            <div class="mb-3">
-                <i class="fas fa-star fa-4x text-primary"></i>
-            </div>
-            <h4>4. Califica</h4>
-            <p class="text-muted">Comparte tu experiencia</p>
         </div>
     </div>
 </section>
 
 <!-- CTA Section -->
-<section class="bg-light py-5">
-    <div class="container text-center">
-        <h2 class="mb-4">¿Eres Profesional?</h2>
-        <p class="lead mb-4">Únete a nuestra red de proveedores y aumenta tus ingresos</p>
-        <a href="{% url 'register_provider' %}" class="btn btn-primary btn-lg">
+<section class="cta-section py-5" style="background: linear-gradient(135deg, #5DADE2 0%, #48C9B0 100%);">
+    <div class="container text-center text-white">
+        <h2 class="mb-4">¿Eres un Profesional?</h2>
+        <p class="lead mb-4">
+            Únete a nuestra plataforma y conecta con clientes que necesitan tus servicios
+        </p>
+        <a href="{% url 'register_provider' %}" class="btn btn-light btn-lg">
             Registrarse como Proveedor <i class="fas fa-arrow-right"></i>
         </a>
     </div>

@@ -2,6 +2,7 @@ from django.db import models
 from django.contrib.auth.models import User
 from django.utils import timezone
 from django.conf import settings
+from django.core.validators import RegexValidator
 
 import uuid
 
@@ -133,8 +134,8 @@ class Booking(models.Model):
     
     PAYMENT_STATUS_CHOICES = [
         ('pending', 'Pendiente'),
+        ('pending_validation', 'Pendiente de Validación'),
         ('paid', 'Pagado'),
-        ('failed', 'Fallido'),
         ('refunded', 'Reembolsado'),
     ]
     
@@ -161,6 +162,14 @@ class Booking(models.Model):
         verbose_name = 'Reserva'
         verbose_name_plural = 'Reservas'
         ordering = ['-created_at']
+
+    def get_services_display(self):
+        """
+        Retorna una representación legible de los servicios
+        """
+        if isinstance(self.service_list, list):
+            return ', '.join([s.get('name', '') for s in self.service_list])
+        return 'N/A'
 
     def __str__(self):
         return f"Reserva {str(self.id)[:8]} - {self.get_status_display()}"
@@ -415,65 +424,106 @@ class PaymentMethod(models.Model):
 
 class BankAccount(models.Model):
     """
-    Modelo para gestionar las cuentas bancarias de la empresa
+    Modelo para almacenar las cuentas bancarias de la empresa
+    donde los clientes pueden realizar transferencias
     """
     ACCOUNT_TYPE_CHOICES = [
-        ('savings', 'Ahorros'),
-        ('checking', 'Corriente'),
+        ('savings', 'Cuenta de Ahorros'),
+        ('checking', 'Cuenta Corriente'),
     ]
     
     bank_name = models.CharField(
-        max_length=100, 
+        max_length=100,
         verbose_name='Nombre del Banco',
         help_text='Ej: Banco Pichincha, Banco Guayaquil'
     )
+    
     account_type = models.CharField(
         max_length=20,
         choices=ACCOUNT_TYPE_CHOICES,
+        default='checking',
         verbose_name='Tipo de Cuenta'
     )
+    
     account_number = models.CharField(
-        max_length=50, 
-        verbose_name='Número de Cuenta'
+        max_length=50,
+        unique=True,
+        verbose_name='Número de Cuenta',
+        help_text='Número de cuenta bancaria'
     )
+    
     account_holder = models.CharField(
-        max_length=200, 
+        max_length=200,
         verbose_name='Titular de la Cuenta',
         help_text='Nombre completo o razón social del titular'
     )
-    identification = models.CharField(
-        max_length=20, 
-        blank=True, 
-        null=True, 
-        verbose_name='RUC/CI',
-        help_text='RUC o cédula del titular'
+    
+    id_number = models.CharField(
+        max_length=20,
+        verbose_name='RUC/Cédula',
+        help_text='Número de identificación del titular (RUC o Cédula)',
+        validators=[
+            RegexValidator(
+                regex=r'^\d{10,13}$',
+                message='Ingrese un número de cédula o RUC válido (10-13 dígitos)'
+            )
+        ]
     )
+    
+    swift_code = models.CharField(
+        max_length=20,
+        blank=True,
+        null=True,
+        verbose_name='Código SWIFT/BIC',
+        help_text='Código internacional del banco (opcional)'
+    )
+    
+    bank_code = models.CharField(
+        max_length=10,
+        blank=True,
+        null=True,
+        verbose_name='Código del Banco',
+        help_text='Código identificador del banco'
+    )
+    
     is_active = models.BooleanField(
-        default=True, 
+        default=True,
         verbose_name='Activa',
-        help_text='Activar/Desactivar esta cuenta bancaria'
+        help_text='Si está activa, se mostrará a los clientes para realizar transferencias'
     )
+    
     display_order = models.IntegerField(
-        default=0, 
+        default=0,
         verbose_name='Orden de Visualización',
-        help_text='Orden en que aparecerá en la lista (menor número = primero)'
+        help_text='Orden en que se muestra (menor número = primero)'
     )
+    
     notes = models.TextField(
-        blank=True, 
-        null=True, 
-        verbose_name='Notas para el Usuario',
-        help_text='Información adicional que verá el usuario (ej: horarios de transferencia)'
+        blank=True,
+        null=True,
+        verbose_name='Notas',
+        help_text='Notas internas sobre esta cuenta (no visible para clientes)'
     )
+    
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     
     class Meta:
+        ordering = ['display_order', 'bank_name']
         verbose_name = 'Cuenta Bancaria'
         verbose_name_plural = 'Cuentas Bancarias'
-        ordering = ['display_order', 'bank_name']
     
     def __str__(self):
-        return f"{self.bank_name} - {self.get_account_type_display()} - ****{self.account_number[-4:]}"
+        return f"{self.bank_name} - {self.get_account_type_display()} ({self.account_number})"
+    
+    def get_masked_account_number(self):
+        """
+        Retorna el número de cuenta parcialmente enmascarado
+        Ej: 2100123456 -> 2100****3456
+        """
+        if len(self.account_number) > 8:
+            return f"{self.account_number[:4]}{'*' * (len(self.account_number) - 8)}{self.account_number[-4:]}"
+        return self.account_number
 
 
 # ============================================
@@ -630,3 +680,154 @@ class Notification(models.Model):
         if not self.is_read:
             self.is_read = True
             self.save(update_fields=['is_read'])
+
+
+class Payment(models.Model):
+    """
+    Modelo para gestionar los pagos de las reservas
+    """
+    PAYMENT_METHOD_CHOICES = [
+        ('payphone', 'PayPhone'),
+        ('bank_transfer', 'Transferencia Bancaria'),
+        ('cash', 'Efectivo'),
+    ]
+    
+    STATUS_CHOICES = [
+        ('pending', 'Pendiente'),
+        ('pending_validation', 'Pendiente de Validación'),
+        ('completed', 'Completado'),
+        ('failed', 'Fallido'),
+        ('refunded', 'Reembolsado'),
+        ('cancelled', 'Cancelado'),
+    ]
+    
+    booking = models.ForeignKey(
+        'Booking', 
+        on_delete=models.CASCADE, 
+        related_name='payments'
+    )
+    amount = models.DecimalField(
+        max_digits=10, 
+        decimal_places=2,
+        help_text='Monto del pago'
+    )
+    payment_method = models.CharField(
+        max_length=20, 
+        choices=PAYMENT_METHOD_CHOICES,
+        default='payphone'
+    )
+    status = models.CharField(
+        max_length=20, 
+        choices=STATUS_CHOICES,
+        default='pending'
+    )
+    transaction_id = models.CharField(
+        max_length=100, 
+        blank=True, 
+        null=True,
+        help_text='ID de transacción del procesador de pagos'
+    )
+    
+    # Campos específicos para transferencia bancaria
+    reference_number = models.CharField(
+        max_length=100, 
+        blank=True, 
+        null=True,
+        help_text='Número de referencia de la transferencia'
+    )
+    transfer_date = models.DateField(
+        blank=True, 
+        null=True,
+        help_text='Fecha en que se realizó la transferencia'
+    )
+    transfer_receipt = models.FileField(
+        upload_to='payment_receipts/', 
+        blank=True, 
+        null=True,
+        help_text='Comprobante de la transferencia'
+    )
+    
+    # Campos adicionales
+    notes = models.TextField(
+        blank=True, 
+        null=True,
+        help_text='Notas adicionales sobre el pago'
+    )
+    validated_by = models.ForeignKey(
+        User, 
+        on_delete=models.SET_NULL, 
+        null=True, 
+        blank=True,
+        related_name='validated_payments',
+        help_text='Administrador que validó el pago'
+    )
+    validated_at = models.DateTimeField(
+        blank=True, 
+        null=True,
+        help_text='Fecha y hora de validación'
+    )
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        ordering = ['-created_at']
+        verbose_name = 'Pago'
+        verbose_name_plural = 'Pagos'
+    
+    def __str__(self):
+        return f"Pago #{self.id} - Reserva #{self.booking.id} - ${self.amount}"
+    
+    def mark_as_completed(self, validated_by=None):
+        """
+        Marca el pago como completado y actualiza la reserva
+        """
+        self.status = 'completed'
+        self.validated_by = validated_by
+        self.validated_at = timezone.now()
+        self.save()
+        
+        # Actualizar el estado de pago de la reserva
+        self.booking.payment_status = 'paid'
+        self.booking.save()
+        
+        # Enviar notificación al cliente
+        self.send_payment_approved_notification()
+    
+    def send_payment_approved_notification(self):
+        """
+        Envía notificación al cliente cuando su pago es aprobado
+        """
+        from django.core.mail import send_mail
+        from django.conf import settings
+        
+        subject = f'Pago Aprobado - Reserva #{self.booking.id}'
+        message = f"""
+        Hola {self.booking.customer.get_full_name() or self.booking.customer.username},
+        
+        ¡Excelentes noticias! Tu pago ha sido validado y aprobado.
+        
+        DETALLES DE TU RESERVA:
+        - Número de Reserva: #{self.booking.id}
+        - Servicio: {self.booking.get_services_display()}
+        - Monto Pagado: ${self.amount}
+        - Fecha Programada: {self.booking.scheduled_time.strftime('%d/%m/%Y %H:%M')}
+        
+        Tu reserva está confirmada. El proveedor se pondrá en contacto contigo próximamente.
+        
+        ¡Gracias por confiar en Liberi!
+        
+        ---
+        El Equipo de Liberi
+        """
+        
+        try:
+            send_mail(
+                subject=subject,
+                message=message,
+                from_email=settings.DEFAULT_FROM_EMAIL,
+                recipient_list=[self.booking.customer.email],
+                fail_silently=False,
+            )
+        except Exception as e:
+            print(f"Error enviando notificación de pago aprobado: {e}")

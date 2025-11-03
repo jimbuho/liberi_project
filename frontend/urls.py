@@ -27,7 +27,7 @@ urlpatterns = [
     path('bookings/<uuid:booking_id>/accept/', views.booking_accept, name='booking_accept'),
     path('bookings/<uuid:booking_id>/reject/', views.booking_reject, name='booking_reject'),
     path('bookings/<uuid:booking_id>/complete/', views.booking_complete, name='booking_complete'),
-    path('bookings/<int:booking_id>/payment/', views.bank_transfer_v2, name='payment_process'),
+    path('bookings/<int:booking_id>/payment/', views.payment_process, name='payment_process'),
     
     # Locations
     path('locations/create/', views.location_create, name='location_create'),
@@ -74,9 +74,10 @@ urlpatterns = [
     # Pagos v2 (con imagen)
     path('payments/<uuid:booking_id>/', views.payment_process, name='payment_process'),
     path('payments/payphone/create/', views.payphone_create, name='payphone_create'),
-    path('payments/bank-transfer/', views.bank_transfer, name='bank_transfer'),
-    path('payments/v2/<uuid:booking_id>/', views.payment_process_v2, name='payment_process_v2'),
-    path('payments/bank-transfer-v2/', views.bank_transfer_v2, name='bank_transfer_v2'),
+    
+    path('payment/bank-transfer/<uuid:booking_id>/', views.payment_bank_transfer, name='payment_bank_transfer'),
+    path('payment/confirm-transfer/<uuid:booking_id>/', views.confirm_bank_transfer_payment, name='confirm_bank_transfer'),
+    path('payment/confirmation/<int:payment_id>/', views.payment_confirmation, name='payment_confirmation'),
 
     # API de Notificaciones
     path('api/notifications/', views.api_notifications_list, name='api_notifications_list'),

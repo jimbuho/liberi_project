@@ -1,176 +1,162 @@
 {% extends 'base.html' %}
+{% load static %}
 
-{% block title %}Procesar Pago - Liberi{% endblock %}
+{% block title %}Proceso de Pago - Reserva #{{ booking.id }}{% endblock %}
+
+{% block extra_css %}
+<style>
+    .payment-container {
+        max-width: 900px;
+        margin: 3rem auto;
+        padding: 0 1rem;
+    }
+    
+    .payment-card {
+        background: white;
+        border-radius: 15px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        padding: 2rem;
+        margin-bottom: 2rem;
+    }
+    
+    .booking-summary {
+        background: #f8f9fa;
+        padding: 1.5rem;
+        border-radius: 10px;
+        margin-bottom: 2rem;
+    }
+    
+    .payment-method-card {
+        border: 2px solid #e8e8e8;
+        border-radius: 10px;
+        padding: 1.5rem;
+        margin-bottom: 1rem;
+        cursor: pointer;
+        transition: all 0.3s ease;
+    }
+    
+    .payment-method-card:hover {
+        border-color: #5DADE2;
+        box-shadow: 0 4px 12px rgba(93, 173, 226, 0.2);
+    }
+    
+    .payment-method-card.selected {
+        border-color: #5DADE2;
+        background-color: #f0f8ff;
+    }
+    
+    .payment-icon {
+        font-size: 3rem;
+        margin-bottom: 1rem;
+    }
+    
+    .amount-display {
+        font-size: 2.5rem;
+        font-weight: 700;
+        color: #5DADE2;
+        text-align: center;
+        margin: 2rem 0;
+    }
+</style>
+{% endblock %}
 
 {% block content %}
-<div class="container mt-4 mb-5">
-    <div class="row justify-content-center">
-        <div class="col-md-8">
-            <div class="card">
-                <div class="card-body p-4">
-                    <h2 class="text-center mb-4">
-                        <i class="fas fa-credit-card"></i> Procesar Pago
-                    </h2>
-
-                    <!-- Booking Summary -->
-                    <div class="card bg-light mb-4">
-                        <div class="card-body">
-                            <h5>Resumen de la Reserva</h5>
-                            <hr>
-                            <div class="row">
-                                <div class="col-md-6">
-                                    <p><strong>Reserva:</strong> #{{ booking.id|slice:":8" }}</p>
-                                    <p><strong>Proveedor:</strong> {{ booking.provider.get_full_name }}</p>
-                                    <p><strong>Fecha:</strong> {{ booking.scheduled_time|date:"d/m/Y H:i" }}</p>
-                                </div>
-                                <div class="col-md-6">
-                                    <p><strong>Servicios:</strong></p>
-                                    <ul class="mb-0">
-                                        {% for service in booking.service_list %}
-                                        <li>{{ service.name }} - ${{ service.price }}</li>
-                                        {% endfor %}
-                                    </ul>
-                                </div>
-                            </div>
-                            <hr>
-                            <div class="d-flex justify-content-between align-items-center">
-                                <h4 class="mb-0">Total a Pagar:</h4>
-                                <h3 class="text-primary mb-0">${{ booking.total_cost }}</h3>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Payment Methods -->
-                    <h5 class="mb-3">Selecciona un método de pago</h5>
-
-                    {% for method in payment_methods %}
-                    <div class="card mb-3 payment-method-card {% if method.code == 'payphone' %}border-primary{% endif %}">
-                        <div class="card-body">
-                            <div class="d-flex align-items-center mb-3">
-                                <i class="fas {{ method.icon }} fa-3x text-primary me-3"></i>
-                                <div class="flex-grow-1">
-                                    <h5 class="mb-1">{{ method.name }}</h5>
-                                    <p class="text-muted mb-0">{{ method.description }}</p>
-                                </div>
-                            </div>
-                            
-                            {% if method.code == 'payphone' %}
-                            <form method="post" action="{% url 'payphone_create' %}">
-                                {% csrf_token %}
-                                <input type="hidden" name="booking_id" value="{{ booking.id }}">
-                                <button type="submit" class="btn btn-primary w-100">
-                                    <i class="fas fa-credit-card"></i> Pagar con PayPhone
-                                </button>
-                            </form>
-                            
-                            {% elif method.code == 'bank_transfer' %}
-                            <button type="button" class="btn btn-info w-100" 
-                                    data-bs-toggle="collapse" data-bs-target="#bankTransferForm">
-                                <i class="fas fa-university"></i> Pagar con Transferencia
-                            </button>
-                            
-                            <div class="collapse mt-3" id="bankTransferForm">
-                                <div class="alert alert-info">
-                                    <strong><i class="fas fa-info-circle"></i> Cuentas Disponibles:</strong>
-                                </div>
-                                
-                                {% if bank_accounts %}
-                                <form method="post" action="{% url 'bank_transfer_v2' %}" enctype="multipart/form-data">
-                                    {% csrf_token %}
-                                    <input type="hidden" name="booking_id" value="{{ booking.id }}">
-                                    
-                                    <div class="mb-3">
-                                        <label for="bank_account" class="form-label">Selecciona la cuenta bancaria *</label>
-                                        <select class="form-select" id="bank_account" name="bank_account" required>
-                                            <option value="">Selecciona una cuenta...</option>
-                                            {% for account in bank_accounts %}
-                                            <option value="{{ account.id }}">
-                                                {{ account.get_bank_name_display }} - 
-                                                {{ account.get_account_type_display }} - 
-                                                {{ account.get_masked_account }} - 
-                                                {{ account.account_holder }}
-                                            </option>
-                                            {% endfor %}
-                                        </select>
-                                    </div>
-                                    
-                                    <div class="mb-3">
-                                        <label for="reference" class="form-label">
-                                            Número de Referencia/Comprobante *
-                                        </label>
-                                        <input type="text" class="form-control" id="reference" 
-                                               name="reference" required
-                                               placeholder="Ej: 1234567890">
-                                        <small class="text-muted">
-                                            Ingresa el número de comprobante de tu transferencia
-                                        </small>
-                                    </div>
-                                    
-                                    <div class="mb-3">
-                                        <label for="proof_image" class="form-label">
-                                            <i class="fas fa-image"></i> Imagen del Comprobante *
-                                        </label>
-                                        <input type="file" class="form-control" id="proof_image" 
-                                               name="proof_image" accept="image/*" required>
-                                        <small class="text-muted">
-                                            Sube una foto o captura de pantalla de tu comprobante de transferencia
-                                        </small>
-                                        
-                                        <!-- Preview -->
-                                        <div id="imagePreview" class="mt-3" style="display: none;">
-                                            <img id="previewImg" class="img-thumbnail" style="max-height: 200px;">
-                                        </div>
-                                    </div>
-                                    
-                                    <button type="submit" class="btn btn-info w-100">
-                                        <i class="fas fa-check"></i> Confirmar Transferencia
-                                    </button>
-                                </form>
-                                {% else %}
-                                <div class="alert alert-warning">
-                                    <i class="fas fa-exclamation-triangle"></i>
-                                    No hay cuentas bancarias configuradas
-                                </div>
-                                {% endif %}
-                            </div>
-                            {% endif %}
-                        </div>
-                    </div>
-                    {% empty %}
-                    <div class="alert alert-warning">
-                        <i class="fas fa-exclamation-triangle"></i>
-                        No hay métodos de pago disponibles en este momento
-                    </div>
-                    {% endfor %}
-
-                    <div class="alert alert-warning mt-4">
-                        <i class="fas fa-info-circle"></i>
-                        <strong>Importante:</strong> Una vez completado el pago, el proveedor será notificado y podrás contactarlo.
-                    </div>
-
-                    <div class="text-center mt-4">
-                        <a href="{% url 'booking_detail' booking.id %}" class="btn btn-outline-secondary">
-                            <i class="fas fa-arrow-left"></i> Volver a la Reserva
-                        </a>
-                    </div>
+<div class="payment-container">
+    <!-- Header -->
+    <div class="text-center mb-4">
+        <h1 class="mb-2">Proceso de Pago</h1>
+        <p class="text-muted">Selecciona tu método de pago preferido</p>
+    </div>
+    
+    <!-- Booking Summary -->
+    <div class="payment-card">
+        <h3 class="mb-3">Resumen de la Reserva</h3>
+        <div class="booking-summary">
+            <div class="row">
+                <div class="col-md-6 mb-3">
+                    <strong><i class="fas fa-hashtag me-2"></i>Número de Reserva:</strong>
+                    <p class="mb-0">#{{ booking.id }}</p>
+                </div>
+                <div class="col-md-6 mb-3">
+                    <strong><i class="fas fa-user me-2"></i>Proveedor:</strong>
+                    <p class="mb-0">{{ booking.provider.get_full_name|default:booking.provider.username }}</p>
+                </div>
+                <div class="col-md-6 mb-3">
+                    <strong><i class="fas fa-list me-2"></i>Servicios:</strong>
+                    <p class="mb-0">{{ booking.get_services_display }}</p>
+                </div>
+                <div class="col-md-6 mb-3">
+                    <strong><i class="fas fa-calendar me-2"></i>Fecha:</strong>
+                    <p class="mb-0">{{ booking.scheduled_time|date:"d/m/Y H:i" }}</p>
                 </div>
             </div>
         </div>
+        
+        <div class="amount-display">
+            Total a Pagar: ${{ booking.total_cost }}
+        </div>
+    </div>
+    
+    <!-- Payment Methods -->
+    <div class="payment-card">
+        <h3 class="mb-4">Selecciona un Método de Pago</h3>
+        
+        <div class="row">
+            
+            {% if payphone_enabled %}
+            <!-- PayPhone -->
+            <div class="col-md-6">
+                <div class="payment-method-card text-center" onclick="selectPaymentMethod('payphone')">
+                    <div class="payment-icon">
+                        <i class="fas fa-mobile-alt text-primary"></i>
+                    </div>
+                    <h4>PayPhone</h4>
+                    <p class="text-muted mb-3">Pago instantáneo con tu teléfono</p>
+                    <!--
+                    <a href="" class="btn btn-primary">
+                        <i class="fas fa-arrow-right me-2"></i>Pagar con PayPhone
+                    </a>
+                    -->
+                </div>
+            </div>
+            {% endif %}
+            
+            {% if bank_transfer_enabled %}
+            <!-- Bank Transfer -->
+            <div class="col-md-6">
+                <div class="payment-method-card text-center" onclick="selectPaymentMethod('bank_transfer')">
+                    <div class="payment-icon">
+                        <i class="fas fa-university text-success"></i>
+                    </div>
+                    <h4>Transferencia Bancaria</h4>
+                    <p class="text-muted mb-3">Paga desde tu cuenta bancaria</p>
+                    <a href="{% url 'payment_bank_transfer' booking.id %}" class="btn btn-success">
+                        <i class="fas fa-arrow-right me-2"></i>Ver Datos Bancarios
+                    </a>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+    
+    <!-- Security Notice -->
+    <div class="alert alert-info">
+        <i class="fas fa-shield-alt me-2"></i>
+        <strong>Transacción Segura:</strong> Todos tus pagos están protegidos con encriptación de nivel bancario.
+    </div>
+    
+    <!-- Back Button -->
+    <div class="text-center mt-4">
+        <a href="{% url 'booking_detail' booking.id %}" class="btn btn-outline-secondary">
+            <i class="fas fa-arrow-left me-2"></i>Volver a la Reserva
+        </a>
     </div>
 </div>
 
 <script>
-// Preview de imagen
-document.getElementById('proof_image')?.addEventListener('change', function(e) {
-    const file = e.target.files[0];
-    if (file) {
-        const reader = new FileReader();
-        reader.onload = function(e) {
-            document.getElementById('previewImg').src = e.target.result;
-            document.getElementById('imagePreview').style.display = 'block';
-        };
-        reader.readAsDataURL(file);
-    }
-});
+function selectPaymentMethod(method) {
+    // Opcional: agregar lógica para resaltar la opción seleccionada
+    console.log('Payment method selected:', method);
+}
 </script>
 {% endblock %}

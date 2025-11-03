@@ -3,6 +3,8 @@ from django.contrib.auth.decorators import login_required
 from django.contrib.auth import login, authenticate, logout
 from django.contrib import messages
 from django.utils import timezone
+from django.conf import settings
+from django.core.mail import send_mail
 from django.db.models import Q, Avg, Count, Sum
 from datetime import timedelta, datetime
 from django.contrib.auth.models import User
@@ -12,9 +14,12 @@ from core.models import (
     Profile, Category, Service, ProviderProfile, 
     Booking, Location, Review, AuditLog,
     Zone, ProviderSchedule, ProviderUnavailability,
-    ProviderZoneCost, SystemConfig,
-    PaymentMethod, BankAccount, PaymentProof, Notification
+    PaymentMethod, BankAccount, PaymentProof,
+    ProviderZoneCost, SystemConfig, Notification, Payment
 )
+
+from .forms import BankTransferForm
+
 
 # ============================================================================
 # HOME & PUBLIC VIEWS
@@ -1012,26 +1017,6 @@ def review_create(request, booking_id):
 # PAYMENT VIEWS
 # ============================================================================
 
-@login_required
-def payment_process(request, booking_id):
-    """Página de selección de método de pago"""
-    booking = get_object_or_404(Booking, id=booking_id)
-    
-    # Verificar que sea el cliente
-    if booking.customer != request.user:
-        messages.error(request, 'No tienes acceso a esta reserva')
-        return redirect('bookings_list')
-    
-    # Verificar que no esté pagada
-    if booking.payment_status == 'paid':
-        messages.info(request, 'Esta reserva ya está pagada')
-        return redirect('booking_detail', booking_id=booking.id)
-    
-    context = {
-        'booking': booking,
-    }
-    return render(request, 'payments/process.html', context)
-
 
 @login_required
 def payphone_create(request):
@@ -1051,51 +1036,6 @@ def payphone_create(request):
         return redirect('booking_detail', booking_id=booking.id)
     
     return redirect('bookings_list')
-
-
-@login_required
-def bank_transfer(request):
-    """Registrar transferencia bancaria"""
-    if request.method == 'POST':
-        booking_id = request.POST.get('booking_id')
-        reference = request.POST.get('reference')
-        
-        booking = get_object_or_404(Booking, id=booking_id, customer=request.user)
-        
-        booking.payment_method = 'bank_transfer'
-        booking.payment_status = 'pending'
-        booking.notes = f"{booking.notes}\n\nReferencia de transferencia: {reference}"
-        booking.save()
-        
-        # Log
-        AuditLog.objects.create(
-            user=request.user,
-            action='Transferencia bancaria registrada',
-            metadata={'booking_id': str(booking.id), 'reference': reference}
-        )
-        
-        messages.success(request, 'Transferencia registrada. Será verificada por el equipo.')
-        return redirect('booking_detail', booking_id=booking.id)
-    
-    return redirect('bookings_list')
-
-
-#@login_required
-# def payment_cash(request):
-#     """Registrar pago en efectivo acordado"""
-#     if request.method == 'POST':
-#         booking_id = request.POST.get('booking_id')
-        
-#         booking = get_object_or_404(Booking, id=booking_id, customer=request.user)
-        
-#         booking.payment_method = 'cash'
-#         booking.payment_status = 'pending'
-#         booking.save()
-        
-#         messages.success(request, 'Pago en efectivo acordado con el proveedor')
-#         return redirect('booking_detail', booking_id=booking.id)
-    
-#     return redirect('bookings_list')
 
 
 # ============================================================================
@@ -1854,48 +1794,42 @@ def provider_coverage_remove(request, zone_id):
     return redirect('provider_coverage_manage')
 
 @login_required
-def payment_process_v2(request, booking_id):
-    """Página de selección de método de pago (versión 2 con métodos administrables)"""
-    booking = get_object_or_404(Booking, id=booking_id)
+def payment_process(request, booking_id):
+    """
+    Vista principal del proceso de pago v2
+    Permite al usuario elegir entre PayPhone o Transferencia Bancaria
+    """
+    booking = get_object_or_404(Booking, id=booking_id, customer=request.user)
     
-    # Verificar que sea el cliente
-    if booking.customer != request.user:
-        messages.error(request, 'No tienes acceso a esta reserva')
-        return redirect('bookings_list')
-    
-    # Verificar que no esté pagada
-    if booking.payment_status == 'paid':
-        messages.info(request, 'Esta reserva ya está pagada')
+    # Verificar que la reserva esté en estado correcto para pagar
+    if booking.status not in ['pending', 'accepted']:
+        messages.error(request, 'Esta reserva no puede ser pagada en este momento.')
         return redirect('booking_detail', booking_id=booking.id)
     
-    # Obtener métodos de pago activos
-    payment_methods = PaymentMethod.objects.filter(is_active=True).order_by('order')
-    
-    # Obtener cuentas bancarias activas (para transferencias)
-    bank_accounts = BankAccount.objects.filter(is_active=True).order_by('order')
+    # Verificar si ya existe un pago
+    if booking.payment_status == 'paid':
+        messages.info(request, 'Esta reserva ya ha sido pagada.')
+        return redirect('booking_detail', booking_id=booking.id)
     
     context = {
         'booking': booking,
-        'payment_methods': payment_methods,
-        'bank_accounts': bank_accounts,
+        'payphone_enabled': True,  # Configurar según tus necesidades
+        'bank_transfer_enabled': True,
     }
-    return render(request, 'payments/process_v2.html', context)
+    
+    return render(request, 'payments/process.html', context)
 
-
-# ============================================
-# VISTA: Proceso de Pago v2 (Con Imagen)
-# ============================================
 
 @login_required
-def bank_transfer_v2(request, booking_id):
+def payment_bank_transfer(request, booking_id):
     """
     Vista mejorada para procesar pagos por transferencia bancaria
-    con soporte para upload de imagen de comprobante
+    CON NOTIFICACIÓN AL ADMIN cuando se confirma el pago
     """
     booking = get_object_or_404(Booking, id=booking_id, customer=request.user)
     
     # Verificar que la reserva no esté ya pagada
-    if booking.is_paid:
+    if booking.payment_status == 'paid':
         messages.info(request, 'Esta reserva ya ha sido pagada.')
         return redirect('booking_detail', booking_id=booking.id)
     
@@ -1920,7 +1854,7 @@ def bank_transfer_v2(request, booking_id):
         # Validaciones
         if payment_method.requires_reference and not reference_code:
             messages.error(request, 'El código de referencia es obligatorio para este método de pago.')
-            return render(request, 'payments/payment_process_v2.html', {
+            return render(request, 'payments/process.html', {
                 'booking': booking,
                 'payment_methods': payment_methods,
                 'bank_accounts': bank_accounts,
@@ -1930,7 +1864,7 @@ def bank_transfer_v2(request, booking_id):
         proof_image = request.FILES.get('proof_image')
         if payment_method.requires_proof and not proof_image:
             messages.error(request, 'Debes subir una imagen del comprobante de pago.')
-            return render(request, 'payments/payment_process_v2.html', {
+            return render(request, 'payments/process.html', {
                 'booking': booking,
                 'payment_methods': payment_methods,
                 'bank_accounts': bank_accounts,
@@ -1942,13 +1876,46 @@ def bank_transfer_v2(request, booking_id):
             payment_method=payment_method,
             bank_account=bank_account,
             reference_code=reference_code,
-            proof_image=proof_image
+            proof_image=proof_image,
+            verified=False  # Pendiente de verificación
         )
         
-        # Actualizar estado de la reserva si no requiere verificación
-        if not payment_method.requires_proof:
-            booking.is_paid = True
-            booking.payment_status = 'completed'
+        # Actualizar estado de la reserva
+        if payment_method.requires_proof:
+            # Si requiere verificación, marcar como pendiente
+            booking.payment_status = 'pending_verification'
+            booking.status = 'transfer_pending_validation'  # NUEVO STATUS
+            booking.save()
+            
+            # Notificar al admin que hay un pago pendiente
+            # Crear notificación para administradores
+            from django.contrib.auth.models import User
+            admin_users = User.objects.filter(is_staff=True, is_active=True)
+            for admin in admin_users:
+                Notification.objects.create(
+                    user=admin,
+                    notification_type='payment_received',
+                    title='Nuevo Pago Pendiente de Verificación',
+                    message=f'El cliente {booking.customer.get_full_name()} ha enviado un comprobante para la reserva #{booking.id}.',
+                    booking=booking,
+                    action_url=f'/admin/core/paymentproof/{payment_proof.id}/change/'
+                )
+            
+            # Notificar al proveedor
+            Notification.objects.create(
+                user=booking.provider,
+                notification_type='payment_received',
+                title='Comprobante de Pago Recibido',
+                message=f'El cliente {booking.customer.get_full_name()} ha enviado un comprobante de pago para la reserva #{booking.id}. Pendiente de verificación por el equipo de Liberi.',
+                booking=booking,
+                action_url=f'/bookings/{booking.id}/'
+            )
+            
+            success_message = 'Tu comprobante ha sido recibido. Nuestro equipo lo verificará pronto y te notificaremos.'
+            
+        else:
+            # Pago automático (ej: PayPhone)
+            booking.payment_status = 'paid'
             booking.save()
             
             # Notificar al proveedor
@@ -1960,35 +1927,158 @@ def bank_transfer_v2(request, booking_id):
                 booking=booking,
                 action_url=f'/bookings/{booking.id}/'
             )
-        else:
-            # Si requiere verificación, marcar como pendiente
-            booking.payment_status = 'pending_verification'
-            booking.save()
             
-            # Notificar al proveedor que se recibió el comprobante
-            Notification.objects.create(
-                user=booking.provider,
-                notification_type='payment_received',
-                title='Comprobante de Pago Recibido',
-                message=f'El cliente {booking.customer.get_full_name()} ha enviado un comprobante de pago para la reserva #{booking.id}. Pendiente de verificación.',
-                booking=booking,
-                action_url=f'/bookings/{booking.id}/'
-            )
+            success_message = 'Tu pago ha sido registrado exitosamente. El proveedor ha sido notificado.'
         
-        messages.success(request, 
-            'Tu pago ha sido registrado exitosamente. ' +
-            ('El proveedor ha sido notificado.' if not payment_method.requires_proof 
-             else 'Tu comprobante será verificado pronto.')
-        )
-        
+        messages.success(request, success_message)
         return redirect('booking_detail', booking_id=booking.id)
     
     # GET request
-    return render(request, 'payments/payment_process_v2.html', {
+    return render(request, 'payments/bank_transfer.html', {
         'booking': booking,
         'payment_methods': payment_methods,
         'bank_accounts': bank_accounts,
     })
+
+
+@login_required
+def payment_confirmation(request, payment_id):
+    """
+    Vista de confirmación después de registrar un pago por transferencia
+    """
+    payment = get_object_or_404(Payment, id=payment_id, booking__customer=request.user)
+    
+    context = {
+        'payment': payment,
+        'booking': payment.booking,
+    }
+    
+    return render(request, 'payments/payment_confirmation.html', context)
+
+
+def notify_admin_pending_payment(payment):
+    """
+    Envía notificación a los administradores sobre un pago pendiente de validación
+    """
+    from django.contrib.auth import get_user_model
+    User = get_user_model()
+    
+    # Obtener todos los administradores
+    admins = User.objects.filter(is_staff=True, is_active=True)
+    
+    admin_emails = [admin.email for admin in admins if admin.email]
+    
+    if admin_emails:
+        subject = f'[Liberi] Nuevo pago por validar - Reserva #{payment.booking.id}'
+        message = f"""
+        Hola Administrador,
+        
+        Se ha registrado un nuevo pago por transferencia bancaria que requiere validación:
+        
+        DETALLES DEL PAGO:
+        - ID de Pago: {payment.id}
+        - ID de Reserva: {payment.booking.id}
+        - Cliente: {payment.booking.customer.get_full_name() or payment.booking.customer.username}
+        - Monto: ${payment.amount}
+        - Número de Referencia: {payment.reference_number or 'N/A'}
+        - Fecha de Transferencia: {payment.transfer_date or 'N/A'}
+        
+        Por favor, revisa el comprobante y valida el pago en el panel de administración:
+        {settings.BASE_DIR}/admin/bookings/payment/{payment.id}/change/
+        
+        ---
+        Sistema Liberi
+        """
+        
+        try:
+            send_mail(
+                subject=subject,
+                message=message,
+                from_email=settings.DEFAULT_FROM_EMAIL,
+                recipient_list=admin_emails,
+                fail_silently=False,
+            )
+        except Exception as e:
+            print(f"Error enviando email a administradores: {e}")
+            # Log the error pero no fallar el proceso
+
+
+def send_payment_confirmation_email(booking, payment):
+    """
+    Envía email de confirmación al cliente
+    """
+    subject = f'Confirmación de Pago - Reserva #{booking.id}'
+    message = f"""
+    Hola {booking.customer.get_full_name() or booking.customer.username},
+    
+    Hemos recibido tu comprobante de pago por transferencia bancaria.
+    
+    DETALLES DE TU RESERVA:
+    - Número de Reserva: #{booking.id}
+    - Servicio: {booking.get_services_display()}
+    - Monto Total: ${booking.total_cost}
+    - Fecha Programada: {booking.scheduled_time.strftime('%d/%m/%Y %H:%M')}
+    
+    ESTADO DEL PAGO:
+    Tu pago está siendo validado por nuestro equipo. Este proceso generalmente toma entre 1-4 horas hábiles.
+    Te notificaremos por email tan pronto como tu pago sea confirmado.
+    
+    ¿Tienes preguntas? Contáctanos en soporte@liberi.com
+    
+    ¡Gracias por confiar en Liberi!
+    
+    ---
+    El Equipo de Liberi
+    """
+    
+    try:
+        send_mail(
+            subject=subject,
+            message=message,
+            from_email=settings.DEFAULT_FROM_EMAIL,
+            recipient_list=[booking.customer.email],
+            fail_silently=False,
+        )
+    except Exception as e:
+        print(f"Error enviando email de confirmación: {e}")
+
+
+@login_required
+def confirm_bank_transfer_payment(request, booking_id):
+    """
+    Vista simplificada para confirmar que se realizó la transferencia
+    (Sin necesidad de subir comprobante en esta versión simplificada)
+    """
+    booking = get_object_or_404(Booking, id=booking_id, customer=request.user)
+    
+    if request.method == 'POST':
+        # Crear el registro de pago pendiente
+        payment = Payment.objects.create(
+            booking=booking,
+            amount=booking.total_cost,
+            payment_method='bank_transfer',
+            status='pending_validation',
+            transaction_id=f"BT-{booking.id}-{timezone.now().strftime('%Y%m%d%H%M%S')}",
+            notes=request.POST.get('notes', ''),
+        )
+        
+        # Actualizar el estado de pago de la reserva
+        booking.payment_status = 'pending_validation'
+        booking.save()
+        
+        # Enviar notificaciones
+        notify_admin_pending_payment(payment)
+        send_payment_confirmation_email(booking, payment)
+        
+        messages.success(
+            request, 
+            '¡Gracias por tu pago! Nuestro equipo lo está validando. '
+            'Recibirás pronto una notificación de que ha sido procesado.'
+        )
+        
+        return redirect('booking_detail', booking_id=booking.id)
+    
+    return redirect('payment_bank_transfer', booking_id=booking_id)
 
 
 # ============================================

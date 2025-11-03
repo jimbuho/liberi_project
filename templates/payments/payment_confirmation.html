@@ -1,0 +1,210 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Pago Confirmado - Reserva #{{ booking.id }}{% endblock %}
+
+{% block extra_css %}
+<style>
+    .confirmation-container {
+        max-width: 700px;
+        margin: 3rem auto;
+        padding: 0 1rem;
+    }
+    
+    .success-icon {
+        width: 100px;
+        height: 100px;
+        background: #d5f4e6;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin: 0 auto 2rem;
+        font-size: 3rem;
+        color: #27AE60;
+    }
+    
+    .confirmation-card {
+        background: white;
+        border-radius: 15px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        padding: 3rem 2rem;
+        text-align: center;
+    }
+    
+    .status-timeline {
+        background: #f8f9fa;
+        padding: 1.5rem;
+        border-radius: 10px;
+        margin: 2rem 0;
+        text-align: left;
+    }
+    
+    .timeline-item {
+        display: flex;
+        align-items: start;
+        margin-bottom: 1rem;
+        padding-left: 1rem;
+    }
+    
+    .timeline-item:last-child {
+        margin-bottom: 0;
+    }
+    
+    .timeline-icon {
+        width: 30px;
+        height: 30px;
+        background: #5DADE2;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        margin-right: 1rem;
+        flex-shrink: 0;
+    }
+    
+    .timeline-icon.completed {
+        background: #27AE60;
+    }
+    
+    .timeline-icon.pending {
+        background: #F39C12;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="confirmation-container">
+    <div class="confirmation-card">
+        <!-- Success Icon -->
+        <div class="success-icon">
+            <i class="fas fa-check"></i>
+        </div>
+        
+        <!-- Main Message -->
+        <h1 class="mb-3">¡Gracias por tu Pago!</h1>
+        <p class="lead text-muted mb-4">
+            Hemos recibido la confirmación de tu transferencia bancaria
+        </p>
+        
+        <!-- Payment Info -->
+        <div class="alert alert-info mb-4">
+            <h5><i class="fas fa-info-circle me-2"></i>Tu Pago Está en Validación</h5>
+            <p class="mb-0">
+                Nuestro equipo está revisando tu transferencia. Este proceso generalmente 
+                toma entre <strong>1 a 4 horas hábiles</strong>. Te notificaremos por email 
+                tan pronto como tu pago sea confirmado.
+            </p>
+        </div>
+        
+        <!-- Booking Details -->
+        <div class="status-timeline">
+            <h5 class="mb-3">Detalles de tu Reserva</h5>
+            
+            <div class="timeline-item">
+                <div class="timeline-icon completed">
+                    <i class="fas fa-check"></i>
+                </div>
+                <div>
+                    <strong>Reserva Creada</strong>
+                    <p class="text-muted mb-0 small">
+                        Reserva #{{ booking.id }} - {{ booking.created_at|date:"d/m/Y H:i" }}
+                    </p>
+                </div>
+            </div>
+            
+            <div class="timeline-item">
+                <div class="timeline-icon completed">
+                    <i class="fas fa-check"></i>
+                </div>
+                <div>
+                    <strong>Pago Registrado</strong>
+                    <p class="text-muted mb-0 small">
+                        ID de Pago: #{{ payment.id }} - {{ payment.created_at|date:"d/m/Y H:i" }}
+                    </p>
+                </div>
+            </div>
+            
+            <div class="timeline-item">
+                <div class="timeline-icon pending">
+                    <i class="fas fa-clock"></i>
+                </div>
+                <div>
+                    <strong>Validación en Proceso</strong>
+                    <p class="text-muted mb-0 small">
+                        Tu pago está siendo verificado por nuestro equipo
+                    </p>
+                </div>
+            </div>
+            
+            <div class="timeline-item">
+                <div class="timeline-icon">
+                    <i class="fas fa-calendar"></i>
+                </div>
+                <div>
+                    <strong>Servicio Programado</strong>
+                    <p class="text-muted mb-0 small">
+                        {{ booking.scheduled_time|date:"d/m/Y H:i" }}
+                    </p>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Summary -->
+        <div class="row text-start mb-4">
+            <div class="col-6">
+                <small class="text-muted d-block">Monto Pagado</small>
+                <strong class="fs-4 text-primary">${{ payment.amount }}</strong>
+            </div>
+            <div class="col-6">
+                <small class="text-muted d-block">Método de Pago</small>
+                <strong>{{ payment.get_payment_method_display }}</strong>
+            </div>
+        </div>
+        
+        <!-- Action Buttons -->
+        <div class="d-grid gap-2">
+            <a href="{% url 'booking_detail' booking.id %}" class="btn btn-primary btn-lg">
+                <i class="fas fa-eye me-2"></i>
+                Ver Detalles de la Reserva
+            </a>
+            <a href="{% url 'bookings_list' %}" class="btn btn-outline-secondary">
+                <i class="fas fa-list me-2"></i>
+                Ver Todas Mis Reservas
+            </a>
+            <a href="{% url 'home' %}" class="btn btn-outline-secondary">
+                <i class="fas fa-home me-2"></i>
+                Volver al Inicio
+            </a>
+        </div>
+    </div>
+    
+    <!-- Additional Info -->
+    <div class="alert alert-success mt-4">
+        <h5><i class="fas fa-envelope me-2"></i>Confirmación por Email</h5>
+        <p class="mb-0">
+            Hemos enviado un email de confirmación a <strong>{{ booking.customer.email }}</strong> 
+            con todos los detalles de tu reserva y pago.
+        </p>
+    </div>
+    
+    <!-- Support -->
+    <div class="card mt-4">
+        <div class="card-body text-center">
+            <h5 class="mb-3">¿Necesitas Ayuda?</h5>
+            <p class="text-muted mb-3">
+                Si tienes preguntas sobre tu pago o reserva, estamos aquí para ayudarte
+            </p>
+            <div class="d-flex gap-2 justify-content-center flex-wrap">
+                <a href="mailto:soporte@liberi.com" class="btn btn-sm btn-outline-primary">
+                    <i class="fas fa-envelope me-1"></i>soporte@liberi.com
+                </a>
+                <a href="https://wa.me/593991234567" class="btn btn-sm btn-outline-success" target="_blank">
+                    <i class="fab fa-whatsapp me-1"></i>WhatsApp
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
