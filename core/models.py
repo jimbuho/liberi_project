@@ -58,13 +58,13 @@ class ProviderProfile(models.Model):
     category = models.ForeignKey(Category, on_delete=models.SET_NULL, null=True, 
                                  verbose_name='Categoría')
     description = models.TextField('Descripción')
-    coverage_zones = models.ManyToManyField('Zone', verbose_name='Zonas de cobertura',  # ← CAMBIAR
+    coverage_zones = models.ManyToManyField('Zone', verbose_name='Zonas de cobertura',
                                            related_name='providers')
     avg_travel_cost = models.DecimalField('Costo promedio de traslado', max_digits=6, 
                                           decimal_places=2, default=0)
     availability = models.JSONField('Disponibilidad', default=dict)
     status = models.CharField('Estado', max_length=10, choices=STATUS_CHOICES, default='pending')
-    is_active = models.BooleanField('Activo', default=True)  # ← AGREGAR
+    is_active = models.BooleanField('Activo', default=True)
     signed_contract_url = models.URLField('URL del contrato firmado', blank=True)
     id_card_front = models.ImageField('Cédula frontal', upload_to='documents/', blank=True)
     id_card_back = models.ImageField('Cédula posterior', upload_to='documents/', blank=True)
@@ -105,13 +105,13 @@ class Service(models.Model):
 class Location(models.Model):
     customer = models.ForeignKey(User, on_delete=models.CASCADE, related_name='locations',
                                 verbose_name='Cliente')
-    zone = models.ForeignKey('Zone', on_delete=models.SET_NULL, null=True,  # ← AGREGAR
+    zone = models.ForeignKey('Zone', on_delete=models.SET_NULL, null=True,
                             verbose_name='Zona')
     address = models.TextField('Dirección')
     reference = models.CharField('Referencia', max_length=255, blank=True)
     label = models.CharField('Etiqueta', max_length=50, default='casa')
-    latitude = models.DecimalField('Latitud', max_digits=9, decimal_places=6)  # ← REQUERIDO
-    longitude = models.DecimalField('Longitud', max_digits=9, decimal_places=6)  # ← REQUERIDO
+    latitude = models.DecimalField('Latitud', max_digits=9, decimal_places=6)
+    longitude = models.DecimalField('Longitud', max_digits=9, decimal_places=6)
     created_at = models.DateTimeField('Fecha de creación', auto_now_add=True)
 
     class Meta:
@@ -535,7 +535,7 @@ class PaymentProof(models.Model):
     Modelo para almacenar los comprobantes de pago subidos por los usuarios
     """
     booking = models.ForeignKey(
-        'Booking',  # Asume que ya tienes un modelo Booking
+        'Booking',
         on_delete=models.CASCADE,
         related_name='payment_proofs',
         verbose_name='Reserva'
@@ -648,7 +648,7 @@ class Notification(models.Model):
         verbose_name='Leída'
     )
     booking = models.ForeignKey(
-        'Booking',  # Asume que ya tienes un modelo Booking
+        'Booking',
         on_delete=models.CASCADE,
         blank=True,
         null=True,
@@ -781,6 +781,7 @@ class Payment(models.Model):
     def mark_as_completed(self, validated_by=None):
         """
         Marca el pago como completado y actualiza la reserva
+        Crea notificaciones para cliente y proveedor
         """
         self.status = 'completed'
         self.validated_by = validated_by
@@ -791,43 +792,127 @@ class Payment(models.Model):
         self.booking.payment_status = 'paid'
         self.booking.save()
         
-        # Enviar notificación al cliente
-        self.send_payment_approved_notification()
+        # Crear notificaciones en pantalla y enviar emails
+        self.send_payment_approved_notifications()
     
-    def send_payment_approved_notification(self):
+    def send_payment_approved_notifications(self):
         """
-        Envía notificación al cliente cuando su pago es aprobado
+        Crea notificaciones en la base de datos y envía emails tanto al cliente como al proveedor
         """
         from django.core.mail import send_mail
         from django.conf import settings
         
-        subject = f'Pago Aprobado - Reserva #{self.booking.id}'
-        message = f"""
-        Hola {self.booking.customer.get_full_name() or self.booking.customer.username},
+        # ============================================
+        # NOTIFICACIÓN PARA EL CLIENTE
+        # ============================================
         
-        ¡Excelentes noticias! Tu pago ha sido validado y aprobado.
+        # Crear notificación en base de datos para el cliente
+        Notification.objects.create(
+            user=self.booking.customer,
+            notification_type='payment_verified',
+            title='✅ Pago Verificado',
+            message=f'Tu pago de ${self.amount} para la reserva ha sido verificado y confirmado. Tu reserva está activa.',
+            booking=self.booking,
+            action_url=f'/bookings/{self.booking.id}/'
+        )
         
-        DETALLES DE TU RESERVA:
-        - Número de Reserva: #{self.booking.id}
-        - Servicio: {self.booking.get_services_display()}
-        - Monto Pagado: ${self.amount}
-        - Fecha Programada: {self.booking.scheduled_time.strftime('%d/%m/%Y %H:%M')}
-        
-        Tu reserva está confirmada. El proveedor se pondrá en contacto contigo próximamente.
-        
-        ¡Gracias por confiar en Liberi!
-        
-        ---
-        El Equipo de Liberi
+        # Enviar email al cliente
+        customer_subject = f'✅ Pago Aprobado - Reserva #{str(self.booking.id)[:8]}'
+        customer_message = f"""
+Hola {self.booking.customer.get_full_name() or self.booking.customer.username},
+
+¡Excelentes noticias! Tu pago ha sido validado y aprobado exitosamente.
+
+═══════════════════════════════════════
+📋 DETALLES DE TU RESERVA
+═══════════════════════════════════════
+
+• Número de Reserva: #{str(self.booking.id)[:8]}
+• Servicio(s): {self.booking.get_services_display()}
+• Monto Pagado: ${self.amount} USD
+• Fecha Programada: {self.booking.scheduled_time.strftime('%d de %B del %Y a las %H:%M')}
+• Proveedor: {self.booking.provider.get_full_name() or self.booking.provider.username}
+
+═══════════════════════════════════════
+
+✅ Tu reserva está CONFIRMADA
+El proveedor ha sido notificado y se pondrá en contacto contigo próximamente para coordinar los detalles finales.
+
+Si tienes alguna pregunta, no dudes en contactarnos.
+
+¡Gracias por confiar en Liberi! 💙
+
+---
+El Equipo de Liberi
         """
         
         try:
             send_mail(
-                subject=subject,
-                message=message,
+                subject=customer_subject,
+                message=customer_message,
                 from_email=settings.DEFAULT_FROM_EMAIL,
                 recipient_list=[self.booking.customer.email],
                 fail_silently=False,
             )
         except Exception as e:
-            print(f"Error enviando notificación de pago aprobado: {e}")
+            print(f"❌ Error enviando email al cliente: {e}")
+        
+        # ============================================
+        # NOTIFICACIÓN PARA EL PROVEEDOR
+        # ============================================
+        
+        # Crear notificación en base de datos para el proveedor
+        Notification.objects.create(
+            user=self.booking.provider,
+            notification_type='payment_verified',
+            title='💰 Pago Confirmado',
+            message=f'El pago de {self.booking.customer.get_full_name() or self.booking.customer.username} por ${self.amount} ha sido verificado. Reserva confirmada.',
+            booking=self.booking,
+            action_url=f'/bookings/{self.booking.id}/'
+        )
+        
+        # Enviar email al proveedor
+        provider_subject = f'💰 Pago Confirmado - Reserva #{str(self.booking.id)[:8]}'
+        provider_message = f"""
+Hola {self.booking.provider.get_full_name() or self.booking.provider.username},
+
+¡Buenas noticias! El pago de tu cliente ha sido verificado y confirmado.
+
+═══════════════════════════════════════
+📋 DETALLES DE LA RESERVA
+═══════════════════════════════════════
+
+• Número de Reserva: #{str(self.booking.id)[:8]}
+• Cliente: {self.booking.customer.get_full_name() or self.booking.customer.username}
+• Teléfono del Cliente: {self.booking.customer.profile.phone if hasattr(self.booking.customer, 'profile') else 'No disponible'}
+• Servicio(s): {self.booking.get_services_display()}
+• Monto Pagado: ${self.amount} USD
+• Fecha Programada: {self.booking.scheduled_time.strftime('%d de %B del %Y a las %H:%M')}
+• Dirección: {self.booking.location.address if self.booking.location else 'Por confirmar'}
+
+═══════════════════════════════════════
+
+✅ PRÓXIMOS PASOS:
+1. Revisa los detalles de la reserva
+2. Contacta al cliente para confirmar la hora exacta
+3. Prepara todo lo necesario para el servicio
+4. Acude puntualmente a la cita
+
+El cliente está esperando tu confirmación. Por favor, ponte en contacto lo antes posible.
+
+¡Éxito con tu servicio! 💪
+
+---
+El Equipo de Liberi
+        """
+        
+        try:
+            send_mail(
+                subject=provider_subject,
+                message=provider_message,
+                from_email=settings.DEFAULT_FROM_EMAIL,
+                recipient_list=[self.booking.provider.email],
+                fail_silently=False,
+            )
+        except Exception as e:
+            print(f"❌ Error enviando email al proveedor: {e}")
