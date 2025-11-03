@@ -1,5 +1,4 @@
 {% extends 'base.html' %}
-{% load static %}
 
 {% block title %}Liberi - Servicios a Domicilio de Calidad{% endblock %}
 
@@ -23,7 +22,7 @@
                     Ser Proveedor
                 </a>
                 {% endcomment %}
-                <a href="#" class="btn-hero btn-hero-secondary" onclick="alert('Próximamente: Registro de Proveedores'); return false;">
+                <a href="{% url 'register_provider' %}" class="btn-hero btn-hero-secondary">
                     <i class="fas fa-briefcase"></i>
                     Ser Proveedor
                 </a>

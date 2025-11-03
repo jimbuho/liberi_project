@@ -218,8 +218,7 @@ class PaymentAdmin(admin.ModelAdmin):
         'amount',
         'payment_method',
         'status_badge',
-        'created_at',
-        'actions_column'
+        'created_at'
     ]
     
     list_filter = [
@@ -285,7 +284,7 @@ class PaymentAdmin(admin.ModelAdmin):
     def booking_link(self, obj):
         """Link a la reserva asociada"""
         url = reverse('admin:core_booking_change', args=[obj.booking.id])
-        return format_html('<a href="{}"">Reserva #{}</a>', url, obj.booking.id)
+        return format_html('<a href="{}">Reserva #{}</a>', url, obj.booking.id)
     booking_link.short_description = 'Reserva'
     
     def customer_name(self, obj):
@@ -312,23 +311,6 @@ class PaymentAdmin(admin.ModelAdmin):
             obj.get_status_display()
         )
     status_badge.short_description = 'Estado'
-    
-    def actions_column(self, obj):
-        """Columna de acciones rápidas"""
-        if obj.status == 'pending_validation':
-            approve_url = reverse('admin:approve_payments', args=[obj.id])
-            reject_url = reverse('admin:reject_payments', args=[obj.id])
-            return format_html(
-                '<a class="button" href="{}" style="background-color: #28a745; color: white; '
-                'padding: 5px 10px; border-radius: 3px; text-decoration: none; margin-right: 5px;">'
-                'Aprobar</a>'
-                '<a class="button" href="{}" style="background-color: #dc3545; color: white; '
-                'padding: 5px 10px; border-radius: 3px; text-decoration: none;">Rechazar</a>',
-                approve_url,
-                reject_url
-            )
-        return '-'
-    actions_column.short_description = 'Acciones'
     
     def receipt_preview(self, obj):
         """Preview del comprobante de pago"""
@@ -831,4 +813,3 @@ class NotificationAdmin(admin.ModelAdmin):
     
     def has_delete_permission(self, request, obj=None):
         return False  # No se pueden eliminar notificaciones
-
