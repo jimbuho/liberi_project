@@ -284,7 +284,7 @@ class PaymentAdmin(admin.ModelAdmin):
     
     def booking_link(self, obj):
         """Link a la reserva asociada"""
-        url = reverse('admin:bookings_booking_change', args=[obj.booking.id])
+        url = reverse('admin:core_booking_change', args=[obj.booking.id])
         return format_html('<a href="{}"">Reserva #{}</a>', url, obj.booking.id)
     booking_link.short_description = 'Reserva'
     
@@ -316,8 +316,8 @@ class PaymentAdmin(admin.ModelAdmin):
     def actions_column(self, obj):
         """Columna de acciones rápidas"""
         if obj.status == 'pending_validation':
-            approve_url = reverse('admin:approve_payment', args=[obj.id])
-            reject_url = reverse('admin:reject_payment', args=[obj.id])
+            approve_url = reverse('admin:approve_payments', args=[obj.id])
+            reject_url = reverse('admin:reject_payments', args=[obj.id])
             return format_html(
                 '<a class="button" href="{}" style="background-color: #28a745; color: white; '
                 'padding: 5px 10px; border-radius: 3px; text-decoration: none; margin-right: 5px;">'
