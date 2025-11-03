@@ -1823,8 +1823,9 @@ def payment_process(request, booking_id):
 @login_required
 def payment_bank_transfer(request, booking_id):
     """
-    Vista mejorada para procesar pagos por transferencia bancaria
-    CON NOTIFICACIÓN AL ADMIN cuando se confirma el pago
+    Vista COMPLETA para procesar pagos por transferencia bancaria (FASE 3)
+    - GET: Muestra cuentas bancarias y formulario para subir comprobante
+    - POST: Procesa el formulario, crea PaymentProof y notifica
     """
     booking = get_object_or_404(Booking, id=booking_id, customer=request.user)
     
@@ -1833,110 +1834,145 @@ def payment_bank_transfer(request, booking_id):
         messages.info(request, 'Esta reserva ya ha sido pagada.')
         return redirect('booking_detail', booking_id=booking.id)
     
-    # Obtener métodos de pago activos
-    payment_methods = PaymentMethod.objects.filter(is_active=True).order_by('display_order')
-    
     # Obtener cuentas bancarias activas
     bank_accounts = BankAccount.objects.filter(is_active=True).order_by('display_order')
     
     if request.method == 'POST':
-        payment_method_id = request.POST.get('payment_method')
-        payment_method = get_object_or_404(PaymentMethod, id=payment_method_id, is_active=True)
-        
-        # Datos comunes
-        reference_code = request.POST.get('reference_code', '')
-        bank_account_id = request.POST.get('bank_account')
-        bank_account = None
-        
-        if bank_account_id:
-            bank_account = get_object_or_404(BankAccount, id=bank_account_id, is_active=True)
-        
-        # Validaciones
-        if payment_method.requires_reference and not reference_code:
-            messages.error(request, 'El código de referencia es obligatorio para este método de pago.')
-            return render(request, 'payments/process.html', {
-                'booking': booking,
-                'payment_methods': payment_methods,
-                'bank_accounts': bank_accounts,
-            })
-        
-        # Manejo de imagen de comprobante
+        # ========================================
+        # PASO 1: Validar datos del formulario
+        # ========================================
+        reference_code = request.POST.get('reference_code', '').strip()
+        bank_account_id = request.POST.get('bank_account_id')
         proof_image = request.FILES.get('proof_image')
-        if payment_method.requires_proof and not proof_image:
-            messages.error(request, 'Debes subir una imagen del comprobante de pago.')
-            return render(request, 'payments/process.html', {
+        
+        # Validar que se seleccionó una cuenta
+        if not bank_account_id:
+            messages.error(request, 'Debes seleccionar una cuenta bancaria.')
+            return render(request, 'payments/bank_transfer.html', {
                 'booking': booking,
-                'payment_methods': payment_methods,
                 'bank_accounts': bank_accounts,
             })
         
-        # Crear el comprobante de pago
+        bank_account = get_object_or_404(BankAccount, id=bank_account_id, is_active=True)
+        
+        # Validar referencia
+        if not reference_code:
+            messages.error(request, 'El número de comprobante/referencia es obligatorio.')
+            return render(request, 'payments/bank_transfer.html', {
+                'booking': booking,
+                'bank_accounts': bank_accounts,
+            })
+        
+        # Validar imagen del comprobante
+        if not proof_image:
+            messages.error(request, 'Debes subir una imagen del comprobante de pago.')
+            return render(request, 'payments/bank_transfer.html', {
+                'booking': booking,
+                'bank_accounts': bank_accounts,
+            })
+        
+        # ========================================
+        # PASO 2: Obtener o crear método de pago
+        # ========================================
+        payment_method, created = PaymentMethod.objects.get_or_create(
+            code='bank_transfer',
+            defaults={
+                'name': 'Transferencia Bancaria',
+                'description': 'Pago mediante transferencia bancaria',
+                'is_active': True,
+                'requires_proof': True,
+                'requires_reference': True,
+                'display_order': 2,
+                'icon': '🏦'
+            }
+        )
+        
+        # ========================================
+        # PASO 3: Crear PaymentProof
+        # ========================================
         payment_proof = PaymentProof.objects.create(
             booking=booking,
             payment_method=payment_method,
             bank_account=bank_account,
             reference_code=reference_code,
             proof_image=proof_image,
-            verified=False  # Pendiente de verificación
+            verified=False  # Pendiente de verificación por admin
         )
         
-        # Actualizar estado de la reserva
-        if payment_method.requires_proof:
-            # Si requiere verificación, marcar como pendiente
-            booking.payment_status = 'pending_verification'
-            booking.status = 'transfer_pending_validation'  # NUEVO STATUS
-            booking.save()
-            
-            # Notificar al admin que hay un pago pendiente
-            # Crear notificación para administradores
-            from django.contrib.auth.models import User
-            admin_users = User.objects.filter(is_staff=True, is_active=True)
-            for admin in admin_users:
-                Notification.objects.create(
-                    user=admin,
-                    notification_type='payment_received',
-                    title='Nuevo Pago Pendiente de Verificación',
-                    message=f'El cliente {booking.customer.get_full_name()} ha enviado un comprobante para la reserva #{booking.id}.',
-                    booking=booking,
-                    action_url=f'/admin/core/paymentproof/{payment_proof.id}/change/'
-                )
-            
-            # Notificar al proveedor
-            Notification.objects.create(
-                user=booking.provider,
-                notification_type='payment_received',
-                title='Comprobante de Pago Recibido',
-                message=f'El cliente {booking.customer.get_full_name()} ha enviado un comprobante de pago para la reserva #{booking.id}. Pendiente de verificación por el equipo de Liberi.',
-                booking=booking,
-                action_url=f'/bookings/{booking.id}/'
-            )
-            
-            success_message = 'Tu comprobante ha sido recibido. Nuestro equipo lo verificará pronto y te notificaremos.'
-            
-        else:
-            # Pago automático (ej: PayPhone)
-            booking.payment_status = 'paid'
-            booking.save()
-            
-            # Notificar al proveedor
-            Notification.objects.create(
-                user=booking.provider,
-                notification_type='payment_received',
-                title='Pago Recibido',
-                message=f'El cliente {booking.customer.get_full_name()} ha realizado el pago para la reserva #{booking.id}.',
-                booking=booking,
-                action_url=f'/bookings/{booking.id}/'
-            )
-            
-            success_message = 'Tu pago ha sido registrado exitosamente. El proveedor ha sido notificado.'
+        # ========================================
+        # PASO 4: Actualizar estado de la reserva
+        # ========================================
+        booking.payment_status = 'pending_validation'
+        booking.save()
         
-        messages.success(request, success_message)
-        return redirect('booking_detail', booking_id=booking.id)
+        # Log de auditoría
+        AuditLog.objects.create(
+            user=request.user,
+            action='Comprobante de transferencia bancaria enviado',
+            metadata={
+                'booking_id': str(booking.id),
+                'payment_proof_id': payment_proof.id,
+                'reference_code': reference_code,
+                'bank_account': bank_account.bank_name
+            }
+        )
+        
+        # ========================================
+        # PASO 5: Crear notificaciones (ADMIN)
+        # ========================================
+        admin_users = User.objects.filter(is_staff=True, is_active=True)
+        for admin in admin_users:
+            Notification.objects.create(
+                user=admin,
+                notification_type='payment_received',
+                title='💰 Nuevo Comprobante de Pago Pendiente',
+                message=f'Cliente: {booking.customer.get_full_name()}\n'
+                        f'Reserva: #{booking.id}\n'
+                        f'Monto: ${booking.total_cost}\n'
+                        f'Referencia: {reference_code}',
+                booking=booking,
+                action_url=f'/admin/core/paymentproof/{payment_proof.id}/change/'
+            )
+        
+        # ========================================
+        # PASO 6: Crear notificación (CLIENTE)
+        # ========================================
+        Notification.objects.create(
+            user=booking.customer,
+            notification_type='payment_received',
+            title='Comprobante de Pago Recibido',
+            message=f'Hemos recibido tu comprobante de transferencia bancaria. '
+                    f'Nuestro equipo lo está validando y recibirás una confirmación en 1-4 horas hábiles.',
+            booking=booking,
+            action_url=f'/bookings/{booking.id}/'
+        )
+        
+        # ========================================
+        # PASO 7: Crear notificación (PROVEEDOR)
+        # ========================================
+        Notification.objects.create(
+            user=booking.provider,
+            notification_type='payment_received',
+            title='Comprobante de Pago Pendiente de Validación',
+            message=f'El cliente {booking.customer.get_full_name()} ha enviado el comprobante de pago. '
+                    f'Se confirmará en breve.',
+            booking=booking,
+            action_url=f'/bookings/{booking.id}/'
+        )
+        
+        # ========================================
+        # PASO 8: Redireccionar a confirmación
+        # ========================================
+        messages.success(
+            request,
+            '✅ Comprobante recibido. Nuestro equipo lo verificará pronto. '
+            'Recibirás una notificación cuando esté confirmado.'
+        )
+        return redirect('payment_confirmation', payment_id=payment_proof.id)
     
-    # GET request
+    # GET request - Mostrar formulario
     return render(request, 'payments/bank_transfer.html', {
         'booking': booking,
-        'payment_methods': payment_methods,
         'bank_accounts': bank_accounts,
     })
 
@@ -1944,13 +1980,22 @@ def payment_bank_transfer(request, booking_id):
 @login_required
 def payment_confirmation(request, payment_id):
     """
-    Vista de confirmación después de registrar un pago por transferencia
+    Vista de confirmación después de registrar un pago
+    Funciona con PaymentProof o Payment
     """
-    payment = get_object_or_404(Payment, id=payment_id, booking__customer=request.user)
+    # Intenta obtener como PaymentProof primero
+    payment_proof = get_object_or_404(PaymentProof, id=payment_id)
+    booking = payment_proof.booking
+    
+    # Verificar que el usuario sea el cliente
+    if booking.customer != request.user:
+        messages.error(request, 'No tienes acceso a este recurso.')
+        return redirect('home')
     
     context = {
-        'payment': payment,
-        'booking': payment.booking,
+        'payment_proof': payment_proof,
+        'booking': booking,
+        'payment': payment_proof,  # Para compatibilidad con template
     }
     
     return render(request, 'payments/payment_confirmation.html', context)

@@ -3,7 +3,7 @@ from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 from django.contrib.auth.models import User
 from django.utils.html import format_html
 from django.urls import reverse
-from django.utils.safestring import mark_safe
+from django.utils import timezone
 
 from .models import (
     Profile, Category, ProviderProfile, Service, Location, Booking, Review, AuditLog,
@@ -405,49 +405,73 @@ class PaymentInline(admin.TabularInline):
 # Actualizar BookingAdmin para incluir el inline de pagos
 @admin.register(Booking)
 class BookingAdmin(admin.ModelAdmin):
-    list_display = [
-        'id',
-        'customer',
-        'provider',
-        'status',
-        'payment_status_badge',
-        'total_cost',
-        'scheduled_time',
-        'created_at'
-    ]
+    list_display = ['booking_id', 'customer_name', 'provider_name', 'status_display', 'payment_display', 'scheduled_time', 'total_cost']
+    list_filter = ['status', 'payment_status', 'created_at']
+    search_fields = ['id', 'customer__username', 'provider__username']
+    date_hierarchy = 'created_at'
+    readonly_fields = ('id', 'created_at', 'updated_at')
     
-    list_filter = [
-        'status',
-        'payment_status',
-        'created_at',
-        'scheduled_time'
-    ]
+    fieldsets = (
+        ('Información de la Reserva', {
+            'fields': ('id', 'customer', 'provider', 'status', 'scheduled_time')
+        }),
+        ('Servicios', {
+            'fields': ('service_list', 'location')
+        }),
+        ('Pago', {
+            'fields': ('payment_status', 'total_cost', 'payment_method')
+        }),
+        ('Notas', {
+            'fields': ('notes',)
+        }),
+        ('Auditoría', {
+            'fields': ('created_at', 'updated_at'),
+            'classes': ('collapse',)
+        }),
+    )
     
-    search_fields = [
-        'customer__username',
-        'customer__email',
-        'provider__username',
-        'id'
-    ]
+    def booking_id(self, obj):
+        return f'#{str(obj.id)[:8]}'
+    booking_id.short_description = 'ID Reserva'
     
-    inlines = [PaymentInline]
+    def customer_name(self, obj):
+        return obj.customer.get_full_name() or obj.customer.username
+    customer_name.short_description = 'Cliente'
     
-    def payment_status_badge(self, obj):
-        """Badge para el estado del pago"""
+    def provider_name(self, obj):
+        return obj.provider.get_full_name() or obj.provider.username
+    provider_name.short_description = 'Proveedor'
+    
+    def status_display(self, obj):
         colors = {
-            'pending': 'orange',
-            'pending_validation': 'blue',
-            'paid': 'green',
-            'refunded': 'purple',
+            'pending': '#FFC107',
+            'accepted': '#17A2B8',
+            'completed': '#28A745',
+            'cancelled': '#DC3545',
+            'dispute': '#E83E8C',
         }
-        color = colors.get(obj.payment_status, 'gray')
+        color = colors.get(obj.status, '#6C757D')
         return format_html(
-            '<span style="background-color: {}; color: white; padding: 3px 10px; '
-            'border-radius: 3px; font-weight: bold;">{}</span>',
+            '<span style="background-color: {}; color: white; padding: 3px 8px; border-radius: 3px;">{}</span>',
+            color,
+            obj.get_status_display()
+        )
+    status_display.short_description = 'Estado'
+    
+    def payment_display(self, obj):
+        colors = {
+            'pending': '#FFC107',
+            'pending_validation': '#FF6B6B',
+            'paid': '#28A745',
+            'refunded': '#6C757D',
+        }
+        color = colors.get(obj.payment_status, '#6C757D')
+        return format_html(
+            '<span style="background-color: {}; color: white; padding: 3px 8px; border-radius: 3px;">{}</span>',
             color,
             obj.get_payment_status_display()
         )
-    payment_status_badge.short_description = 'Estado de Pago'
+    payment_display.short_description = 'Pago'
 
 
 # Configuración adicional para notificaciones en el admin
@@ -570,14 +594,10 @@ class ProviderZoneCostAdmin(admin.ModelAdmin):
 
 @admin.register(PaymentMethod)
 class PaymentMethodAdmin(admin.ModelAdmin):
-    list_display = [
-        'name', 'code', 'is_active_badge', 'requires_proof', 
-        'requires_reference', 'display_order', 'updated_at'
-    ]
+    list_display = ['name', 'code', 'is_active_display', 'requires_proof', 'requires_reference', 'display_order']
     list_filter = ['is_active', 'requires_proof', 'requires_reference']
     search_fields = ['name', 'code', 'description']
     ordering = ['display_order', 'name']
-    list_editable = ['display_order']
     
     fieldsets = (
         ('Información Básica', {
@@ -586,37 +606,19 @@ class PaymentMethodAdmin(admin.ModelAdmin):
         ('Configuración', {
             'fields': ('is_active', 'requires_proof', 'requires_reference', 'display_order')
         }),
-        ('Fechas', {
+        ('Auditoría', {
             'fields': ('created_at', 'updated_at'),
             'classes': ('collapse',)
         }),
     )
     
-    readonly_fields = ['created_at', 'updated_at']
+    readonly_fields = ('created_at', 'updated_at')
     
-    def is_active_badge(self, obj):
+    def is_active_display(self, obj):
         if obj.is_active:
-            return format_html(
-                '<span style="background-color: #10B981; color: white; padding: 4px 12px; '
-                'border-radius: 12px; font-size: 12px; font-weight: 500;">Activo</span>'
-            )
-        return format_html(
-            '<span style="background-color: #EF4444; color: white; padding: 4px 12px; '
-            'border-radius: 12px; font-size: 12px; font-weight: 500;">Inactivo</span>'
-        )
-    is_active_badge.short_description = 'Estado'
-    
-    actions = ['activate_methods', 'deactivate_methods']
-    
-    def activate_methods(self, request, queryset):
-        updated = queryset.update(is_active=True)
-        self.message_user(request, f'{updated} método(s) de pago activado(s).')
-    activate_methods.short_description = 'Activar métodos seleccionados'
-    
-    def deactivate_methods(self, request, queryset):
-        updated = queryset.update(is_active=False)
-        self.message_user(request, f'{updated} método(s) de pago desactivado(s).')
-    deactivate_methods.short_description = 'Desactivar métodos seleccionados'
+            return format_html('✅ Activo')
+        return format_html('❌ Inactivo')
+    is_active_display.short_description = 'Estado'
 
 
 # ============================================
@@ -626,115 +628,38 @@ class PaymentMethodAdmin(admin.ModelAdmin):
 
 @admin.register(BankAccount)
 class BankAccountAdmin(admin.ModelAdmin):
-    """
-    Administración de cuentas bancarias
-    """
-    list_display = [
-        'bank_name',
-        'account_type_display',
-        'masked_account_number',
-        'account_holder',
-        'is_active_badge',
-        'display_order',
-    ]
-    
-    list_filter = [
-        'is_active',
-        'account_type',
-        'bank_name',
-    ]
-    
-    search_fields = [
-        'bank_name',
-        'account_number',
-        'account_holder',
-        'id_number',
-    ]
-    
-    list_editable = ['display_order']
+    list_display = ['bank_name', 'get_masked_account', 'account_type', 'is_active_display', 'display_order']
+    list_filter = ['is_active', 'account_type', 'bank_name']
+    search_fields = ['bank_name', 'account_holder', 'account_number']
+    ordering = ['display_order', 'bank_name']
     
     fieldsets = (
         ('Información del Banco', {
-            'fields': (
-                'bank_name',
-                'bank_code',
-                'swift_code',
-            )
+            'fields': ('bank_name', 'account_type', 'swift_code', 'bank_code')
         }),
-        ('Información de la Cuenta', {
-            'fields': (
-                'account_type',
-                'account_number',
-                'account_holder',
-                'id_number',
-            )
+        ('Datos de la Cuenta', {
+            'fields': ('account_number', 'account_holder', 'id_number')
         }),
         ('Configuración', {
-            'fields': (
-                'is_active',
-                'display_order',
-                'notes',
-            )
+            'fields': ('is_active', 'display_order', 'notes')
         }),
-        ('Metadatos', {
-            'fields': (
-                'created_at',
-                'updated_at',
-            ),
+        ('Auditoría', {
+            'fields': ('created_at', 'updated_at'),
             'classes': ('collapse',)
         }),
     )
     
-    readonly_fields = ['created_at', 'updated_at']
+    readonly_fields = ('created_at', 'updated_at')
     
-    def account_type_display(self, obj):
-        """Tipo de cuenta formateado"""
-        return obj.get_account_type_display()
-    account_type_display.short_description = 'Tipo de Cuenta'
-    
-    def masked_account_number(self, obj):
-        """Número de cuenta parcialmente oculto por seguridad"""
+    def get_masked_account(self, obj):
         return obj.get_masked_account_number()
-    masked_account_number.short_description = 'Número de Cuenta'
+    get_masked_account.short_description = 'Número de Cuenta'
     
-    def is_active_badge(self, obj):
-        """Badge visual para el estado activo"""
+    def is_active_display(self, obj):
         if obj.is_active:
-            return format_html(
-                '<span style="background-color: #28a745; color: white; padding: 3px 10px; '
-                'border-radius: 3px; font-weight: bold;">Activa</span>'
-            )
-        else:
-            return format_html(
-                '<span style="background-color: #dc3545; color: white; padding: 3px 10px; '
-                'border-radius: 3px; font-weight: bold;">Inactiva</span>'
-            )
-    is_active_badge.short_description = 'Estado'
-    
-    actions = ['activate_accounts', 'deactivate_accounts']
-    
-    def activate_accounts(self, request, queryset):
-        """Acción para activar cuentas seleccionadas"""
-        count = queryset.update(is_active=True)
-        self.message_user(
-            request,
-            f'{count} cuenta(s) bancaria(s) activada(s).'
-        )
-    activate_accounts.short_description = 'Activar cuentas seleccionadas'
-    
-    def deactivate_accounts(self, request, queryset):
-        """Acción para desactivar cuentas seleccionadas"""
-        count = queryset.update(is_active=False)
-        self.message_user(
-            request,
-            f'{count} cuenta(s) bancaria(s) desactivada(s).'
-        )
-    deactivate_accounts.short_description = 'Desactivar cuentas seleccionadas'
-    
-    def get_queryset(self, request):
-        """Optimizar consultas"""
-        qs = super().get_queryset(request)
-        return qs.order_by('display_order', 'bank_name')
+            return format_html('✅ Activa')
+        return format_html('❌ Inactiva')
+    is_active_display.short_description = 'Estado'
 
 
 # ============================================
@@ -743,81 +668,62 @@ class BankAccountAdmin(admin.ModelAdmin):
 
 @admin.register(PaymentProof)
 class PaymentProofAdmin(admin.ModelAdmin):
-    list_display = [
-        'booking_link', 'payment_method', 'bank_account', 
-        'reference_code', 'verified_badge', 'proof_thumbnail', 
-        'created_at'
-    ]
-    list_filter = ['verified', 'payment_method', 'created_at']  # CAMBIADO: is_verified → verified
-    search_fields = ['booking__id', 'reference_code', 'booking__customer__username']
-    ordering = ['-created_at']
+    list_display = ['id', 'booking_link', 'customer_name', 'reference_code', 'verified_display', 'created_at']
+    list_filter = ['verified', 'created_at', 'payment_method', 'bank_account']
+    search_fields = ['reference_code', 'booking__customer__username', 'booking__id']
+    date_hierarchy = 'created_at'
+    actions = ['approve_payment', 'reject_payment']
     
     fieldsets = (
-        ('Información de Pago', {
-            'fields': ('booking', 'payment_method', 'bank_account', 'reference_code')
+        ('Información de la Reserva', {
+            'fields': ('booking', 'payment_method', 'bank_account')
         }),
-        ('Comprobante', {
-            'fields': ('proof_image', 'proof_image_preview')
+        ('Detalles del Pago', {
+            'fields': ('reference_code', 'proof_image', 'proof_image_preview')
         }),
         ('Verificación', {
-            'fields': ('verified', 'verified_by', 'verified_at', 'notes')  # CAMBIADO: is_verified → verified
+            'fields': ('verified', 'verified_by', 'verified_at', 'notes')
         }),
-        ('Fechas', {
-            'fields': ('created_at',),  # CAMBIADO: removido updated_at
+        ('Auditoría', {
+            'fields': ('created_at', 'updated_at'),
             'classes': ('collapse',)
         }),
     )
     
-    readonly_fields = ['created_at', 'verified_by', 'verified_at', 'proof_image_preview']  # CAMBIADO: removido updated_at
+    readonly_fields = ('created_at', 'updated_at', 'proof_image_preview')
     
     def booking_link(self, obj):
-        url = reverse('admin:core_booking_change', args=[obj.booking.id])
-        return format_html('<a href="{}">{}</a>', url, f'Reserva #{obj.booking.id}')
+        # Simplemente mostrar el ID sin intentar hacer reverse
+        # Ya que Booking puede no estar registrado en admin
+        return format_html(
+            '<strong>#{}</strong>',
+            str(obj.booking.id)[:8]
+        )
     booking_link.short_description = 'Reserva'
     
-    def verified_badge(self, obj):  # CAMBIADO nombre de is_verified_badge a verified_badge
-        if obj.verified:  # CAMBIADO: is_verified → verified
-            return format_html(
-                '<span style="background-color: #10B981; color: white; padding: 4px 12px; '
-                'border-radius: 12px; font-size: 12px; font-weight: 500;">✓ Verificado</span>'
-            )
-        return format_html(
-            '<span style="background-color: #F59E0B; color: white; padding: 4px 12px; '
-            'border-radius: 12px; font-size: 12px; font-weight: 500;">⏳ Pendiente</span>'
-        )
-    verified_badge.short_description = 'Estado'
+    def customer_name(self, obj):
+        return obj.booking.customer.get_full_name() or obj.booking.customer.username
+    customer_name.short_description = 'Cliente'
     
-    def proof_thumbnail(self, obj):
-        if obj.proof_image:
-            return format_html(
-                '<a href="{}" target="_blank">'
-                '<img src="{}" style="width: 50px; height: 50px; object-fit: cover; border-radius: 4px;" />'
-                '</a>',
-                obj.proof_image.url,
-                obj.proof_image.url
-            )
-        return '-'
-    proof_thumbnail.short_description = 'Comprobante'
+    def verified_display(self, obj):
+        if obj.verified:
+            return format_html('✅ Verificado')
+        return format_html('⏳ Pendiente')
+    verified_display.short_description = 'Estado'
     
     def proof_image_preview(self, obj):
         if obj.proof_image:
             return format_html(
-                '<a href="{}" target="_blank">'
-                '<img src="{}" style="max-width: 600px; max-height: 400px; border-radius: 8px;" />'
-                '</a>',
+                '<img src="{}" width="200" height="auto" /><br/>'
+                '<a href="{}" target="_blank">Ver tamaño completo</a>',
                 obj.proof_image.url,
                 obj.proof_image.url
             )
-        return 'No hay imagen'
+        return "Sin imagen"
     proof_image_preview.short_description = 'Vista Previa del Comprobante'
     
-    actions = ['verify_payments']
-    
-    def verify_payments(self, request, queryset):
-        """Verificar pagos y actualizar estado de reserva"""
-        from django.utils import timezone
-        
-        updated = 0
+    def approve_payment(self, request, queryset):
+        """Acción para aprobar pagos"""
         for proof in queryset.filter(verified=False):
             # Marcar como verificado
             proof.verified = True
@@ -825,34 +731,56 @@ class PaymentProofAdmin(admin.ModelAdmin):
             proof.verified_at = timezone.now()
             proof.save()
             
-            # Actualizar estado de la reserva
-            proof.booking.payment_status = 'paid'
-            proof.booking.save()
+            # Actualizar reserva a pagada
+            booking = proof.booking
+            booking.payment_status = 'paid'
+            booking.save()
             
-            # Crear notificación para el cliente
+            # Notificar al cliente
             Notification.objects.create(
-                user=proof.booking.customer,
+                user=booking.customer,
                 notification_type='payment_verified',
-                title='Pago Verificado',
-                message=f'Tu pago para la reserva #{str(proof.booking.id)[:8]} ha sido verificado. ¡Todo listo!',
-                booking=proof.booking,
-                action_url=f'/bookings/{proof.booking.id}/'
+                title='✅ Pago Verificado',
+                message=f'Tu pago para la reserva #{booking.id} ha sido verificado y confirmado.',
+                booking=booking,
+                action_url=f'/bookings/{booking.id}/'
             )
             
             # Notificar al proveedor
             Notification.objects.create(
-                user=proof.booking.provider,
+                user=booking.provider,
                 notification_type='payment_verified',
-                title='Pago Verificado',
-                message=f'El pago de {proof.booking.customer.get_full_name()} para la reserva #{str(proof.booking.id)[:8]} ha sido verificado.',
-                booking=proof.booking,
-                action_url=f'/bookings/{proof.booking.id}/'
+                title='✅ Pago Confirmado',
+                message=f'El pago de {booking.customer.get_full_name()} ha sido verificado.',
+                booking=booking,
+                action_url=f'/bookings/{booking.id}/'
+            )
+        
+        self.message_user(request, f'{len(queryset)} pago(s) aprobado(s) exitosamente.')
+    approve_payment.short_description = '✅ Aprobar pago(s) seleccionado(s)'
+    
+    def reject_payment(self, request, queryset):
+        """Acción para rechazar pagos"""
+        for proof in queryset.filter(verified=False):
+            booking = proof.booking
+            
+            # Notificar al cliente
+            Notification.objects.create(
+                user=booking.customer,
+                notification_type='payment_received',
+                title='❌ Pago Rechazado',
+                message=f'Tu comprobante de pago fue rechazado. Por favor verifica los datos e intenta nuevamente.',
+                booking=booking,
+                action_url=f'/bookings/{booking.id}/'
             )
             
-        updated += 1
+            # Mantener en estado pendiente para que intente de nuevo
+            proof.verified = False
+            proof.notes = 'Rechazado - El cliente puede reintentar'
+            proof.save()
         
-        self.message_user(request, f'{updated} pago(s) verificado(s) exitosamente.')
-    verify_payments.short_description = 'Verificar y confirmar pagos seleccionados'
+        self.message_user(request, f'{len(queryset)} pago(s) marcado(s) como rechazado(s).')
+    reject_payment.short_description = '❌ Rechazar pago(s) seleccionado(s)'
 
 
 # ============================================
@@ -861,68 +789,46 @@ class PaymentProofAdmin(admin.ModelAdmin):
 
 @admin.register(Notification)
 class NotificationAdmin(admin.ModelAdmin):
-    list_display = [
-        'user', 'notification_type', 'title_truncated', 
-        'is_read_badge', 'booking_link', 'created_at'
-    ]
+    list_display = ['user', 'title', 'notification_type', 'is_read_display', 'created_at']
     list_filter = ['is_read', 'notification_type', 'created_at']
-    search_fields = ['user__username', 'user__email', 'title', 'message']
+    search_fields = ['user__username', 'title', 'message']
+    date_hierarchy = 'created_at'
+    readonly_fields = ('created_at', 'user', 'title', 'message', 'notification_type')
     ordering = ['-created_at']
     
     fieldsets = (
-        ('Destinatario', {
+        ('Usuario', {
             'fields': ('user',)
         }),
-        ('Contenido', {
-            'fields': ('notification_type', 'title', 'message', 'action_url')
+        ('Notificación', {
+            'fields': ('notification_type', 'title', 'message', 'is_read')
         }),
-        ('Relaciones', {
-            'fields': ('booking',)
+        ('Relacionados', {
+            'fields': ('booking', 'action_url'),
+            'classes': ('collapse',)
         }),
-        ('Estado', {
-            'fields': ('is_read',)
-        }),
-        ('Fechas', {
-            'fields': ('created_at',),  # CAMBIADO: removido updated_at
+        ('Auditoría', {
+            'fields': ('created_at',),
             'classes': ('collapse',)
         }),
     )
     
-    readonly_fields = ['created_at']  # CAMBIADO: removido updated_at
+    actions = ['mark_as_read']
     
-    def title_truncated(self, obj):
-        if len(obj.title) > 50:
-            return obj.title[:50] + '...'
-        return obj.title
-    title_truncated.short_description = 'Título'
-    
-    def is_read_badge(self, obj):
+    def is_read_display(self, obj):
         if obj.is_read:
-            return format_html(
-                '<span style="background-color: #6B7280; color: white; padding: 4px 12px; '
-                'border-radius: 12px; font-size: 12px; font-weight: 500;">Leída</span>'
-            )
-        return format_html(
-            '<span style="background-color: #3FB8C4; color: white; padding: 4px 12px; '
-            'border-radius: 12px; font-size: 12px; font-weight: 500;">No leída</span>'
-        )
-    is_read_badge.short_description = 'Estado'
-    
-    def booking_link(self, obj):
-        if obj.booking:
-            url = reverse('admin:core_booking_change', args=[obj.booking.id])
-            return format_html('<a href="{}">{}</a>', url, f'Reserva #{obj.booking.id}')
-        return '-'
-    booking_link.short_description = 'Reserva'
-    
-    actions = ['mark_as_read', 'mark_as_unread']
+            return format_html('✅ Leída')
+        return format_html('📬 No leída')
+    is_read_display.short_description = 'Estado'
     
     def mark_as_read(self, request, queryset):
-        updated = queryset.update(is_read=True)
-        self.message_user(request, f'{updated} notificación(es) marcada(s) como leída(s).')
-    mark_as_read.short_description = 'Marcar como leídas'
+        queryset.update(is_read=True)
+        self.message_user(request, f'{queryset.count()} notificación(es) marcada(s) como leída(s).')
+    mark_as_read.short_description = 'Marcar como leída'
     
-    def mark_as_unread(self, request, queryset):
-        updated = queryset.update(is_read=False)
-        self.message_user(request, f'{updated} notificación(es) marcada(s) como no leída(s).')
-    mark_as_unread.short_description = 'Marcar como no leídas'
+    def has_add_permission(self, request):
+        return False  # No se pueden crear notificaciones desde admin
+    
+    def has_delete_permission(self, request, obj=None):
+        return False  # No se pueden eliminar notificaciones
+

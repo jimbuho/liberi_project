@@ -22,6 +22,18 @@
         margin: 0 auto 2rem;
         font-size: 3rem;
         color: #27AE60;
+        animation: slideInDown 0.5s ease-out;
+    }
+    
+    @keyframes slideInDown {
+        from {
+            opacity: 0;
+            transform: translateY(-20px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
     }
     
     .confirmation-card {
@@ -43,7 +55,7 @@
     .timeline-item {
         display: flex;
         align-items: start;
-        margin-bottom: 1rem;
+        margin-bottom: 1.5rem;
         padding-left: 1rem;
     }
     
@@ -52,24 +64,128 @@
     }
     
     .timeline-icon {
-        width: 30px;
-        height: 30px;
-        background: #5DADE2;
+        width: 40px;
+        height: 40px;
+        background: #E8F4F8;
         border-radius: 50%;
         display: flex;
         align-items: center;
         justify-content: center;
-        color: white;
+        color: #5DADE2;
         margin-right: 1rem;
         flex-shrink: 0;
+        font-size: 1.1rem;
     }
     
     .timeline-icon.completed {
-        background: #27AE60;
+        background: #D5F4E6;
+        color: #27AE60;
     }
     
     .timeline-icon.pending {
-        background: #F39C12;
+        background: #FFF3CD;
+        color: #F39C12;
+    }
+    
+    .timeline-text h6 {
+        margin: 0;
+        font-weight: 600;
+        color: #333;
+    }
+    
+    .timeline-text p {
+        margin: 0.25rem 0 0 0;
+        font-size: 0.9rem;
+        color: #666;
+    }
+    
+    .status-badge {
+        display: inline-block;
+        padding: 0.75rem 1.5rem;
+        border-radius: 25px;
+        font-weight: 600;
+        margin: 1rem 0;
+    }
+    
+    .status-pending {
+        background: #FFF3CD;
+        color: #856404;
+    }
+    
+    .status-info-box {
+        background: #E8F4F8;
+        border-left: 4px solid #5DADE2;
+        padding: 1.5rem;
+        border-radius: 5px;
+        margin: 1.5rem 0;
+    }
+    
+    .summary-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 0.75rem 0;
+        border-bottom: 1px solid #e9ecef;
+    }
+    
+    .summary-row:last-child {
+        border-bottom: none;
+    }
+    
+    .summary-label {
+        color: #666;
+        font-size: 0.95rem;
+    }
+    
+    .summary-value {
+        font-weight: 600;
+        color: #333;
+    }
+    
+    .amount-display {
+        font-size: 2.5rem;
+        font-weight: 700;
+        color: #5DADE2;
+        margin: 1rem 0;
+    }
+    
+    .btn-group-vertical .btn {
+        border-radius: 8px;
+        padding: 0.75rem 1.5rem;
+    }
+    
+    .next-steps {
+        background: #f8f9fa;
+        padding: 1.5rem;
+        border-radius: 10px;
+        margin-top: 2rem;
+    }
+    
+    .next-steps h5 {
+        margin-bottom: 1rem;
+    }
+    
+    .next-step-item {
+        display: flex;
+        gap: 1rem;
+        margin-bottom: 1rem;
+    }
+    
+    .next-step-item:last-child {
+        margin-bottom: 0;
+    }
+    
+    .step-number {
+        width: 35px;
+        height: 35px;
+        background: #5DADE2;
+        color: white;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: bold;
+        flex-shrink: 0;
     }
 </style>
 {% endblock %}
@@ -83,83 +199,135 @@
         </div>
         
         <!-- Main Message -->
-        <h1 class="mb-3">¡Gracias por tu Pago!</h1>
+        <h1 class="mb-2">¡Comprobante Recibido!</h1>
         <p class="lead text-muted mb-4">
-            Hemos recibido la confirmación de tu transferencia bancaria
+            Hemos recibido tu comprobante de transferencia bancaria
         </p>
         
-        <!-- Payment Info -->
-        <div class="alert alert-info mb-4">
-            <h5><i class="fas fa-info-circle me-2"></i>Tu Pago Está en Validación</h5>
+        <!-- Status Badge -->
+        <div class="status-badge status-pending">
+            <i class="fas fa-hourglass-half me-2"></i>
+            Pendiente de Validación
+        </div>
+        
+        <!-- Important Info -->
+        <div class="status-info-box">
+            <h6 class="mb-2">
+                <i class="fas fa-info-circle me-2"></i>¿Qué sucede ahora?
+            </h6>
             <p class="mb-0">
-                Nuestro equipo está revisando tu transferencia. Este proceso generalmente 
-                toma entre <strong>1 a 4 horas hábiles</strong>. Te notificaremos por email 
-                tan pronto como tu pago sea confirmado.
+                Nuestro equipo estará validando tu comprobante. Este proceso generalmente 
+                toma <strong>1 a 4 horas hábiles</strong>. Recibirás una notificación en tu perfil 
+                y un email cuando tu pago sea confirmado.
             </p>
         </div>
         
         <!-- Booking Details -->
         <div class="status-timeline">
-            <h5 class="mb-3">Detalles de tu Reserva</h5>
+            <h5 class="mb-3"><i class="fas fa-list me-2"></i>Resumen de tu Reserva</h5>
             
+            <!-- Step 1 -->
             <div class="timeline-item">
                 <div class="timeline-icon completed">
                     <i class="fas fa-check"></i>
                 </div>
-                <div>
-                    <strong>Reserva Creada</strong>
-                    <p class="text-muted mb-0 small">
-                        Reserva #{{ booking.id }} - {{ booking.created_at|date:"d/m/Y H:i" }}
+                <div class="timeline-text flex-grow-1">
+                    <h6>Reserva Creada</h6>
+                    <p>
+                        Reserva <strong>#{{ booking.id|slice:":8" }}</strong> 
+                        - {{ booking.created_at|date:"d/m/Y H:i" }}
                     </p>
                 </div>
             </div>
             
+            <!-- Step 2 -->
             <div class="timeline-item">
                 <div class="timeline-icon completed">
                     <i class="fas fa-check"></i>
                 </div>
-                <div>
-                    <strong>Pago Registrado</strong>
-                    <p class="text-muted mb-0 small">
-                        ID de Pago: #{{ payment.id }} - {{ payment.created_at|date:"d/m/Y H:i" }}
+                <div class="timeline-text flex-grow-1">
+                    <h6>Comprobante Enviado</h6>
+                    <p>
+                        Referencia: <strong>{{ payment_proof.reference_code }}</strong>
+                        <br>
+                        {{ payment_proof.created_at|date:"d/m/Y H:i" }}
                     </p>
                 </div>
             </div>
             
+            <!-- Step 3 -->
             <div class="timeline-item">
                 <div class="timeline-icon pending">
                     <i class="fas fa-clock"></i>
                 </div>
-                <div>
-                    <strong>Validación en Proceso</strong>
-                    <p class="text-muted mb-0 small">
-                        Tu pago está siendo verificado por nuestro equipo
-                    </p>
+                <div class="timeline-text flex-grow-1">
+                    <h6>Validación en Proceso</h6>
+                    <p>Nuestro equipo está verificando tu comprobante...</p>
                 </div>
             </div>
             
+            <!-- Step 4 -->
             <div class="timeline-item">
                 <div class="timeline-icon">
-                    <i class="fas fa-calendar"></i>
+                    <i class="fas fa-calendar-check"></i>
                 </div>
-                <div>
-                    <strong>Servicio Programado</strong>
-                    <p class="text-muted mb-0 small">
-                        {{ booking.scheduled_time|date:"d/m/Y H:i" }}
-                    </p>
+                <div class="timeline-text flex-grow-1">
+                    <h6>Servicio Programado</h6>
+                    <p>{{ booking.scheduled_time|date:"l, d \d\e F \d\e Y \a \l\a\s H:i" }}</p>
                 </div>
             </div>
         </div>
         
-        <!-- Summary -->
-        <div class="row text-start mb-4">
-            <div class="col-6">
-                <small class="text-muted d-block">Monto Pagado</small>
-                <strong class="fs-4 text-primary">${{ payment.amount }}</strong>
-            </div>
-            <div class="col-6">
-                <small class="text-muted d-block">Método de Pago</small>
-                <strong>{{ payment.get_payment_method_display }}</strong>
+        <!-- Payment Summary -->
+        <div class="card bg-light mb-3">
+            <div class="card-body">
+                <h6 class="text-center mb-3">Detalles del Pago</h6>
+                
+                <!-- Monto Pagado -->
+                <div class="summary-row">
+                    <span class="summary-label"><strong>Monto Pagado</strong></span>
+                    <span class="summary-value" style="font-size: 1.5rem; color: #5DADE2;">
+                        <strong>${{ booking.total_cost }}</strong>
+                    </span>
+                </div>
+                
+                <!-- Método de Pago -->
+                <div class="summary-row">
+                    <span class="summary-label"><strong>Método de Pago</strong></span>
+                    <span class="summary-value">
+                        <strong>{{ payment_proof.payment_method.name }}</strong>
+                    </span>
+                </div>
+                
+                <!-- Referencia -->
+                <div class="summary-row">
+                    <span class="summary-label">Referencia</span>
+                    <span class="summary-value">{{ payment_proof.reference_code }}</span>
+                </div>
+                
+                <!-- Banco -->
+                <div class="summary-row">
+                    <span class="summary-label">Banco</span>
+                    <span class="summary-value">
+                        {% if payment_proof.bank_account %}
+                            {{ payment_proof.bank_account.bank_name }}
+                        {% else %}
+                            No especificado
+                        {% endif %}
+                    </span>
+                </div>
+                
+                <!-- Estado -->
+                <div class="summary-row">
+                    <span class="summary-label">Estado</span>
+                    <span class="summary-value">
+                        {% if payment_proof.verified %}
+                            <span class="badge bg-success"><i class="fas fa-check me-1"></i>Verificado</span>
+                        {% else %}
+                            <span class="badge bg-warning"><i class="fas fa-hourglass-half me-1"></i>Pendiente</span>
+                        {% endif %}
+                    </span>
+                </div>
             </div>
         </div>
         
@@ -171,40 +339,95 @@
             </a>
             <a href="{% url 'bookings_list' %}" class="btn btn-outline-secondary">
                 <i class="fas fa-list me-2"></i>
-                Ver Todas Mis Reservas
+                Mis Reservas
             </a>
-            <a href="{% url 'home' %}" class="btn btn-outline-secondary">
-                <i class="fas fa-home me-2"></i>
-                Volver al Inicio
-            </a>
+        </div>
+        
+        <!-- Email Confirmation -->
+        <div class="alert alert-success mt-4">
+            <i class="fas fa-envelope me-2"></i>
+            <strong>Confirmación por Email:</strong> Hemos enviado un email de confirmación a 
+            <strong>{{ booking.customer.email }}</strong> con todos los detalles.
+        </div>
+        
+        <!-- Next Steps -->
+        <div class="next-steps">
+            <h5><i class="fas fa-tasks me-2"></i>Próximos Pasos</h5>
+            
+            <div class="next-step-item">
+                <div class="step-number">1</div>
+                <div>
+                    <strong>Espera la validación</strong>
+                    <p class="text-muted mb-0">
+                        Nuestro equipo validará tu comprobante en 1-4 horas hábiles
+                    </p>
+                </div>
+            </div>
+            
+            <div class="next-step-item">
+                <div class="step-number">2</div>
+                <div>
+                    <strong>Recibirás una notificación</strong>
+                    <p class="text-muted mb-0">
+                        Verás un aviso en tu perfil cuando tu pago sea confirmado
+                    </p>
+                </div>
+            </div>
+            
+            <div class="next-step-item">
+                <div class="step-number">3</div>
+                <div>
+                    <strong>Tu reserva estará lista</strong>
+                    <p class="text-muted mb-0">
+                        El proveedor confirmará la fecha y hora del servicio
+                    </p>
+                </div>
+            </div>
+            
+            <div class="next-step-item">
+                <div class="step-number">4</div>
+                <div>
+                    <strong>Contacta 2 horas antes</strong>
+                    <p class="text-muted mb-0">
+                        Podrás ver el teléfono del proveedor 2 horas antes del servicio
+                    </p>
+                </div>
+            </div>
         </div>
     </div>
     
-    <!-- Additional Info -->
-    <div class="alert alert-success mt-4">
-        <h5><i class="fas fa-envelope me-2"></i>Confirmación por Email</h5>
-        <p class="mb-0">
-            Hemos enviado un email de confirmación a <strong>{{ booking.customer.email }}</strong> 
-            con todos los detalles de tu reserva y pago.
-        </p>
-    </div>
-    
-    <!-- Support -->
-    <div class="card mt-4">
+    <!-- Support Section -->
+    <div class="card mt-4 bg-light">
         <div class="card-body text-center">
-            <h5 class="mb-3">¿Necesitas Ayuda?</h5>
+            <h5><i class="fas fa-question-circle me-2"></i>¿Tienes Dudas?</h5>
             <p class="text-muted mb-3">
-                Si tienes preguntas sobre tu pago o reserva, estamos aquí para ayudarte
+                Si tu pago no es validado en 4 horas, o tienes algún problema
             </p>
             <div class="d-flex gap-2 justify-content-center flex-wrap">
-                <a href="mailto:soporte@liberi.com" class="btn btn-sm btn-outline-primary">
-                    <i class="fas fa-envelope me-1"></i>soporte@liberi.com
+                <a href="mailto:pagos@liberi.com" class="btn btn-sm btn-outline-primary">
+                    <i class="fas fa-envelope me-1"></i>Email
                 </a>
                 <a href="https://wa.me/593991234567" class="btn btn-sm btn-outline-success" target="_blank">
                     <i class="fab fa-whatsapp me-1"></i>WhatsApp
                 </a>
+                <a href="tel:+593991234567" class="btn btn-sm btn-outline-primary">
+                    <i class="fas fa-phone me-1"></i>Llamar
+                </a>
             </div>
         </div>
+    </div>
+    
+    <!-- Tips -->
+    <div class="alert alert-info mt-4">
+        <h6 class="alert-heading">
+            <i class="fas fa-lightbulb me-2"></i>Consejos
+        </h6>
+        <ul class="mb-0 small">
+            <li>Puedes revisar el estado en cualquier momento en tu reserva</li>
+            <li>Las notificaciones llegarán a tu email también</li>
+            <li>Asegúrate de tener tu teléfono a mano para el día del servicio</li>
+            <li>Si necesitas cambiar la fecha, contacta al proveedor directamente</li>
+        </ul>
     </div>
 </div>
 {% endblock %}

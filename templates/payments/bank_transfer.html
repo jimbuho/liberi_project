@@ -1,13 +1,13 @@
 {% extends 'base.html' %}
 {% load static %}
 
-{% block title %}Pago por Transferencia Bancaria{% endblock %}
+{% block title %}Pago por Transferencia Bancaria - Liberi{% endblock %}
 
 {% block extra_css %}
 <style>
     .transfer-container {
-        max-width: 800px;
-        margin: 3rem auto;
+        max-width: 1000px;
+        margin: 2rem auto;
         padding: 0 1rem;
     }
     
@@ -18,11 +18,18 @@
         padding: 1.5rem;
         margin-bottom: 1rem;
         transition: all 0.3s ease;
+        cursor: pointer;
     }
     
     .bank-account-card:hover {
         border-color: #5DADE2;
         box-shadow: 0 4px 12px rgba(93, 173, 226, 0.2);
+    }
+    
+    .bank-account-card.selected {
+        border-color: #5DADE2;
+        background-color: #f0f8ff;
+        box-shadow: 0 4px 12px rgba(93, 173, 226, 0.3);
     }
     
     .bank-logo {
@@ -44,6 +51,7 @@
         border: 1px solid #dee2e6;
         border-radius: 5px;
         transition: all 0.3s ease;
+        font-size: 0.85rem;
     }
     
     .copy-button:hover {
@@ -62,10 +70,11 @@
     
     .amount-highlight {
         background: #f0f8ff;
-        padding: 1.5rem;
+        padding: 2rem;
         border-radius: 10px;
         text-align: center;
         margin: 2rem 0;
+        border: 2px solid #5DADE2;
     }
     
     .amount-value {
@@ -73,153 +82,342 @@
         font-weight: 700;
         color: #5DADE2;
     }
+    
+    .form-section {
+        background: white;
+        padding: 2rem;
+        border-radius: 10px;
+        margin-bottom: 2rem;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    }
+    
+    .form-section h3 {
+        margin-bottom: 1.5rem;
+        padding-bottom: 1rem;
+        border-bottom: 2px solid #f0f0f0;
+    }
+    
+    .image-preview {
+        max-width: 200px;
+        margin-top: 1rem;
+        border-radius: 5px;
+    }
+    
+    .upload-area {
+        border: 2px dashed #5DADE2;
+        border-radius: 8px;
+        padding: 2rem;
+        text-align: center;
+        background: #f9fbfc;
+        cursor: pointer;
+        transition: all 0.3s ease;
+    }
+    
+    .upload-area:hover {
+        background: #f0f8ff;
+        border-color: #1f77d4;
+    }
+    
+    .upload-area.active {
+        background: #f0f8ff;
+        border-color: #1f77d4;
+    }
+    
+    .step-indicator {
+        display: flex;
+        gap: 1rem;
+        margin-bottom: 2rem;
+        flex-wrap: wrap;
+    }
+    
+    .step {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        font-size: 0.95rem;
+        color: #666;
+    }
+    
+    .step-number {
+        width: 30px;
+        height: 30px;
+        background: #e9ecef;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: bold;
+    }
+    
+    .step.active .step-number {
+        background: #5DADE2;
+        color: white;
+    }
 </style>
 {% endblock %}
 
 {% block content %}
 <div class="transfer-container">
     <!-- Header -->
-    <div class="text-center mb-4">
-        <h1 class="mb-2">Transferencia Bancaria</h1>
-        <p class="text-muted">Sigue los pasos para completar tu pago</p>
+    <div class="text-center mb-5">
+        <h1 class="mb-2">
+            <i class="fas fa-university me-2"></i>Transferencia Bancaria
+        </h1>
+        <p class="text-muted lead">Completa los pasos para confirmar tu pago</p>
+    </div>
+    
+    <!-- Step Indicator -->
+    <div class="step-indicator">
+        <div class="step active">
+            <div class="step-number">1</div>
+            <span>Verificar Monto</span>
+        </div>
+        <div class="step">
+            <div class="step-number">2</div>
+            <span>Seleccionar Cuenta</span>
+        </div>
+        <div class="step">
+            <div class="step-number">3</div>
+            <span>Subir Comprobante</span>
+        </div>
     </div>
     
     <!-- Amount to Transfer -->
-    <div class="card shadow-sm">
-        <div class="card-body">
-            <h3 class="text-center mb-3">Monto a Transferir</h3>
-            <div class="amount-highlight">
-                <div class="amount-value">${{ booking.total_cost }}</div>
-                <p class="text-muted mb-0">Reserva #{{ booking.id }}</p>
-            </div>
+    <div class="form-section">
+        <h3><i class="fas fa-credit-card me-2"></i>Monto a Transferir</h3>
+        <div class="amount-highlight">
+            <div class="amount-value">${{ booking.total_cost }}</div>
+            <p class="text-muted mb-0">
+                <i class="fas fa-hashtag me-1"></i>
+                Referencia: <strong>{{ booking.id }}</strong>
+            </p>
         </div>
     </div>
     
     <!-- Instructions -->
-    <div class="instructions-card mt-4">
-        <h5><i class="fas fa-info-circle me-2"></i>Instrucciones</h5>
+    <div class="instructions-card">
+        <h5><i class="fas fa-info-circle me-2"></i>Instrucciones de Pago</h5>
         <ol class="mb-0">
-            <li>Realiza la transferencia a una de las cuentas bancarias mostradas abajo</li>
-            <li>Usa el número de reserva <strong>#{{ booking.id }}</strong> como referencia</li>
-            <li>Una vez realizada la transferencia, haz clic en "Confirmar Pago" al final de esta página</li>
-            <li>Nuestro equipo validará tu pago en 1-4 horas hábiles</li>
+            <li>Selecciona una de las cuentas bancarias abajo</li>
+            <li>Realiza la transferencia usando la <strong>referencia de tu reserva</strong></li>
+            <li>Sube una foto o PDF del comprobante de pago</li>
+            <li>Nuestro equipo validará tu pago en <strong>1-4 horas hábiles</strong></li>
         </ol>
     </div>
     
-    <!-- Bank Accounts -->
-    <div class="card shadow-sm mb-4">
-        <div class="card-body">
-            <h3 class="mb-4">Cuentas Bancarias Disponibles</h3>
+    <!-- Payment Form -->
+    <form method="post" enctype="multipart/form-data" id="bankTransferForm">
+        {% csrf_token %}
+        
+        <!-- Bank Accounts Selection -->
+        <div class="form-section">
+            <h3><i class="fas fa-university me-2"></i>Paso 1: Selecciona la Cuenta Bancaria</h3>
             
             {% if bank_accounts %}
-                {% for account in bank_accounts %}
-                <div class="bank-account-card">
-                    <div class="d-flex align-items-start">
-                        <div class="bank-logo">
-                            <i class="fas fa-university text-primary"></i>
-                        </div>
-                        <div class="flex-grow-1">
-                            <h5 class="mb-3">{{ account.bank_name }}</h5>
-                            
-                            <div class="row g-3">
-                                <div class="col-md-6">
-                                    <small class="text-muted d-block">Tipo de Cuenta</small>
-                                    <strong>{{ account.get_account_type_display }}</strong>
+                <div class="row">
+                    {% for account in bank_accounts %}
+                    <div class="col-md-6 mb-3">
+                        <div class="bank-account-card" onclick="selectBankAccount({{ account.id }}, this)">
+                            <div class="d-flex align-items-start">
+                                <div class="bank-logo">
+                                    <i class="fas fa-university text-primary"></i>
                                 </div>
-                                <div class="col-md-6">
-                                    <small class="text-muted d-block">Número de Cuenta</small>
-                                    <div class="d-flex align-items-center gap-2">
-                                        <strong id="account-{{ forloop.counter }}">{{ account.account_number }}</strong>
-                                        <span class="copy-button" onclick="copyToClipboard('account-{{ forloop.counter }}', this)">
-                                            <i class="fas fa-copy"></i>
-                                        </span>
+                                <div class="flex-grow-1">
+                                    <h5 class="mb-2">{{ account.bank_name }}</h5>
+                                    
+                                    <div class="mb-2">
+                                        <small class="text-muted d-block">Tipo de Cuenta</small>
+                                        <strong>{{ account.get_account_type_display }}</strong>
                                     </div>
-                                </div>
-                                <div class="col-md-6">
-                                    <small class="text-muted d-block">Titular</small>
-                                    <strong>{{ account.account_holder }}</strong>
-                                </div>
-                                <div class="col-md-6">
-                                    <small class="text-muted d-block">RUC/Cédula</small>
-                                    <strong>{{ account.id_number }}</strong>
+                                    
+                                    <div class="mb-2">
+                                        <small class="text-muted d-block">Número de Cuenta</small>
+                                        <div class="d-flex align-items-center gap-2">
+                                            <strong id="account-{{ forloop.counter }}">{{ account.account_number }}</strong>
+                                            <span class="copy-button" onclick="copyToClipboard('account-{{ forloop.counter }}', event)">
+                                                <i class="fas fa-copy"></i> Copiar
+                                            </span>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="mb-2">
+                                        <small class="text-muted d-block">Titular</small>
+                                        <strong>{{ account.account_holder }}</strong>
+                                    </div>
+                                    
+                                    <div>
+                                        <small class="text-muted d-block">RUC/Cédula</small>
+                                        <strong>{{ account.id_number }}</strong>
+                                    </div>
+                                    
+                                    <input type="radio" name="bank_account_id" value="{{ account.id }}" 
+                                           style="display: none;" id="bank_{{ account.id }}">
                                 </div>
                             </div>
                         </div>
                     </div>
+                    {% endfor %}
                 </div>
-                {% endfor %}
+                
+                <div class="alert alert-info mt-3">
+                    <i class="fas fa-lightbulb me-2"></i>
+                    <strong>Consejo:</strong> Haz clic en la cuenta para seleccionarla. Puedes copiar el número con el botón.
+                </div>
             {% else %}
                 <div class="alert alert-warning">
                     <i class="fas fa-exclamation-triangle me-2"></i>
                     <strong>Atención:</strong> No hay cuentas bancarias configuradas en este momento.
-                    Por favor contacta al soporte para obtener los datos de pago.
+                    Por favor contacta al soporte: pagos@liberi.com
                 </div>
             {% endif %}
         </div>
-    </div>
-    
-    <!-- Confirmation Form -->
-    <div class="card shadow-sm">
-        <div class="card-body">
-            <h3 class="mb-4">Confirmar Transferencia Realizada</h3>
-            <p class="text-muted mb-4">
-                Una vez que hayas realizado la transferencia, haz clic en el botón de abajo para notificarnos.
-                Nuestro equipo validará tu pago y te notificará por email.
-            </p>
+        
+        <!-- Reference Code -->
+        <div class="form-section">
+            <h3><i class="fas fa-tag me-2"></i>Paso 2: Número de Comprobante/Referencia</h3>
             
-            <form method="post" action="{% url 'confirm_bank_transfer' booking.id %}">
-                {% csrf_token %}
-                
-                <div class="mb-3">
-                    <label class="form-label">Notas Adicionales (Opcional)</label>
-                    <textarea 
-                        name="notes" 
-                        class="form-control" 
-                        rows="3" 
-                        placeholder="Ej: Número de comprobante, banco utilizado, etc."
-                    ></textarea>
-                    <small class="form-text text-muted">
-                        Puedes incluir cualquier información que nos ayude a identificar tu pago
-                    </small>
-                </div>
-                
-                <div class="alert alert-warning">
-                    <i class="fas fa-exclamation-triangle me-2"></i>
-                    <strong>Importante:</strong> Solo confirma si ya realizaste la transferencia. 
-                    El pago será validado manualmente por nuestro equipo.
-                </div>
-                
-                <div class="d-grid gap-2">
-                    <button type="submit" class="btn btn-success btn-lg">
-                        <i class="fas fa-check-circle me-2"></i>
-                        Confirmar que Realicé la Transferencia
-                    </button>
-                    <a href="{% url 'payment_process' booking.id %}" class="btn btn-outline-secondary">
-                        <i class="fas fa-arrow-left me-2"></i>
-                        Volver a Métodos de Pago
-                    </a>
-                </div>
-            </form>
+            <div class="mb-3">
+                <label class="form-label">
+                    <strong>Número de Comprobante *</strong>
+                    <span class="text-danger">requerido</span>
+                </label>
+                <input 
+                    type="text" 
+                    name="reference_code" 
+                    class="form-control form-control-lg" 
+                    placeholder="Ej: 123456789 o ABC-2024-XYZ"
+                    required
+                >
+                <small class="form-text text-muted mt-2">
+                    <i class="fas fa-info-circle me-1"></i>
+                    Ingresa el número de transacción, referencia o código de tu banco
+                </small>
+            </div>
         </div>
-    </div>
+        
+        <!-- Proof Image Upload -->
+        <div class="form-section">
+            <h3><i class="fas fa-image me-2"></i>Paso 3: Comprobante de Pago</h3>
+            
+            <div class="mb-3">
+                <label class="form-label">
+                    <strong>Sube una foto del Comprobante *</strong>
+                    <span class="text-danger">requerido</span>
+                </label>
+                
+                <div class="upload-area" id="uploadArea">
+                    <div id="uploadContent">
+                        <i class="fas fa-cloud-upload-alt fa-3x text-primary mb-3"></i>
+                        <h5>Arrastra tu archivo aquí</h5>
+                        <p class="text-muted mb-3">o haz clic para seleccionar</p>
+                        <small class="text-muted d-block">
+                            Formatos aceptados: JPG, PNG, PDF (máximo 5MB)
+                        </small>
+                    </div>
+                    <input 
+                        type="file" 
+                        name="proof_image" 
+                        id="proofImage" 
+                        class="d-none" 
+                        accept="image/*,application/pdf"
+                        required
+                    >
+                </div>
+                
+                <!-- Image Preview -->
+                <div id="imagePreviewContainer" style="display: none; margin-top: 1rem;">
+                    <div id="imagePreview"></div>
+                    <button type="button" class="btn btn-sm btn-danger mt-2" onclick="clearImage()">
+                        <i class="fas fa-trash me-1"></i>Cambiar archivo
+                    </button>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Additional Notes (Optional) -->
+        <div class="form-section">
+            <h3><i class="fas fa-sticky-note me-2"></i>Notas Adicionales (Opcional)</h3>
+            
+            <textarea 
+                name="notes" 
+                class="form-control" 
+                rows="3" 
+                placeholder="Ej: Transferí desde Banco Pichincha, número de cédula: 1234567890..."
+            ></textarea>
+            <small class="form-text text-muted mt-2">
+                Información que nos ayude a validar tu pago más rápido
+            </small>
+        </div>
+        
+        <!-- Important Notice -->
+        <div class="alert alert-warning">
+            <h5 class="alert-heading">
+                <i class="fas fa-exclamation-triangle me-2"></i>Importante
+            </h5>
+            <ul class="mb-0">
+                <li><strong>Asegúrate</strong> de que el comprobante sea legible y claro</li>
+                <li><strong>Incluye</strong> la referencia de tu reserva en la transferencia</li>
+                <li><strong>Solo confirma</strong> si ya realizaste la transferencia</li>
+                <li><strong>La validación</strong> puede tomar 1-4 horas hábiles</li>
+            </ul>
+        </div>
+        
+        <!-- Action Buttons -->
+        <div class="d-grid gap-2">
+            <button type="submit" class="btn btn-success btn-lg" id="submitBtn">
+                <i class="fas fa-check-circle me-2"></i>
+                Confirmar y Enviar Comprobante
+            </button>
+            <a href="{% url 'payment_process' booking.id %}" class="btn btn-outline-secondary">
+                <i class="fas fa-arrow-left me-2"></i>
+                Volver a Métodos de Pago
+            </a>
+        </div>
+    </form>
     
-    <!-- Help Section -->
-    <div class="alert alert-info mt-4">
-        <h5><i class="fas fa-question-circle me-2"></i>¿Necesitas Ayuda?</h5>
-        <p class="mb-0">
-            Si tienes problemas con tu transferencia o necesitas asistencia, 
-            contáctanos por WhatsApp al <strong>+593 99 123 4567</strong> 
-            o envíanos un email a <strong>pagos@liberi.com</strong>
-        </p>
+    <!-- Support Section -->
+    <div class="card mt-5 bg-light">
+        <div class="card-body text-center">
+            <h5><i class="fas fa-question-circle me-2"></i>¿Necesitas Ayuda?</h5>
+            <p class="text-muted mb-3">
+                Si tienes problemas con tu transferencia, estamos aquí para ayudarte
+            </p>
+            <div class="d-flex gap-2 justify-content-center flex-wrap">
+                <a href="mailto:pagos@liberi.com" class="btn btn-sm btn-outline-primary">
+                    <i class="fas fa-envelope me-1"></i>pagos@liberi.com
+                </a>
+                <a href="https://wa.me/593991234567" class="btn btn-sm btn-outline-success" target="_blank">
+                    <i class="fab fa-whatsapp me-1"></i>WhatsApp
+                </a>
+                <a href="tel:+593991234567" class="btn btn-sm btn-outline-primary">
+                    <i class="fas fa-phone me-1"></i>+593 99 123 4567
+                </a>
+            </div>
+        </div>
     </div>
 </div>
 
 <script>
-function copyToClipboard(elementId, button) {
+// Select bank account
+function selectBankAccount(accountId, element) {
+    // Remover selección previa
+    document.querySelectorAll('.bank-account-card').forEach(card => {
+        card.classList.remove('selected');
+    });
+    
+    // Seleccionar esta cuenta
+    element.classList.add('selected');
+    document.getElementById('bank_' + accountId).checked = true;
+}
+
+// Copy to clipboard
+function copyToClipboard(elementId, event) {
+    event.stopPropagation();
     const text = document.getElementById(elementId).textContent;
     navigator.clipboard.writeText(text).then(() => {
+        const button = event.target.closest('.copy-button');
         const originalHTML = button.innerHTML;
-        button.innerHTML = '<i class="fas fa-check"></i>';
+        button.innerHTML = '<i class="fas fa-check"></i> ¡Copiado!';
         button.style.backgroundColor = '#28a745';
         button.style.color = 'white';
         button.style.borderColor = '#28a745';
@@ -234,5 +432,88 @@ function copyToClipboard(elementId, button) {
         alert('Error al copiar: ' + err);
     });
 }
+
+// Handle file upload
+const uploadArea = document.getElementById('uploadArea');
+const fileInput = document.getElementById('proofImage');
+
+uploadArea.addEventListener('click', () => fileInput.click());
+
+uploadArea.addEventListener('dragover', (e) => {
+    e.preventDefault();
+    uploadArea.classList.add('active');
+});
+
+uploadArea.addEventListener('dragleave', () => {
+    uploadArea.classList.remove('active');
+});
+
+uploadArea.addEventListener('drop', (e) => {
+    e.preventDefault();
+    uploadArea.classList.remove('active');
+    const files = e.dataTransfer.files;
+    if (files.length > 0) {
+        fileInput.files = files;
+        handleFileSelect();
+    }
+});
+
+fileInput.addEventListener('change', handleFileSelect);
+
+function handleFileSelect() {
+    const file = fileInput.files[0];
+    if (!file) return;
+    
+    // Validar tamaño (máximo 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+        alert('El archivo no puede superar 5MB');
+        fileInput.value = '';
+        return;
+    }
+    
+    // Validar tipo
+    const allowedTypes = ['image/jpeg', 'image/png', 'image/jpg', 'application/pdf'];
+    if (!allowedTypes.includes(file.type)) {
+        alert('Solo se permiten archivos JPG, PNG o PDF');
+        fileInput.value = '';
+        return;
+    }
+    
+    // Mostrar preview
+    const container = document.getElementById('imagePreviewContainer');
+    const previewDiv = document.getElementById('imagePreview');
+    
+    if (file.type.startsWith('image/')) {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            previewDiv.innerHTML = `<img src="${e.target.result}" class="image-preview" alt="Preview">`;
+            container.style.display = 'block';
+        };
+        reader.readAsDataURL(file);
+    } else {
+        previewDiv.innerHTML = '<div class="alert alert-info"><i class="fas fa-file-pdf me-2"></i>Archivo PDF cargado correctamente</div>';
+        container.style.display = 'block';
+    }
+}
+
+function clearImage() {
+    fileInput.value = '';
+    document.getElementById('imagePreviewContainer').style.display = 'none';
+}
+
+// Validar antes de enviar
+document.getElementById('bankTransferForm').addEventListener('submit', (e) => {
+    // Verificar que se seleccionó una cuenta
+    const selectedBank = document.querySelector('input[name="bank_account_id"]:checked');
+    if (!selectedBank) {
+        e.preventDefault();
+        alert('Por favor selecciona una cuenta bancaria');
+        return false;
+    }
+    
+    // Deshabilitar botón para evitar envíos duplicados
+    document.getElementById('submitBtn').disabled = true;
+    document.getElementById('submitBtn').innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Procesando...';
+});
 </script>
 {% endblock %}
