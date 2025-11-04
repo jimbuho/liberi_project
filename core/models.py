@@ -58,8 +58,16 @@ class ProviderProfile(models.Model):
     category = models.ForeignKey(Category, on_delete=models.SET_NULL, null=True, 
                                  verbose_name='Categoría')
     description = models.TextField('Descripción')
+    
+    # NUEVOS CAMPOS - CAMBIO #8
+    business_name = models.CharField('Nombre Comercial', max_length=200, blank=True,
+                                     help_text='Nombre con el que se promociona el negocio')
+    profile_photo = models.ImageField('Foto de Perfil', upload_to='profiles/', blank=True,
+                                      help_text='Foto de perfil (puede ser comercial)')
+    # FIN NUEVOS CAMPOS
+    
     coverage_zones = models.ManyToManyField('Zone', verbose_name='Zonas de cobertura',
-                                           related_name='providers')
+                                           related_name='providers', blank=True)
     avg_travel_cost = models.DecimalField('Costo promedio de traslado', max_digits=6, 
                                           decimal_places=2, default=0)
     availability = models.JSONField('Disponibilidad', default=dict)
@@ -77,8 +85,18 @@ class ProviderProfile(models.Model):
         verbose_name_plural = 'Perfiles de Proveedores'
 
     def __str__(self):
-        return f"{self.user.username} - {self.category}"
-
+        display_name = self.business_name if self.business_name else self.user.get_full_name()
+        return f"{display_name} - {self.category}"
+    
+    def get_display_name(self):
+        """Retorna el nombre comercial si existe, sino el nombre completo del usuario"""
+        return self.business_name if self.business_name else self.user.get_full_name()
+    
+    def get_full_display(self):
+        """Retorna nombre comercial + nombre real entre paréntesis"""
+        if self.business_name:
+            return f"{self.business_name} ({self.user.get_full_name()})"
+        return self.user.get_full_name()
 
 class Service(models.Model):
     provider = models.ForeignKey(User, on_delete=models.CASCADE, related_name='services',

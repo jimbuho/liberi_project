@@ -392,9 +392,8 @@ def register_provider_view(request):
         # Datos de proveedor
         category_id = request.POST.get('category')
         description = request.POST.get('description')
-        coverage_zones = request.POST.get('coverage_zones', '').split(',')
-        coverage_zones = [zone.strip() for zone in coverage_zones if zone.strip()]
-        avg_travel_cost = request.POST.get('avg_travel_cost', 0)
+        business_name = request.POST.get('business_name')
+        profile_photo = request.FILES.get('profile_photo')
         
         # Validaciones
         if password != password_confirm:
@@ -403,6 +402,21 @@ def register_provider_view(request):
         
         if User.objects.filter(username=username).exists():
             messages.error(request, 'El nombre de usuario ya está en uso')
+            return render(request, 'auth/register_provider.html', {'categories': categories})
+        
+        if User.objects.filter(email=email).exists():
+            messages.error(request, 'El email ya está registrado')
+            return render(request, 'auth/register_provider.html', {'categories': categories})
+        
+        # Validar foto de perfil
+        if profile_photo:
+            # Validar tipo de archivo
+            file_extension = profile_photo.name.split('.')[-1].lower()
+            if file_extension not in ['jpg', 'jpeg', 'png']:
+                messages.error(request, 'La foto debe ser JPG o PNG')
+                return render(request, 'auth/register_provider.html', {'categories': categories})
+        else:
+            messages.error(request, 'La foto de perfil es obligatoria')
             return render(request, 'auth/register_provider.html', {'categories': categories})
         
         # Crear usuario
@@ -421,28 +435,39 @@ def register_provider_view(request):
             role='provider'
         )
         
+        # Subir foto a Supabase
+        '''
+        try:
+            supabase = create_client(os.getenv("SUPABASE_URL"), os.getenv("SUPABASE_KEY"))
+            file_path = f"profiles/{user.id}_{profile_photo.name}"
+            supabase.storage.from_("Liberi-Bucket").upload(file_path, profile_photo)
+            public_url = supabase.storage.from_("Liberi-Bucket").get_public_url(file_path)
+        except Exception as e:
+            # Si falla Supabase, eliminar el usuario creado
+            user.delete()
+            messages.error(request, f'Error al subir la foto: {str(e)}')
+            return render(request, 'auth/register_provider.html', {'categories': categories})
+        '''
+        
         # Crear perfil de proveedor
-        provider_profile = ProviderProfile.objects.create(
+        # Las zonas de cobertura y costos se configurarán después del primer servicio
+        ProviderProfile.objects.create(
             user=user,
             category_id=category_id,
             description=description,
-            # NOTA: Quita 'coverage_zones' de aquí
-            avg_travel_cost=avg_travel_cost,
+            business_name=business_name,
+            #profile_photo=public_url,
+            profile_photo=profile_photo,
             status='pending'
         )
-
-        zone_objects = []
-        for zone_name in coverage_zones:
-            # get_or_create es una buena práctica para asegurar que la zona exista
-            zone, created = Zone.objects.get_or_create(name=zone_name)
-            zone_objects.append(zone)
-
-        # Paso B: Usar .set() para establecer la relación
-        provider_profile.coverage_zones.set(zone_objects)
         
         # Login automático
         login(request, user)
-        messages.success(request, '¡Registro exitoso! Tu perfil está en revisión')
+        messages.success(
+            request, 
+            f'¡Registro exitoso, {business_name}! Tu perfil está en revisión. '
+            'Crea tu primer servicio para solicitar la aprobación.'
+        )
         
         return redirect('dashboard')
     

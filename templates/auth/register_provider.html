@@ -67,6 +67,20 @@
                         <h4 class="mb-3">Información Profesional</h4>
 
                         <div class="mb-3">
+                            <label for="business_name" class="form-label">Nombre Comercial *</label>
+                            <input type="text" class="form-control" id="business_name" name="business_name" 
+                                   placeholder="Ej: Salón de Belleza María, Limpieza Express" required>
+                            <small class="text-muted">Este será el nombre que verán tus clientes</small>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="profile_photo" class="form-label">Foto de Perfil *</label>
+                            <input type="file" class="form-control" id="profile_photo" name="profile_photo" 
+                                   accept="image/jpeg,image/png" required>
+                            <small class="text-muted">Puede ser una foto comercial de tu negocio o tuya trabajando. Solo JPG o PNG.</small>
+                        </div>
+
+                        <div class="mb-3">
                             <label for="category" class="form-label">Categoría de Servicio *</label>
                             <select class="form-select" id="category" name="category" required>
                                 <option value="">Seleccione una categoría</option>
@@ -84,18 +98,9 @@
                             <small class="text-muted">Mínimo 50 caracteres</small>
                         </div>
 
-                        <div class="mb-3">
-                            <label for="coverage_zones" class="form-label">Zonas de cobertura *</label>
-                            <input type="text" class="form-control" id="coverage_zones" 
-                                   name="coverage_zones" 
-                                   placeholder="Quito Norte, Centro, Cumbayá" required>
-                            <small class="text-muted">Separadas por comas</small>
-                        </div>
-
-                        <div class="mb-3">
-                            <label for="avg_travel_cost" class="form-label">Costo promedio de traslado (USD)</label>
-                            <input type="number" class="form-control" id="avg_travel_cost" 
-                                   name="avg_travel_cost" step="0.01" min="0" value="0">
+                        <div class="alert alert-info">
+                            <i class="fas fa-info-circle"></i> 
+                            <strong>Nota:</strong> Las zonas de cobertura y costos de traslado podrás configurarlos después de crear tu primer servicio.
                         </div>
 
                         <div class="mb-3 form-check">

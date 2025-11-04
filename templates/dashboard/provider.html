@@ -7,15 +7,39 @@
     <!-- Welcome Header -->
     <div class="row mb-4">
         <div class="col-md-12">
-            <div class="card bg-gradient text-white" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+            <div class="card" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border: none;">
                 <div class="card-body p-4">
                     <div class="d-flex justify-content-between align-items-center">
-                        <div>
-                            <h2 class="mb-2">
-                                <i class="fas fa-briefcase"></i> 
-                                ¡Hola, {{ user.first_name|default:user.username }}!
-                            </h2>
-                            <p class="mb-0">Panel de Control - Proveedor</p>
+                        <div class="d-flex align-items-center">
+                            <!-- NUEVO: Foto de Perfil -->
+                            {% if provider_profile.profile_photo %}
+                                <img src="{{ provider_profile.profile_photo }}" 
+                                     alt="{{ provider_profile.get_display_name }}"
+                                     class="rounded-circle me-3"
+                                     style="width: 80px; height: 80px; object-fit: cover; border: 3px solid rgba(255,255,255,0.3);">
+                            {% else %}
+                                <div class="rounded-circle me-3 d-flex align-items-center justify-content-center"
+                                     style="width: 80px; height: 80px; background: rgba(255,255,255,0.2); border: 3px solid rgba(255,255,255,0.3);">
+                                    <i class="fas fa-user fa-2x" style="color: white;"></i>
+                                </div>
+                            {% endif %}
+                            
+                            <div>
+                                <!-- NUEVO: Nombre Comercial prominente -->
+                                {% if provider_profile.business_name %}
+                                    <h2 class="mb-1" style="color: white;">
+                                        <i class="fas fa-briefcase"></i> 
+                                        {{ provider_profile.business_name }}
+                                    </h2>
+                                    <p class="mb-0" style="color: rgba(255,255,255,0.85);">{{ user.get_full_name|default:user.username }}</p>
+                                {% else %}
+                                    <h2 class="mb-2" style="color: white;">
+                                        <i class="fas fa-briefcase"></i> 
+                                        ¡Hola, {{ user.first_name|default:user.username }}!
+                                    </h2>
+                                    <p class="mb-0" style="color: rgba(255,255,255,0.85);">Panel de Control - Proveedor</p>
+                                {% endif %}
+                            </div>
                         </div>
                         <div class="text-end">
                             {% if provider_profile.status == 'approved' %}
@@ -23,7 +47,7 @@
                                     <i class="fas fa-check-circle"></i> Perfil Verificado
                                 </span>
                             {% elif provider_profile.status == 'pending' %}
-                                <span class="badge bg-warning fs-6">
+                                <span class="badge bg-warning text-dark fs-6">
                                     <i class="fas fa-clock"></i> Perfil en Revisión
                                 </span>
                             {% else %}
@@ -96,6 +120,21 @@
             </div>
             {% endif %}
 
+            <!-- Profile Completion Alert -->
+            {% if not provider_profile.business_name or not provider_profile.profile_photo %}
+            <div class="alert alert-info alert-dismissible fade show" role="alert">
+                <strong><i class="fas fa-info-circle"></i> Completa tu perfil</strong>
+                {% if not provider_profile.business_name %}
+                    <br>• Agrega tu nombre comercial
+                {% endif %}
+                {% if not provider_profile.profile_photo %}
+                    <br>• Sube una foto de perfil profesional
+                {% endif %}
+                <br>Un perfil completo genera más confianza en los clientes.
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+            {% endif %}
+
             <!-- Recent Bookings -->
             <div class="card mb-4">
                 <div class="card-header bg-light">
@@ -117,7 +156,7 @@
                                     <div>
                                         <h6 class="mb-1">{{ booking.customer.get_full_name }}</h6>
                                         <p class="text-muted mb-1">
-                                            <i class="fas fa-phone"></i> {{ booking.customer_phone }}
+                                            <i class="fas fa-phone"></i> {{ booking.customer.profile.phone }}
                                         </p>
                                     </div>
                                     <span class="badge bg-{% if booking.status == 'pending' %}warning{% elif booking.status == 'accepted' %}info{% elif booking.status == 'completed' %}success{% else %}secondary{% endif %}">
@@ -268,6 +307,34 @@
 
         <!-- Sidebar -->
         <div class="col-md-4">
+            <!-- Profile Card - NUEVO CON COLORES CORREGIDOS -->
+            <div class="card mb-4 text-center" style="background-color: white;">
+                <div class="card-body">
+                    {% if provider_profile.profile_photo %}
+                        <img src="{{ provider_profile.profile_photo }}" 
+                             alt="{{ provider_profile.get_display_name }}"
+                             class="rounded-circle mb-3"
+                             style="width: 120px; height: 120px; object-fit: cover; border: 4px solid #667eea;">
+                    {% else %}
+                        <div class="rounded-circle mx-auto mb-3 d-flex align-items-center justify-content-center"
+                             style="width: 120px; height: 120px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border: 4px solid #667eea;">
+                            <i class="fas fa-user fa-3x" style="color: white;"></i>
+                        </div>
+                    {% endif %}
+                    
+                    {% if provider_profile.business_name %}
+                        <h5 class="mb-1" style="color: #3D3D3D;">{{ provider_profile.business_name }}</h5>
+                        <p class="text-muted small mb-2">{{ user.get_full_name }}</p>
+                    {% else %}
+                        <h5 class="mb-2" style="color: #3D3D3D;">{{ user.get_full_name }}</h5>
+                    {% endif %}
+                    
+                    <p class="text-muted mb-0">
+                        {{ provider_profile.category.icon }} {{ provider_profile.category.name }}
+                    </p>
+                </div>
+            </div>
+
             <!-- Profile Stats -->
             <div class="card mb-4">
                 <div class="card-header bg-light">
@@ -326,7 +393,6 @@
                             <i class="fas fa-calendar-check"></i> Ver Reservas
                         </a>
                         
-                        <!-- NUEVO: Gestionar Cobertura -->
                         <a href="{% url 'provider_coverage_manage' %}" class="btn btn-outline-info">
                             <i class="fas fa-map-marked-alt"></i> Gestionar Cobertura
                         </a>
@@ -402,11 +468,6 @@
                         </li>
                         <li class="mb-2">
                             <i class="fas fa-check text-success"></i>
-                            Mantén tus servicios actualizados
-                        </li>
-                        <li class="mb-2">
-                            <i class="fas fa-check text-success">
-                                </i>
                             Mantén tus servicios actualizados
                         </li>
                         <li class="mb-2">
