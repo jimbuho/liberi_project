@@ -1,4 +1,5 @@
 {% extends 'base.html' %}
+{% load custom_filters %}
 
 {% block title %}Editar Servicio - Liberi{% endblock %}
 
@@ -36,7 +37,7 @@
                                     <span class="input-group-text">$</span>
                                     <input type="number" class="form-control" id="base_price" 
                                            name="base_price" step="0.01" min="1" required
-                                           value="{{ service.base_price }}">
+                                           value="{{ service.base_price|to_string }}">
                                 </div>
                             </div>
 
