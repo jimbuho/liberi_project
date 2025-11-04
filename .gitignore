@@ -11,3 +11,5 @@ db.sqlite3
 
 # Archivos específicos de Django
 /staticfiles/
+
+killprocess.sh

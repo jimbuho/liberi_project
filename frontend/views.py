@@ -9,8 +9,6 @@ from django.db.models import Q, Avg, Count, Sum
 from datetime import timedelta, datetime
 from django.contrib.auth.models import User
 from django.http import JsonResponse
-from supabase import create_client
-import os
 
 from core.models import (
     Profile, Category, Service, ProviderProfile, 
@@ -20,6 +18,11 @@ from core.models import (
     ProviderZoneCost, SystemConfig, Notification, Payment
 )
 
+from core.image_upload import (
+    upload_profile_photo, replace_image, 
+    upload_service_image, upload_payment_proof,
+    delete_image, upload_image, validate_image
+)
 from .forms import BankTransferForm
 
 
@@ -294,6 +297,117 @@ def provider_profile(request, provider_id):
     }
     return render(request, 'providers/profile.html', context)
 
+@login_required
+def provider_profile_edit(request):
+    """
+    Vista para editar el perfil del proveedor, incluyendo foto
+    """
+    if request.user.profile.role != 'provider':
+        messages.error(request, 'Solo los proveedores pueden editar su perfil')
+        return redirect('dashboard')
+    
+    if not hasattr(request.user, 'provider_profile'):
+        messages.error(request, 'No tienes un perfil de proveedor')
+        return redirect('dashboard')
+    
+    provider_profile = request.user.provider_profile
+    categories = Category.objects.all()
+    
+    if request.method == 'POST':
+        # Datos de usuario
+        first_name = request.POST.get('first_name')
+        last_name = request.POST.get('last_name')
+        email = request.POST.get('email')
+        phone = request.POST.get('phone')
+        
+        # Datos de proveedor
+        business_name = request.POST.get('business_name')
+        description = request.POST.get('description')
+        category_id = request.POST.get('category')
+        profile_photo = request.FILES.get('profile_photo')
+        
+        # Validar email único (si cambió)
+        if email != request.user.email:
+            if User.objects.filter(email=email).exclude(id=request.user.id).exists():
+                messages.error(request, 'Este email ya está en uso por otro usuario')
+                return render(request, 'providers/profile_edit.html', {
+                    'provider_profile': provider_profile,
+                    'categories': categories,
+                })
+        
+        # Validar foto si se subió una nueva
+        if profile_photo:
+            # Validar tipo
+            file_extension = profile_photo.name.split('.')[-1].lower()
+            if file_extension not in ['jpg', 'jpeg', 'png']:
+                messages.error(request, 'La foto debe ser JPG o PNG')
+                return render(request, 'providers/profile_edit.html', {
+                    'provider_profile': provider_profile,
+                    'categories': categories,
+                })
+            
+            # Validar tamaño (5MB)
+            if profile_photo.size > 5 * 1024 * 1024:
+                messages.error(request, 'La foto no puede superar los 5MB')
+                return render(request, 'providers/profile_edit.html', {
+                    'provider_profile': provider_profile,
+                    'categories': categories,
+                })
+        
+        try:
+            # Actualizar usuario
+            request.user.first_name = first_name
+            request.user.last_name = last_name
+            request.user.email = email
+            request.user.save()
+            
+            # Actualizar perfil
+            request.user.profile.phone = phone
+            request.user.profile.save()
+            
+            # Actualizar perfil de proveedor
+            provider_profile.business_name = business_name
+            provider_profile.description = description
+            provider_profile.category_id = category_id
+            
+            # Subir nueva foto si se proporcionó
+            if profile_photo:
+                photo_url = replace_image(
+                    old_url=provider_profile.profile_photo,
+                    new_file=profile_photo,
+                    folder='profiles',
+                    user_id=request.user.id
+                )
+                provider_profile.profile_photo = photo_url
+            
+            provider_profile.save()
+            
+            # Log
+            AuditLog.objects.create(
+                user=request.user,
+                action='Perfil de proveedor actualizado',
+                metadata={
+                    'business_name': business_name,
+                    'photo_updated': bool(profile_photo)
+                }
+            )
+            
+            messages.success(request, '¡Perfil actualizado exitosamente!')
+            return redirect('dashboard')
+            
+        except Exception as e:
+            messages.error(request, f'Error al actualizar perfil: {str(e)}')
+            return render(request, 'providers/profile_edit.html', {
+                'provider_profile': provider_profile,
+                'categories': categories,
+            })
+    
+    context = {
+        'provider_profile': provider_profile,
+        'categories': categories,
+    }
+    return render(request, 'providers/profile_edit.html', context)
+
 
 # ============================================================================
 # AUTHENTICATION VIEWS
@@ -408,69 +522,64 @@ def register_provider_view(request):
             messages.error(request, 'El email ya está registrado')
             return render(request, 'auth/register_provider.html', {'categories': categories})
         
-        # Validar foto de perfil
-        if profile_photo:
-            # Validar tipo de archivo
-            file_extension = profile_photo.name.split('.')[-1].lower()
-            if file_extension not in ['jpg', 'jpeg', 'png']:
-                messages.error(request, 'La foto debe ser JPG o PNG')
-                return render(request, 'auth/register_provider.html', {'categories': categories})
-        else:
+        if not profile_photo:
             messages.error(request, 'La foto de perfil es obligatoria')
             return render(request, 'auth/register_provider.html', {'categories': categories})
-        
-        # Crear usuario
-        user = User.objects.create_user(
-            username=username,
-            email=email,
-            password=password,
-            first_name=first_name,
-            last_name=last_name
-        )
-        
-        # Crear perfil
-        Profile.objects.create(
-            user=user,
-            phone=phone,
-            role='provider'
-        )
-        
-        # Subir foto a Supabase
-        '''
+
         try:
-            supabase = create_client(os.getenv("SUPABASE_URL"), os.getenv("SUPABASE_KEY"))
-            file_path = f"profiles/{user.id}_{profile_photo.name}"
-            supabase.storage.from_("Liberi-Bucket").upload(file_path, profile_photo)
-            public_url = supabase.storage.from_("Liberi-Bucket").get_public_url(file_path)
+            # Subir foto usando el helper (detecta automáticamente el ambiente)
+            photo_url = upload_profile_photo(
+                file=profile_photo,
+                user_id=user.id
+            )
+            
+            # Crear usuario
+            user = User.objects.create_user(
+                username=username,
+                email=email,
+                password=password,
+                first_name=first_name,
+                last_name=last_name
+            )
+            
+            # Crear perfil
+            Profile.objects.create(
+                user=user,
+                phone=phone,
+                role='provider'
+            )
+            
+            # Crear perfil de proveedor
+            # Las zonas de cobertura y costos se configurarán después del primer servicio
+            ProviderProfile.objects.create(
+                user=user,
+                category_id=category_id,
+                description=description,
+                business_name=business_name,
+                profile_photo=photo_url,
+                status='pending'
+            )
+            
+            # Login automático
+            login(request, user)
+            messages.success(
+                request, 
+                f'¡Registro exitoso, {business_name}! Tu perfil está en revisión. '
+                'Crea tu primer servicio para solicitar la aprobación.'
+            )
+            
+            return redirect('dashboard')
+
+        except ValueError as e:
+            # Error de validación
+            messages.error(request, str(e))
+            return render(request, 'auth/register_provider.html', {'categories': categories})
         except Exception as e:
-            # Si falla Supabase, eliminar el usuario creado
-            user.delete()
+            # Error general
+            user.delete()  # Rollback
             messages.error(request, f'Error al subir la foto: {str(e)}')
             return render(request, 'auth/register_provider.html', {'categories': categories})
-        '''
-        
-        # Crear perfil de proveedor
-        # Las zonas de cobertura y costos se configurarán después del primer servicio
-        ProviderProfile.objects.create(
-            user=user,
-            category_id=category_id,
-            description=description,
-            business_name=business_name,
-            #profile_photo=public_url,
-            profile_photo=profile_photo,
-            status='pending'
-        )
-        
-        # Login automático
-        login(request, user)
-        messages.success(
-            request, 
-            f'¡Registro exitoso, {business_name}! Tu perfil está en revisión. '
-            'Crea tu primer servicio para solicitar la aprobación.'
-        )
-        
-        return redirect('dashboard')
-    
+
     context = {
         'categories': categories,
     }
@@ -1084,32 +1193,40 @@ def service_create(request):
         image = request.FILES.get('image')
         available = request.POST.get('available') == 'on'  # ← AGREGAR ESTA LÍNEA
 
-        supabase = create_client(os.getenv("SUPABASE_URL"), os.getenv("SUPABASE_KEY"))
-        file_path = f"services/{image.name}"
-        supabase.storage.from_("Liberi-Bucket").upload(file_path, image)
-        public_url = supabase.storage.from_("Liberi-Bucket").get_public_url(file_path)
         
-        service = Service.objects.create(
-            provider=request.user,
-            name=name,
-            description=description,
-            base_price=base_price,
-            duration_minutes=duration_minutes,
-            #image=image,
-            image=public_url, # TODO Revisar
-            available=available  # ← AGREGAR ESTA LÍNEA
-        )
-        
-        # Log
-        AuditLog.objects.create(
-            user=request.user,
-            action='Servicio creado',
-            metadata={'service_id': service.id, 'name': name}
-        )
-        
-        messages.success(request, 'Servicio creado exitosamente')
-        return redirect('dashboard')
-    
+        try:
+            # Subir imagen del servicio
+            image_url = upload_service_image(
+                file=image,
+                provider_id=request.user.id
+            )
+            
+            # Crear servicio con la URL
+            service = Service.objects.create(
+                provider=request.user,
+                name=name,
+                description=description,
+                base_price=base_price,
+                duration_minutes=duration_minutes,
+                image=image_url,  # URL de la imagen
+                available=available
+            )
+            
+            # Log
+            AuditLog.objects.create(
+                user=request.user,
+                action='Servicio creado',
+                metadata={'service_id': service.id, 'name': name}
+            )
+
+            messages.success(request, 'Servicio creado exitosamente')
+            return redirect('dashboard')
+            
+        except ValueError as e:
+            messages.error(request, str(e))
+        except Exception as e:
+            messages.error(request, f'Error al crear servicio: {str(e)}')
+
     return render(request, 'services/create.html')
 
 
@@ -1125,8 +1242,21 @@ def service_edit(request, service_id):
         service.duration_minutes = request.POST.get('duration_minutes')
         service.available = request.POST.get('available') == 'on'  # ← AGREGAR ESTA LÍNEA
         
+        # Si se subió nueva imagen
         if request.FILES.get('image'):
-            service.image = request.FILES.get('image')
+            try:
+                # Reemplazar imagen anterior
+                new_image_url = replace_image(
+                    old_url=service.image,
+                    new_file=request.FILES['image'],
+                    folder='services',
+                    user_id=request.user.id,
+                    prefix='service'
+                )
+                service.image = new_image_url
+            except Exception as e:
+                messages.error(request, f'Error al actualizar imagen: {str(e)}')
+                return render(request, 'services/edit.html', {'service': service})
         
         service.save()
         
@@ -1152,6 +1282,11 @@ def service_delete(request, service_id):
     
     if request.method == 'POST':
         service_name = service.name
+
+        # Eliminar imagen asociada
+        if service.image:
+            delete_image(service.image)
+        
         service.delete()
         
         # Log
@@ -1923,86 +2058,100 @@ def payment_bank_transfer(request, booking_id):
         # ========================================
         # PASO 3: Crear PaymentProof
         # ========================================
-        payment_proof = PaymentProof.objects.create(
-            booking=booking,
-            payment_method=payment_method,
-            bank_account=bank_account,
-            reference_code=reference_code,
-            proof_image=proof_image,
-            verified=False  # Pendiente de verificación por admin
-        )
-        
-        # ========================================
-        # PASO 4: Actualizar estado de la reserva
-        # ========================================
-        booking.payment_status = 'pending_validation'
-        booking.save()
-        
-        # Log de auditoría
-        AuditLog.objects.create(
-            user=request.user,
-            action='Comprobante de transferencia bancaria enviado',
-            metadata={
-                'booking_id': str(booking.id),
-                'payment_proof_id': payment_proof.id,
-                'reference_code': reference_code,
-                'bank_account': bank_account.bank_name
-            }
-        )
-        
-        # ========================================
-        # PASO 5: Crear notificaciones (ADMIN)
-        # ========================================
-        admin_users = User.objects.filter(is_staff=True, is_active=True)
-        for admin in admin_users:
-            Notification.objects.create(
-                user=admin,
-                notification_type='payment_received',
-                title='💰 Nuevo Comprobante de Pago Pendiente',
-                message=f'Cliente: {booking.customer.get_full_name()}\n'
-                        f'Reserva: #{booking.id}\n'
-                        f'Monto: ${booking.total_cost}\n'
-                        f'Referencia: {reference_code}',
-                booking=booking,
-                action_url=f'/admin/core/paymentproof/{payment_proof.id}/change/'
+
+        try:
+            # Subir comprobante
+            proof_url = upload_payment_proof(
+                file=proof_image,
+                booking_id=str(booking.id)
             )
-        
-        # ========================================
-        # PASO 6: Crear notificación (CLIENTE)
-        # ========================================
-        Notification.objects.create(
-            user=booking.customer,
-            notification_type='payment_received',
-            title='Comprobante de Pago Recibido',
-            message=f'Hemos recibido tu comprobante de transferencia bancaria. '
-                    f'Nuestro equipo lo está validando y recibirás una confirmación en 1-4 horas hábiles.',
-            booking=booking,
-            action_url=f'/bookings/{booking.id}/'
-        )
-        
-        # ========================================
-        # PASO 7: Crear notificación (PROVEEDOR)
-        # ========================================
-        Notification.objects.create(
-            user=booking.provider,
-            notification_type='payment_received',
-            title='Comprobante de Pago Pendiente de Validación',
-            message=f'El cliente {booking.customer.get_full_name()} ha enviado el comprobante de pago. '
-                    f'Se confirmará en breve.',
-            booking=booking,
-            action_url=f'/bookings/{booking.id}/'
-        )
-        
-        # ========================================
-        # PASO 8: Redireccionar a confirmación
-        # ========================================
-        messages.success(
-            request,
-            '✅ Comprobante recibido. Nuestro equipo lo verificará pronto. '
-            'Recibirás una notificación cuando esté confirmado.'
-        )
-        return redirect('payment_confirmation', payment_id=payment_proof.id)
-    
+            
+            # Crear registro de comprobante
+            payment_proof = PaymentProof.objects.create(
+                booking=booking,
+                payment_method=payment_method,
+                bank_account=bank_account,
+                reference_code=reference_code,
+                proof_image=proof_url,  # URL de la imagen
+                verified=False
+            )
+            
+            # ========================================
+            # PASO 4: Actualizar estado de la reserva
+            # ========================================
+            booking.payment_status = 'pending_validation'
+            booking.save()
+            
+            # Log de auditoría
+            AuditLog.objects.create(
+                user=request.user,
+                action='Comprobante de transferencia bancaria enviado',
+                metadata={
+                    'booking_id': str(booking.id),
+                    'payment_proof_id': payment_proof.id,
+                    'reference_code': reference_code,
+                    'bank_account': bank_account.bank_name
+                }
+            )
+            
+            # ========================================
+            # PASO 5: Crear notificaciones (ADMIN)
+            # ========================================
+            admin_users = User.objects.filter(is_staff=True, is_active=True)
+            for admin in admin_users:
+                Notification.objects.create(
+                    user=admin,
+                    notification_type='payment_received',
+                    title='💰 Nuevo Comprobante de Pago Pendiente',
+                    message=f'Cliente: {booking.customer.get_full_name()}\n'
+                            f'Reserva: #{booking.id}\n'
+                            f'Monto: ${booking.total_cost}\n'
+                            f'Referencia: {reference_code}',
+                    booking=booking,
+                    action_url=f'/admin/core/paymentproof/{payment_proof.id}/change/'
+                )
+            
+            # ========================================
+            # PASO 6: Crear notificación (CLIENTE)
+            # ========================================
+            Notification.objects.create(
+                user=booking.customer,
+                notification_type='payment_received',
+                title='Comprobante de Pago Recibido',
+                message=f'Hemos recibido tu comprobante de transferencia bancaria. '
+                        f'Nuestro equipo lo está validando y recibirás una confirmación en 1-4 horas hábiles.',
+                booking=booking,
+                action_url=f'/bookings/{booking.id}/'
+            )
+            
+            # ========================================
+            # PASO 7: Crear notificación (PROVEEDOR)
+            # ========================================
+            Notification.objects.create(
+                user=booking.provider,
+                notification_type='payment_received',
+                title='Comprobante de Pago Pendiente de Validación',
+                message=f'El cliente {booking.customer.get_full_name()} ha enviado el comprobante de pago. '
+                        f'Se confirmará en breve.',
+                booking=booking,
+                action_url=f'/bookings/{booking.id}/'
+            )
+            
+            # ========================================
+            # PASO 8: Redireccionar a confirmación
+            # ========================================
+            messages.success(
+                request,
+                '✅ Comprobante recibido. Nuestro equipo lo verificará pronto. '
+                'Recibirás una notificación cuando esté confirmado.'
+            )
+            return redirect('payment_confirmation', payment_id=payment_proof.id)
+            
+        except ValueError as e:
+            messages.error(request, str(e))
+        except Exception as e:
+            messages.error(request, f'Error al subir comprobante: {str(e)}')
+
     # GET request - Mostrar formulario
     return render(request, 'payments/bank_transfer.html', {
         'booking': booking,
@@ -2254,3 +2403,39 @@ def create_booking_notification(booking, notification_type):
             booking=booking,
             action_url=f'/bookings/{booking.id}/'
         )
+
+@login_required
+def api_upload_image(request):
+    '''API endpoint para subir imágenes vía AJAX'''
+    
+    if request.method != 'POST':
+        return JsonResponse({'error': 'Método no permitido'}, status=405)
+    
+    file = request.FILES.get('image')
+    folder = request.POST.get('folder', 'general')
+    
+    if not file:
+        return JsonResponse({'error': 'No se proporcionó ningún archivo'}, status=400)
+    
+    # Validar
+    is_valid, error_msg = validate_image(file, max_size_mb=5)
+    if not is_valid:
+        return JsonResponse({'error': error_msg}, status=400)
+    
+    try:
+        # Subir
+        url = upload_image(
+            file=file,
+            folder=folder,
+            user_id=request.user.id,
+            unique_name=True
+        )
+        
+        return JsonResponse({
+            'success': True,
+            'url': url,
+            'filename': file.name
+        })
+        
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=500)

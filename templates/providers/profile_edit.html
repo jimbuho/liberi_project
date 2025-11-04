@@ -1,0 +1,176 @@
+{% extends 'base.html' %}
+
+{% block title %}Editar Perfil - Liberi{% endblock %}
+
+{% block content %}
+<div class="container mt-4 mb-5">
+    <div class="row">
+        <div class="col-md-8 mx-auto">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h2>
+                    <i class="fas fa-user-edit"></i> Editar Mi Perfil
+                </h2>
+                <a href="{% url 'dashboard' %}" class="btn btn-outline-secondary">
+                    <i class="fas fa-arrow-left"></i> Volver
+                </a>
+            </div>
+
+            <div class="card">
+                <div class="card-body">
+                    <form method="post" enctype="multipart/form-data">
+                        {% csrf_token %}
+                        
+                        <!-- Foto de Perfil Actual -->
+                        <div class="text-center mb-4">
+                            {% if provider_profile.profile_photo %}
+                                <img src="{{ provider_profile.profile_photo }}" 
+                                     alt="Foto actual"
+                                     id="preview-image"
+                                     class="rounded-circle mb-3"
+                                     style="width: 150px; height: 150px; object-fit: cover; border: 4px solid #667eea;">
+                            {% else %}
+                                <div class="rounded-circle mx-auto mb-3 d-flex align-items-center justify-content-center"
+                                     id="preview-placeholder"
+                                     style="width: 150px; height: 150px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border: 4px solid #667eea;">
+                                    <i class="fas fa-user fa-4x" style="color: white;"></i>
+                                </div>
+                            {% endif %}
+                            <p class="text-muted">Foto actual</p>
+                        </div>
+
+                        <!-- Información Básica -->
+                        <h5 class="mb-3"><i class="fas fa-user"></i> Información Básica</h5>
+                        
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label for="first_name" class="form-label">Nombre *</label>
+                                <input type="text" class="form-control" id="first_name" name="first_name" 
+                                       value="{{ user.first_name }}" required>
+                            </div>
+                            <div class="col-md-6">
+                                <label for="last_name" class="form-label">Apellido *</label>
+                                <input type="text" class="form-control" id="last_name" name="last_name" 
+                                       value="{{ user.last_name }}" required>
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="email" class="form-label">Email *</label>
+                            <input type="email" class="form-control" id="email" name="email" 
+                                   value="{{ user.email }}" required>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="phone" class="form-label">Teléfono *</label>
+                            <input type="text" class="form-control" id="phone" name="phone" 
+                                   value="{{ user.profile.phone }}" required>
+                        </div>
+
+                        <hr class="my-4">
+
+                        <!-- Información del Negocio -->
+                        <h5 class="mb-3"><i class="fas fa-briefcase"></i> Información del Negocio</h5>
+
+                        <div class="mb-3">
+                            <label for="business_name" class="form-label">Nombre Comercial</label>
+                            <input type="text" class="form-control" id="business_name" name="business_name" 
+                                   value="{{ provider_profile.business_name }}"
+                                   placeholder="Ej: Salón de Belleza María, Limpieza Express">
+                            <small class="text-muted">Este es el nombre con el que promocionas tu negocio</small>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="description" class="form-label">Descripción *</label>
+                            <textarea class="form-control" id="description" name="description" 
+                                      rows="4" required>{{ provider_profile.description }}</textarea>
+                            <small class="text-muted">Describe tus servicios y experiencia</small>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="category" class="form-label">Categoría *</label>
+                            <select class="form-select" id="category" name="category" required>
+                                {% for cat in categories %}
+                                <option value="{{ cat.id }}" {% if cat.id == provider_profile.category.id %}selected{% endif %}>
+                                    {{ cat.icon }} {{ cat.name }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        <hr class="my-4">
+
+                        <!-- Foto de Perfil -->
+                        <h5 class="mb-3"><i class="fas fa-camera"></i> Cambiar Foto de Perfil</h5>
+
+                        <div class="mb-3">
+                            <label for="profile_photo" class="form-label">Nueva Foto de Perfil</label>
+                            <input type="file" class="form-control" id="profile_photo" name="profile_photo" 
+                                   accept="image/jpeg,image/png,image/jpg"
+                                   onchange="previewPhoto(event)">
+                            <small class="text-muted">Formatos permitidos: JPG, PNG. Tamaño máximo: 5MB</small>
+                        </div>
+
+                        <div class="alert alert-info">
+                            <i class="fas fa-info-circle"></i> 
+                            <strong>Consejo:</strong> Usa una foto profesional donde se vea claramente tu rostro o tu negocio. 
+                            Una buena foto genera más confianza en los clientes.
+                        </div>
+
+                        <hr class="my-4">
+
+                        <!-- Botones -->
+                        <div class="d-grid gap-2">
+                            <button type="submit" class="btn btn-primary btn-lg">
+                                <i class="fas fa-save"></i> Guardar Cambios
+                            </button>
+                            <a href="{% url 'dashboard' %}" class="btn btn-outline-secondary">
+                                <i class="fas fa-times"></i> Cancelar
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function previewPhoto(event) {
+    const file = event.target.files[0];
+    if (file) {
+        // Validar tamaño
+        if (file.size > 5 * 1024 * 1024) {
+            alert('La imagen es demasiado grande. Máximo 5MB.');
+            event.target.value = '';
+            return;
+        }
+
+        // Validar tipo
+        if (!['image/jpeg', 'image/png', 'image/jpg'].includes(file.type)) {
+            alert('Solo se permiten archivos JPG o PNG.');
+            event.target.value = '';
+            return;
+        }
+
+        // Mostrar preview
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            const preview = document.getElementById('preview-image');
+            const placeholder = document.getElementById('preview-placeholder');
+            
+            if (preview) {
+                preview.src = e.target.result;
+            } else if (placeholder) {
+                // Reemplazar placeholder con imagen
+                placeholder.outerHTML = `<img src="${e.target.result}" 
+                     alt="Vista previa"
+                     id="preview-image"
+                     class="rounded-circle mb-3"
+                     style="width: 150px; height: 150px; object-fit: cover; border: 4px solid #667eea;">`;
+            }
+        };
+        reader.readAsDataURL(file);
+    }
+}
+</script>
+{% endblock %}

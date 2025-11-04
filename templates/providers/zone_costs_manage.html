@@ -45,10 +45,10 @@
                                     <input type="number" 
                                            class="form-control" 
                                            name="travel_cost" 
-                                           step="0.50" 
+                                           step="0.01" 
                                            min="0" 
-                                           max="{{ max_travel_cost }}"
-                                           value="{{ item.cost|default:default_travel_cost }}"
+                                           max="{{ max_travel_cost|unlocalize }}"
+                                           value="{{ item.cost|default:default_travel_cost|unlocalize }}"
                                            required>
                                     <span class="input-group-text">USD</span>
                                 </div>
@@ -91,6 +91,9 @@
                 <i class="fas fa-exclamation-triangle fa-3x mb-3"></i>
                 <h4>No tienes zonas de cobertura configuradas</h4>
                 <p>Primero debes agregar zonas de cobertura a tu perfil</p>
+                <a href="{% url 'provider_coverage_manage' %}" class="btn btn-primary mt-2">
+                    <i class="fas fa-map-marked-alt"></i> Gestionar Cobertura
+                </a>
             </div>
             {% endif %}
 
