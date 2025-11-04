@@ -1,4 +1,5 @@
 import os
+import dj_database_url
 from pathlib import Path
 from datetime import timedelta
 from dotenv import load_dotenv
@@ -12,6 +13,11 @@ SECRET_KEY = os.getenv('SECRET_KEY', 'django-insecure-change-this-in-production'
 DEBUG = os.getenv('DEBUG', 'False') == 'True'
 
 ALLOWED_HOSTS = os.getenv('ALLOWED_HOSTS', 'localhost,127.0.0.1').split(',')
+
+CSRF_TRUSTED_ORIGINS = [
+    "https://liberi-project.fly.dev",
+    "https://liberi.app"
+]
 
 INSTALLED_APPS = [
     'django.contrib.admin',
@@ -68,17 +74,7 @@ ENVIRONMENT = os.getenv('ENVIRONMENT', 'development')  # development, production
 if ENVIRONMENT == 'production':
     # Configuración para Supabase (Producción)
     DATABASES = {
-        'default': {
-            'ENGINE': 'django.db.backends.postgresql',
-            'NAME': os.getenv('DB_NAME', 'postgres'),
-            'USER': os.getenv('DB_USER', 'postgres'),
-            'PASSWORD': os.getenv('DB_PASSWORD'),
-            'HOST': os.getenv('DB_HOST'),
-            'PORT': os.getenv('DB_PORT', '5432'),
-            'OPTIONS': {
-                'sslmode': 'require',
-            }
-        }
+        "default": dj_database_url.parse(os.environ.get("DATABASE_URL"))
     }
 else:
     # Configuración para PostgreSQL local (Desarrollo)
@@ -162,3 +158,5 @@ FRONTEND_URL = os.getenv('FRONTEND_URL', 'http://localhost:3000')
 LOGIN_URL = '/login/'
 LOGIN_REDIRECT_URL = '/dashboard/'
 LOGOUT_REDIRECT_URL = '/'
+
+STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"

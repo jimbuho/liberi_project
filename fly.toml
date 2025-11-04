@@ -1,16 +1,33 @@
-app = "liberi-mvp"
-primary_region = "mia"
+# fly.toml app configuration file generated for liberi-project on 2025-11-03T19:11:42-05:00
+#
+# See https://fly.io/docs/reference/configuration/ for information about how to use this file.
+#
+
+app = 'liberi-project'
+primary_region = 'gru'
+console_command = '/code/manage.py shell'
 
 [build]
 
+[deploy]
+  release_command = 'python manage.py migrate --noinput'
+
+[env]
+  PORT = '8080'
+
 [http_service]
-  internal_port = 8000
+  internal_port = 8080
   force_https = true
   auto_stop_machines = true
   auto_start_machines = true
   min_machines_running = 0
+  processes = ['app']
 
 [[vm]]
-  cpu_kind = "shared"
+  memory = '1gb'
+  cpu_kind = 'shared'
   cpus = 1
-  memory_mb = 256
+
+[[statics]]
+  guest_path = '/code/static'
+  url_prefix = '/static/'

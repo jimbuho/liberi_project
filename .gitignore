@@ -2,7 +2,6 @@
 *.pyc
 *~
 __pycache__
-myvenv/  # Si tu entorno virtual se llama 'myvenv'
 venv/    # O si se llama 'venv'
 .env
 db.sqlite3

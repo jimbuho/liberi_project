@@ -9,6 +9,8 @@ from django.db.models import Q, Avg, Count, Sum
 from datetime import timedelta, datetime
 from django.contrib.auth.models import User
 from django.http import JsonResponse
+from supabase import create_client
+import os
 
 from core.models import (
     Profile, Category, Service, ProviderProfile, 
@@ -1056,6 +1058,11 @@ def service_create(request):
         duration_minutes = request.POST.get('duration_minutes')
         image = request.FILES.get('image')
         available = request.POST.get('available') == 'on'  # ← AGREGAR ESTA LÍNEA
+
+        supabase = create_client(os.getenv("SUPABASE_URL"), os.getenv("SUPABASE_KEY"))
+        file_path = f"services/{image.name}"
+        supabase.storage.from_("Liberi-Bucket").upload(file_path, image)
+        public_url = supabase.storage.from_("Liberi-Bucket").get_public_url(file_path)
         
         service = Service.objects.create(
             provider=request.user,
@@ -1063,7 +1070,8 @@ def service_create(request):
             description=description,
             base_price=base_price,
             duration_minutes=duration_minutes,
-            image=image,
+            #image=image,
+            image=public_url, # TODO Revisar
             available=available  # ← AGREGAR ESTA LÍNEA
         )
         
