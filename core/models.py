@@ -591,6 +591,7 @@ class PaymentProof(models.Model):
         null=True,
         verbose_name='Comprobante de Pago',
         help_text='Imagen o foto del comprobante de pago',
+        max_length=256,
         validators=[validate_image_size_2mb]
     )
     verified = models.BooleanField(
