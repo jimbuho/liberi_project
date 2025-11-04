@@ -63,7 +63,7 @@ class ProviderProfile(models.Model):
     business_name = models.CharField('Nombre Comercial', max_length=200, blank=True,
                                      help_text='Nombre con el que se promociona el negocio')
     profile_photo = models.ImageField('Foto de Perfil', upload_to='profiles/', blank=True,
-                                      help_text='Foto de perfil (puede ser comercial)')
+                                      help_text='Foto de perfil (puede ser comercial)', max_length=255)
     # FIN NUEVOS CAMPOS
     
     coverage_zones = models.ManyToManyField('Zone', verbose_name='Zonas de cobertura',
@@ -74,8 +74,8 @@ class ProviderProfile(models.Model):
     status = models.CharField('Estado', max_length=10, choices=STATUS_CHOICES, default='pending')
     is_active = models.BooleanField('Activo', default=True)
     signed_contract_url = models.URLField('URL del contrato firmado', blank=True)
-    id_card_front = models.ImageField('Cédula frontal', upload_to='documents/', blank=True)
-    id_card_back = models.ImageField('Cédula posterior', upload_to='documents/', blank=True)
+    id_card_front = models.ImageField('Cédula frontal', upload_to='documents/', blank=True, max_length=255)
+    id_card_back = models.ImageField('Cédula posterior', upload_to='documents/', blank=True, max_length=255)
     created_at = models.DateTimeField('Fecha de creación', auto_now_add=True)
     updated_at = models.DateTimeField('Última actualización', auto_now=True)
 
@@ -106,7 +106,7 @@ class Service(models.Model):
     base_price = models.DecimalField('Precio base', max_digits=8, decimal_places=2)
     duration_minutes = models.IntegerField('Duración (minutos)')
     available = models.BooleanField('Disponible', default=True)
-    image = models.ImageField('Imagen', upload_to='services/', blank=True)
+    image = models.ImageField('Imagen', upload_to='services/', blank=True, max_length=255)
     created_at = models.DateTimeField('Fecha de creación', auto_now_add=True)
     updated_at = models.DateTimeField('Última actualización', auto_now=True)
 
