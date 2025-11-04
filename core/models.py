@@ -3,6 +3,8 @@ from django.contrib.auth.models import User
 from django.utils import timezone
 from django.conf import settings
 from django.core.validators import RegexValidator
+from .custom_fields import SmartImageField, SmartFileField
+from .validators import validate_image_size_2mb
 
 import uuid
 
@@ -62,8 +64,9 @@ class ProviderProfile(models.Model):
     # NUEVOS CAMPOS - CAMBIO #8
     business_name = models.CharField('Nombre Comercial', max_length=200, blank=True,
                                      help_text='Nombre con el que se promociona el negocio')
-    profile_photo = models.ImageField('Foto de Perfil', upload_to='profiles/', blank=True,
-                                      help_text='Foto de perfil (puede ser comercial)', max_length=255)
+    profile_photo = SmartImageField('Foto de Perfil', upload_to='profiles/', blank=True,
+                                      help_text='Foto de perfil (puede ser comercial)', max_length=255, 
+                                      validators=[validate_image_size_2mb])
     # FIN NUEVOS CAMPOS
     
     coverage_zones = models.ManyToManyField('Zone', verbose_name='Zonas de cobertura',
@@ -74,8 +77,11 @@ class ProviderProfile(models.Model):
     status = models.CharField('Estado', max_length=10, choices=STATUS_CHOICES, default='pending')
     is_active = models.BooleanField('Activo', default=True)
     signed_contract_url = models.URLField('URL del contrato firmado', blank=True)
-    id_card_front = models.ImageField('Cédula frontal', upload_to='documents/', blank=True, max_length=255)
-    id_card_back = models.ImageField('Cédula posterior', upload_to='documents/', blank=True, max_length=255)
+    id_card_front = SmartImageField('Cédula frontal', upload_to='documents/', 
+                                    blank=True, max_length=255,
+                                    validators=[validate_image_size_2mb])
+    id_card_back = SmartImageField('Cédula posterior', upload_to='documents/', blank=True, max_length=255,
+                                   validators=[validate_image_size_2mb])
     created_at = models.DateTimeField('Fecha de creación', auto_now_add=True)
     updated_at = models.DateTimeField('Última actualización', auto_now=True)
 
@@ -106,7 +112,8 @@ class Service(models.Model):
     base_price = models.DecimalField('Precio base', max_digits=8, decimal_places=2)
     duration_minutes = models.IntegerField('Duración (minutos)')
     available = models.BooleanField('Disponible', default=True)
-    image = models.ImageField('Imagen', upload_to='services/', blank=True, max_length=255)
+    image = SmartImageField('Imagen', upload_to='services/', blank=True, max_length=255,
+                            validators=[validate_image_size_2mb])
     created_at = models.DateTimeField('Fecha de creación', auto_now_add=True)
     updated_at = models.DateTimeField('Última actualización', auto_now=True)
 
@@ -578,12 +585,13 @@ class PaymentProof(models.Model):
         verbose_name='Código de Referencia',
         help_text='Número de comprobante o referencia de la transacción'
     )
-    proof_image = models.ImageField(
+    proof_image = SmartImageField(
         upload_to='payment_proofs/',
         blank=True,
         null=True,
         verbose_name='Comprobante de Pago',
-        help_text='Imagen o foto del comprobante de pago'
+        help_text='Imagen o foto del comprobante de pago',
+        validators=[validate_image_size_2mb]
     )
     verified = models.BooleanField(
         default=False, 
@@ -758,7 +766,7 @@ class Payment(models.Model):
         null=True,
         help_text='Fecha en que se realizó la transferencia'
     )
-    transfer_receipt = models.FileField(
+    transfer_receipt = SmartFileField(
         upload_to='payment_receipts/', 
         blank=True, 
         null=True,
