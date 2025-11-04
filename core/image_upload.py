@@ -6,6 +6,9 @@ Detecta automáticamente el ambiente y usa:
 - Supabase Storage en producción
 - Sistema de archivos local en desarrollo
 
+CORRECCIÓN APLICADA: En desarrollo, devuelve paths relativos sin /media/
+para evitar duplicación cuando Django ImageField agrega MEDIA_URL automáticamente.
+
 Uso:
     from core.image_upload import upload_image, delete_image
     
@@ -125,7 +128,8 @@ def upload_image(
         max_size_mb: Tamaño máximo permitido en MB
     
     Returns:
-        URL pública del archivo subido
+        En producción: URL pública completa de Supabase
+        En desarrollo: Path relativo (Django agregará MEDIA_URL automáticamente)
     
     Raises:
         ValueError: Si la validación falla
@@ -179,14 +183,13 @@ def upload_image(
             # Guardar archivo usando el storage de Django
             saved_path = default_storage.save(file_path, ContentFile(file.read()))
             
-            # Construir URL
-            if hasattr(settings, 'MEDIA_URL'):
-                public_url = f"{settings.MEDIA_URL}{saved_path}"
-            else:
-                public_url = f"/media/{saved_path}"
+            # CORRECCIÓN: En desarrollo, devolver solo el path relativo
+            # Django ImageField agregará automáticamente MEDIA_URL al hacer .url
+            # Esto evita la duplicación /media/media/
+            public_url = saved_path
             
             print(f"✅ Imagen guardada localmente: {public_url}")
-            logger.info(f"✅ Imagen guardada localmente: {saved_path}")
+            logger.info(f"✅ Imagen guardada localmente (path relativo): {saved_path}")
             return public_url
             
     except Exception as e:
@@ -241,13 +244,14 @@ def delete_image(image_url) -> bool:
             # ========================================
             # DESARROLLO: Eliminar del almacenamiento local
             # ========================================
-            # Extraer el path relativo
-            if image_url.startswith(settings.MEDIA_URL):
-                relative_path = image_url.replace(settings.MEDIA_URL, '')
-            elif image_url.startswith('/media/'):
-                relative_path = image_url.replace('/media/', '')
-            else:
-                relative_path = image_url
+            # El path puede venir con o sin MEDIA_URL, normalizarlo
+            relative_path = image_url
+            
+            # Remover /media/ si está presente
+            if image_url.startswith('/media/'):
+                relative_path = image_url.replace('/media/', '', 1)
+            elif hasattr(settings, 'MEDIA_URL') and image_url.startswith(settings.MEDIA_URL):
+                relative_path = image_url.replace(settings.MEDIA_URL, '', 1)
             
             logger.info(f"🗑️ Eliminando localmente: {relative_path}")
             
@@ -274,7 +278,7 @@ def replace_image(old_url, new_file, **kwargs) -> str:
         **kwargs: Argumentos adicionales para upload_image()
     
     Returns:
-        URL de la nueva imagen
+        URL de la nueva imagen (completa en producción, relativa en desarrollo)
     """
     try:
         # Subir nueva imagen primero
@@ -419,7 +423,7 @@ def update_profile(request):
             if request.user.provider_profile.profile_photo:
                 delete_image(request.user.provider_profile.profile_photo)
             
-            # Guardar nueva URL
+            # Guardar nueva URL/path
             request.user.provider_profile.profile_photo = new_photo_url
             request.user.provider_profile.save()
             
