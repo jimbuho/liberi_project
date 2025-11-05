@@ -33,7 +33,10 @@ from .forms import BankTransferForm
 def home(request):
     """Página principal"""
     categories = Category.objects.all()
-    featured_services = Service.objects.filter(available=True)[:6]
+    featured_services = Service.objects.filter(
+        available=True, 
+        provider__provider_profile__is_active=True,
+        provider__provider_profile__status='approved').order_by('-created_at')[:8]
     
     context = {
         'categories': categories,
@@ -527,12 +530,6 @@ def register_provider_view(request):
             return render(request, 'auth/register_provider.html', {'categories': categories})
 
         try:
-            # Subir foto usando el helper (detecta automáticamente el ambiente)
-            photo_url = upload_profile_photo(
-                file=profile_photo,
-                user_id=user.id
-            )
-            
             # Crear usuario
             user = User.objects.create_user(
                 username=username,
@@ -540,6 +537,12 @@ def register_provider_view(request):
                 password=password,
                 first_name=first_name,
                 last_name=last_name
+            )
+
+            # Subir foto usando el helper (detecta automáticamente el ambiente)
+            photo_url = upload_profile_photo(
+                file=profile_photo,
+                user_id=user.id
             )
             
             # Crear perfil
@@ -557,7 +560,7 @@ def register_provider_view(request):
                 description=description,
                 business_name=business_name,
                 profile_photo=photo_url,
-                status='pending'
+                status='created'
             )
             
             # Login automático
@@ -576,7 +579,11 @@ def register_provider_view(request):
             return render(request, 'auth/register_provider.html', {'categories': categories})
         except Exception as e:
             # Error general
-            user.delete()  # Rollback
+            try:
+                user = User.objects.get(username=username)
+                user.delete()  # Rollback
+            except:
+                pass
             messages.error(request, f'Error al subir la foto: {str(e)}')
             return render(request, 'auth/register_provider.html', {'categories': categories})
 
@@ -906,6 +913,48 @@ def booking_create(request):
         status='pending',
         payment_status='pending'
     )
+
+    # ============================================
+    # CAMBIO #1: Crear notificación para proveedor
+    # ============================================
+    Notification.objects.create(
+        user=provider,
+        notification_type='booking_created',
+        title='📋 Nueva Reserva Recibida',
+        message=f'{request.user.get_full_name() or request.user.username} ha creado una nueva reserva para {scheduled_datetime.strftime("%d/%m/%Y %H:%M")}. Monto: ${total_cost}',
+        booking=booking,
+        action_url=f'/bookings/{booking.id}/'
+    )
+
+    # Enviar email al proveedor
+    try:
+        send_mail(
+            subject=f'📋 Nueva Reserva - {request.user.get_full_name()}',
+            message=f"""
+    Hola {provider.get_full_name() or provider.username},
+
+    ¡Una nueva reserva ha llegado!
+
+    DETALLES:
+    - Cliente: {request.user.get_full_name() or request.user.username}
+    - Teléfono: {request.user.profile.phone if hasattr(request.user, 'profile') else 'No disponible'}
+    - Servicio: {service.name}
+    - Fecha: {scheduled_datetime.strftime("%d de %B del %Y a las %H:%M")}
+    - Ubicación: {location.address}
+    - Zona: {location.zone.name}
+    - Monto: ${total_cost}
+
+    Accede a tu panel para aceptar o rechazar esta reserva.
+
+    ---
+    Liberi
+            """,
+            from_email=settings.DEFAULT_FROM_EMAIL,
+            recipient_list=[provider.email],
+            fail_silently=True,
+        )
+    except Exception as e:
+        print(f"Error enviando email al proveedor: {e}")
     
     # Log
     AuditLog.objects.create(
@@ -944,6 +993,53 @@ def booking_accept(request, booking_id):
     
     booking.status = 'accepted'
     booking.save()
+
+    # ============================================
+    # Crear notificación para cliente
+    # ============================================
+    Notification.objects.create(
+        user=booking.customer,
+        notification_type='booking_accepted',
+        title='✅ Reserva Aceptada',
+        message=f'{booking.provider.get_full_name() or booking.provider.username} ha aceptado tu reserva para el {booking.scheduled_time.strftime("%d/%m/%Y %H:%M")}. El siguiente paso es completar el pago.',
+        booking=booking,
+        action_url=f'/bookings/{booking.id}/'
+    )
+
+    # Enviar email al cliente
+    try:
+        send_mail(
+            subject=f'✅ Tu Reserva Ha Sido Aceptada',
+            message=f"""
+    Hola {booking.customer.get_full_name() or booking.customer.username},
+
+    ¡Excelentes noticias! Tu reserva ha sido aceptada.
+
+    DETALLES DE TU RESERVA:
+    - Proveedor: {booking.provider.get_full_name() or booking.provider.username}
+    - Teléfono: {booking.provider.profile.phone if hasattr(booking.provider, 'profile') else 'No disponible'}
+    - Servicio(s): {booking.get_services_display()}
+    - Fecha: {booking.scheduled_time.strftime("%d de %B del %Y a las %H:%M")}
+    - Ubicación: {booking.location.address if booking.location else 'Por confirmar'}
+    - Monto Total: ${booking.total_cost}
+
+    PRÓXIMO PASO:
+    Completa el pago para confirmar definitivamente tu reserva. 
+    El proveedor está esperando la confirmación del pago.
+
+    Accede a tu reserva en: {settings.BASE_URL}/bookings/{booking.id}/
+
+    ¡Gracias por confiar en Liberi!
+
+    ---
+    El Equipo de Liberi
+            """,
+            from_email=settings.DEFAULT_FROM_EMAIL,
+            recipient_list=[booking.customer.email],
+            fail_silently=True,
+        )
+    except Exception as e:
+        print(f"Error enviando email al cliente: {e}")
     
     # Log
     AuditLog.objects.create(
@@ -1191,8 +1287,7 @@ def service_create(request):
         base_price = request.POST.get('base_price')
         duration_minutes = request.POST.get('duration_minutes')
         image = request.FILES.get('image')
-        available = request.POST.get('available') == 'on'  # ← AGREGAR ESTA LÍNEA
-
+        available = request.POST.get('available') == 'on'
         
         try:
             # Subir imagen del servicio
@@ -1219,7 +1314,68 @@ def service_create(request):
                 metadata={'service_id': service.id, 'name': name}
             )
 
-            messages.success(request, 'Servicio creado exitosamente')
+            # ============================================
+            # CAMBIO #3: Verificar si es el primer servicio
+            # ============================================
+            provider_profile = request.user.provider_profile
+            service_count = Service.objects.filter(provider=request.user).count()
+            
+            # Si es el primer servicio, cambiar estado a 'pending' y notificar admins
+            if service_count == 1:
+                provider_profile.status = 'pending'
+                provider_profile.save()
+                
+                # Obtener todos los administradores
+                admin_users = User.objects.filter(is_staff=True, is_active=True)
+                
+                # Enviar emails a los admins
+                admin_emails = [admin.email for admin in admin_users if admin.email]
+                if admin_emails:
+                    try:
+                        send_mail(
+                            subject=f'🆕 Nueva Solicitud de Aprobación de Proveedor - {provider_profile.get_display_name()}',
+                            message=f"""
+Hola Equipo Administrativo,
+
+Un nuevo proveedor ha completado el requisito y solicita aprobación de su perfil.
+
+INFORMACIÓN DEL PROVEEDOR:
+- Nombre: {request.user.get_full_name()}
+- Nombre Comercial: {provider_profile.business_name or 'No especificado'}
+- Email: {request.user.email}
+- Categoría: {provider_profile.category.name}
+- Descripción: {provider_profile.description[:200]}...
+
+PRIMER SERVICIO CREADO:
+- Nombre: {name}
+- Precio: ${service.base_price}
+- Duración: {service.duration_minutes} minutos
+
+ACCIÓN REQUERIDA:
+Revisa el perfil del proveedor en el panel administrativo y aprueba o rechaza su solicitud.
+
+Link directo: /admin/core/providerprofile/{request.user.id}/change/
+
+---
+Sistema Liberi
+                            """,
+                            from_email=settings.DEFAULT_FROM_EMAIL,
+                            recipient_list=admin_emails,
+                            fail_silently=True,
+                        )
+                    except Exception as e:
+                        print(f"Error enviando email a admins: {e}")
+                
+                # Mostrar mensaje especial al proveedor
+                messages.success(
+                    request,
+                    f'✅ Servicio "{name}" creado exitosamente. '
+                    f'Tu solicitud de aprobación ha sido enviada a nuestro equipo. '
+                    f'Recibirás una notificación cuando tu perfil sea revisado.'
+                )
+            else:
+                messages.success(request, 'Servicio creado exitosamente')
+
             return redirect('dashboard')
             
         except ValueError as e:

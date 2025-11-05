@@ -50,6 +50,7 @@ class Category(models.Model):
 
 class ProviderProfile(models.Model):
     STATUS_CHOICES = [
+        ('created', 'Creado'),
         ('pending', 'Pendiente'),
         ('approved', 'Aprobado'),
         ('rejected', 'Rechazado'),

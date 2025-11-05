@@ -42,7 +42,11 @@
                             </div>
                         </div>
                         <div class="text-end">
-                            {% if provider_profile.status == 'approved' %}
+                            {% if provider_profile.status == 'created' %}
+                                <span class="badge bg-info fs-6">
+                                    <i class="fas fa-user-edit"></i> Perfil Nuevo
+                                </span>
+                            {% elif provider_profile.status == 'approved' %}
                                 <span class="badge bg-success fs-6">
                                     <i class="fas fa-check-circle"></i> Perfil Verificado
                                 </span>
@@ -139,6 +143,7 @@
             {% endif %}
 
             <!-- Recent Bookings -->
+            {% if provider_profile.status == 'approved' %}
             <div class="card mb-4">
                 <div class="card-header bg-light">
                     <div class="d-flex justify-content-between align-items-center">
@@ -214,6 +219,7 @@
                     {% endif %}
                 </div>
             </div>
+            {% endif %}
 
             <!-- My Services -->
             <div class="card mb-4">
@@ -397,14 +403,13 @@
                         <a href="{% url 'service_create' %}" class="btn btn-primary">
                             <i class="fas fa-plus"></i> Agregar Servicio
                         </a>
+                        {% if provider_profile.status == 'approved' %}
                         <a href="{% url 'bookings_list' %}" class="btn btn-outline-primary">
                             <i class="fas fa-calendar-check"></i> Ver Reservas
                         </a>
-                        
                         <a href="{% url 'provider_coverage_manage' %}" class="btn btn-outline-info">
                             <i class="fas fa-map-marked-alt"></i> Gestionar Cobertura
                         </a>
-                        
                         <a href="{% url 'provider_schedule_manage' %}" class="btn btn-outline-primary">
                             <i class="fas fa-clock"></i> Gestionar Horarios
                         </a>
@@ -417,6 +422,7 @@
                         <a href="{% url 'provider_profile' user.id %}" class="btn btn-outline-primary">
                             <i class="fas fa-user"></i> Mi Perfil Público
                         </a>
+                        {% endif %}
                         
                         <!-- Toggle Activo/Inactivo -->
                         <hr>
