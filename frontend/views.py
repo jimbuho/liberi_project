@@ -88,7 +88,9 @@ def services_list(request):
     
     if search:
         services = services.filter(
-            Q(name__icontains=search) | Q(description__icontains=search)
+            Q(name__icontains=search) | 
+            Q(description__icontains=search) |
+            Q(provider__provider_profile__business_name__icontains=search)
         )
     
     if min_price:
@@ -262,10 +264,10 @@ def providers_list(request):
     return render(request, 'providers/list.html', context)
 
 
-def provider_profile(request, provider_id):
+def provider_profile(request, slug):
     """Perfil público de un proveedor"""
-    provider = get_object_or_404(User, id=provider_id)
-    provider_profile = get_object_or_404(ProviderProfile, user=provider)
+    provider_profile = get_object_or_404(ProviderProfile, slug=slug)
+    provider = provider_profile.user
     
     # Servicios del proveedor
     services = Service.objects.filter(provider=provider, available=True)
@@ -797,6 +799,10 @@ def booking_detail(request, booking_id):
         'booking': booking,
         'can_contact': can_contact,
         'contact_message': contact_message,
+        # CAMBIO #4.6: Agregar datos de ubicación para el mapa
+        'booking_location': booking.location,
+        'booking_location_lat': float(booking.location.latitude) if booking.location else None,
+        'booking_location_lng': float(booking.location.longitude) if booking.location else None,
     }
     return render(request, 'bookings/detail.html', context)
 

@@ -161,7 +161,13 @@
                                 
                                 <div class="mb-2">
                                     <small class="text-muted">
-                                        <i class="fas fa-user"></i> {{ service.provider.get_full_name }}
+                                        <i class="fas fa-user"></i>
+                                        {% if service.provider.provider_profile.business_name %}
+                                            <strong>{{ service.provider.provider_profile.business_name }}</strong>
+                                            <br><span style="font-size: 0.75rem;">{{ service.provider.get_full_name }}</span>
+                                        {% else %}
+                                            {{ service.provider.get_full_name }}
+                                        {% endif %}
                                     </small>
                                 </div>
                                 

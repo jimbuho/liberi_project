@@ -3,6 +3,7 @@ from django.contrib.auth.models import User
 from django.utils import timezone
 from django.conf import settings
 from django.core.validators import RegexValidator
+from django.utils.text import slugify
 from .custom_fields import SmartImageField, SmartFileField
 from .validators import validate_image_size_2mb
 
@@ -55,6 +56,13 @@ class ProviderProfile(models.Model):
         ('approved', 'Aprobado'),
         ('rejected', 'Rechazado'),
     ]
+
+    slug = models.SlugField(
+        'Slug',
+        unique=True,
+        blank=True,
+        help_text='URL amigable del perfil'
+    )
     
     user = models.OneToOneField(User, on_delete=models.CASCADE, primary_key=True, 
                                 related_name='provider_profile', verbose_name='Usuario')
@@ -83,6 +91,25 @@ class ProviderProfile(models.Model):
                                     validators=[validate_image_size_2mb])
     id_card_back = SmartImageField('Cédula posterior', upload_to='documents/', blank=True, max_length=255,
                                    validators=[validate_image_size_2mb])
+    selfie_with_id = SmartImageField(
+        'Foto Rostro con Cédula',
+        upload_to='providers/validation/selfie/',
+        blank=True,
+        null=True,
+        max_length=255,
+        validators=[validate_image_size_2mb],
+        help_text='Foto del rostro sosteniendo la cédula de identidad'
+    )
+    documents_verified = models.BooleanField(
+        'Documentos Verificados',
+        default=False,
+        help_text='Indica si los documentos han sido validados por admin'
+    )
+    documents_verified_at = models.DateTimeField(
+        'Documentos Verificados En',
+        blank=True,
+        null=True
+    )
     created_at = models.DateTimeField('Fecha de creación', auto_now_add=True)
     updated_at = models.DateTimeField('Última actualización', auto_now=True)
 
@@ -90,6 +117,19 @@ class ProviderProfile(models.Model):
         db_table = 'provider_profiles'
         verbose_name = 'Perfil de Proveedor'
         verbose_name_plural = 'Perfiles de Proveedores'
+
+    def save(self, *args, **kwargs):
+        if not self.slug:
+            base_slug = slugify(self.business_name or self.user.get_full_name())
+            self.slug = base_slug
+            
+            counter = 1
+            original_slug = self.slug
+            while ProviderProfile.objects.filter(slug=self.slug).exclude(pk=self.pk).exists():
+                self.slug = f"{original_slug}-{counter}"
+                counter += 1
+        
+        super().save(*args, **kwargs)
 
     def __str__(self):
         display_name = self.business_name if self.business_name else self.user.get_full_name()
@@ -196,6 +236,9 @@ class Booking(models.Model):
         if isinstance(self.service_list, list):
             return ', '.join([s.get('name', '') for s in self.service_list])
         return 'N/A'
+
+    def get_provider(self):
+        return ProviderProfile.objects.get(user=self.provider)
 
     def __str__(self):
         return f"Reserva {str(self.id)[:8]} - {self.get_status_display()}"

@@ -650,11 +650,12 @@ class BankAccountAdmin(admin.ModelAdmin):
 
 @admin.register(PaymentProof)
 class PaymentProofAdmin(admin.ModelAdmin):
-    list_display = ['id', 'booking_link', 'customer_name', 'reference_code', 'verified_display', 'created_at']
+    list_display = ['id', 'booking_link', 'customer_name', 'reference_code', 
+                    'verified_display', 'proof_image_thumbnail', 'created_at', 'approve_button']
     list_filter = ['verified', 'created_at', 'payment_method', 'bank_account']
     search_fields = ['reference_code', 'booking__customer__username', 'booking__id']
     date_hierarchy = 'created_at'
-    actions = ['approve_payment', 'reject_payment']
+    actions = ['approve_payments', 'reject_payments']
     
     fieldsets = (
         ('Información de la Reserva', {
@@ -673,6 +674,31 @@ class PaymentProofAdmin(admin.ModelAdmin):
     )
     
     readonly_fields = ('created_at', 'updated_at', 'proof_image_preview')
+
+    # CAMBIO #4.5: Agregar columna de thumbnail
+    def proof_image_thumbnail(self, obj):
+        if obj.proof_image:
+            return format_html(
+                '<a href="{}" target="_blank" title="Ver imagen completa">'
+                '<img src="{}" style="width: 50px; height: 50px; object-fit: cover; border-radius: 5px; cursor: pointer;" />'
+                '</a>',
+                obj.proof_image.url,
+                obj.proof_image.url
+            )
+        return '—'
+    proof_image_thumbnail.short_description = 'Comprobante'
+
+    # CAMBIO #4.5: Agregar botón de aprobación en la lista
+    def approve_button(self, obj):
+        if not obj.verified:
+            return format_html(
+                '<a class="button" href="#" onclick="approvePayment({}, event)">'
+                '<i class="fas fa-check"></i> Aprobar'
+                '</a>',
+                obj.id
+            )
+        return '✓ Aprobado'
+    approve_button.short_description = 'Acción'
     
     def booking_link(self, obj):
         # Simplemente mostrar el ID sin intentar hacer reverse
@@ -696,18 +722,23 @@ class PaymentProofAdmin(admin.ModelAdmin):
     def proof_image_preview(self, obj):
         if obj.proof_image:
             return format_html(
-                '<img src="{}" width="200" height="auto" /><br/>'
-                '<a href="{}" target="_blank">Ver tamaño completo</a>',
+                '<a href="{}" target="_blank">'
+                '<img src="{}" width="300" height="auto" style="border-radius: 10px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);" />'
+                '</a><br>'
+                '<a href="{}" target="_blank" class="button" style="margin-top: 10px; display: inline-block;">'
+                '<i class="fas fa-download"></i> Descargar Comprobante'
+                '</a>',
+                obj.proof_image.url,
                 obj.proof_image.url,
                 obj.proof_image.url
             )
         return "Sin imagen"
     proof_image_preview.short_description = 'Vista Previa del Comprobante'
-    
-    def approve_payment(self, request, queryset):
-        """Acción para aprobar pagos"""
+
+    def approve_payments(self, request, queryset):
+        """Acción masiva mejorada para aprobar pagos"""
+        count = 0
         for proof in queryset.filter(verified=False):
-            # Marcar como verificado
             proof.verified = True
             proof.verified_by = request.user
             proof.verified_at = timezone.now()
@@ -718,7 +749,7 @@ class PaymentProofAdmin(admin.ModelAdmin):
             booking.payment_status = 'paid'
             booking.save()
             
-            # Notificar al cliente
+            # Notificaciones (código existente)
             Notification.objects.create(
                 user=booking.customer,
                 notification_type='payment_verified',
@@ -728,7 +759,6 @@ class PaymentProofAdmin(admin.ModelAdmin):
                 action_url=f'/bookings/{booking.id}/'
             )
             
-            # Notificar al proveedor
             Notification.objects.create(
                 user=booking.provider,
                 notification_type='payment_verified',
@@ -737,9 +767,11 @@ class PaymentProofAdmin(admin.ModelAdmin):
                 booking=booking,
                 action_url=f'/bookings/{booking.id}/'
             )
+            
+            count += 1
         
-        self.message_user(request, f'{len(queryset)} pago(s) aprobado(s) exitosamente.')
-    approve_payment.short_description = '✅ Aprobar pago(s) seleccionado(s)'
+        self.message_user(request, f'{count} pago(s) aprobado(s) exitosamente.')
+    approve_payments.short_description = '✅ Aprobar pago(s) seleccionado(s)'
     
     def reject_payment(self, request, queryset):
         """Acción para rechazar pagos"""

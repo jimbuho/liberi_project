@@ -21,7 +21,13 @@
 
                     {% if user.profile.role == 'customer' %}
                         <p class="mb-1">
-                            <strong>Proveedor:</strong> {{ booking.provider.get_full_name }}
+                            <strong>Proveedor:</strong> 
+                            {% if booking.provider.provider_profile.business_name %}
+                                <strong>{{ booking.provider.provider_profile.business_name }}</strong>
+                                <br><small>{{ booking.provider.get_full_name }}</small>
+                            {% else %}
+                                {{ booking.provider.get_full_name }}
+                            {% endif %}
                         </p>
                         <p class="mb-1">
                             <strong>Teléfono:</strong> {{ booking.provider_phone }}

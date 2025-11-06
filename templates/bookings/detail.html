@@ -80,7 +80,7 @@
                                 </div>
                             {% endif %}
                             
-                            <a href="{% url 'provider_profile' booking.provider.id %}" 
+                            <a href="{% url 'provider_profile' booking.get_provider.slug %}" 
                                class="btn btn-sm btn-outline-primary mt-2">
                                 Ver Perfil Completo
                             </a>
@@ -117,18 +117,43 @@
 
                     <!-- Location -->
                     {% if booking.location %}
-                    <h5><i class="fas fa-map-marker-alt"></i> Ubicación</h5>
-                    <div class="card bg-light mb-3">
+                    <div class="card mb-4">
                         <div class="card-body">
-                            <h6>{{ booking.location.label|title }}</h6>
-                            <p class="mb-1">{{ booking.location.address }}</p>
-                            {% if booking.location.reference %}
-                            <p class="mb-0 text-muted">
-                                <small><i class="fas fa-info-circle"></i> {{ booking.location.reference }}</small>
-                            </p>
-                            {% endif %}
+                            <h5><i class="fas fa-map"></i> Ubicación en el Mapa</h5>
+                            <div id="locationMap" style="height: 300px; border-radius: 10px; margin-bottom: 1rem;"></div>
+                            
+                            <div class="alert alert-info">
+                                <strong><i class="fas fa-info-circle"></i> Ubicación Exacta</strong><br>
+                                Latitud: {{ booking.location.latitude }}<br>
+                                Longitud: {{ booking.location.longitude }}
+                            </div>
                         </div>
                     </div>
+
+                    <!-- Script para renderizar mapa -->
+                    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+                    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+
+                    <script>
+                        
+                    document.addEventListener('DOMContentLoaded', function() {
+                        const lat = "{{ booking_location_lat }}";
+                        const lng = "{{ booking_location_lng }}";
+                        
+                        if (lat && lng) {
+                            const map = L.map('locationMap').setView([parseFloat(lat), parseFloat(lng)], 15);
+                            
+                            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                                attribution: '© OpenStreetMap contributors',
+                                maxZoom: 19
+                            }).addTo(map);
+                            
+                            L.marker([parseFloat(lat), parseFloat(lng)]).addTo(map)
+                                .bindPopup('<strong>{{ booking.location.label|title }}</strong><br>{{ booking.location.address }}')
+                                .openPopup();
+                        }
+                    });
+                    </script>
                     {% endif %}
 
                     <!-- Services -->

@@ -9,7 +9,7 @@ urlpatterns = [
     path('services/', views.services_list, name='services_list'),
     path('services/<int:service_id>/', views.service_detail, name='service_detail'),
     path('providers/', views.providers_list, name='providers_list'),
-    path('providers/<int:provider_id>/', views.provider_profile, name='provider_profile'),
+    path('providers/<slug:slug>/', views.provider_profile, name='provider_profile'),
     path('provider/profile/edit/', views.provider_profile_edit, name='provider_profile_edit'),
     
     # Authentication
