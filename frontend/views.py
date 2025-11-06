@@ -777,7 +777,7 @@ def booking_detail(request, booking_id):
             else:
                 # Calcular horas restantes para mostrar
                 hours_remaining = int(hours_until)
-                contact_message = f'El contacto estará disponible 2 horas antes de tu cita (faltan {hours_remaining} horas)'
+                contact_message = f'El contacto estará disponible 2 horas antes de tu cita (faltan {hours_remaining} horas) y luego del pago exitoso.'
         else:
             contact_message = 'Completa el pago para acceder a los datos de contacto'
     
@@ -789,11 +789,11 @@ def booking_detail(request, booking_id):
         time_until_booking = booking.scheduled_time - now
         hours_until = time_until_booking.total_seconds() / 3600
         
-        if hours_until <= 2:
+        if booking.payment_status == 'paid' and hours_until <= 2:
             can_contact = True
         else:
             hours_remaining = int(hours_until)
-            contact_message = f'El contacto estará disponible 2 horas antes de la cita (faltan {hours_remaining} horas)'
+            contact_message = f'El contacto estará disponible 2 horas antes de la cita (faltan {hours_remaining} horas) y luego del pago exitoso.'
     
     context = {
         'booking': booking,

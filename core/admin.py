@@ -4,6 +4,9 @@ from django.contrib.auth.models import User
 from django.utils.html import format_html
 from django.urls import reverse
 from django.utils import timezone
+from django.urls import path
+from django.shortcuts import redirect
+from django.contrib import messages
 
 from .models import (
     Profile, Category, ProviderProfile, Service, Location, Booking, Review, AuditLog,
@@ -651,7 +654,7 @@ class BankAccountAdmin(admin.ModelAdmin):
 @admin.register(PaymentProof)
 class PaymentProofAdmin(admin.ModelAdmin):
     list_display = ['id', 'booking_link', 'customer_name', 'reference_code', 
-                    'verified_display', 'proof_image_thumbnail', 'created_at', 'approve_button']
+                    'verified_display', 'proof_image_thumbnail', 'created_at']
     list_filter = ['verified', 'created_at', 'payment_method', 'bank_account']
     search_fields = ['reference_code', 'booking__customer__username', 'booking__id']
     date_hierarchy = 'created_at'
@@ -687,28 +690,7 @@ class PaymentProofAdmin(admin.ModelAdmin):
             )
         return '—'
     proof_image_thumbnail.short_description = 'Comprobante'
-
-    # CAMBIO #4.5: Agregar botón de aprobación en la lista
-    def approve_button(self, obj):
-        if not obj.verified:
-            return format_html(
-                '<a class="button" href="#" onclick="approvePayment({}, event)">'
-                '<i class="fas fa-check"></i> Aprobar'
-                '</a>',
-                obj.id
-            )
-        return '✓ Aprobado'
-    approve_button.short_description = 'Acción'
-    
-    def booking_link(self, obj):
-        # Simplemente mostrar el ID sin intentar hacer reverse
-        # Ya que Booking puede no estar registrado en admin
-        return format_html(
-            '<strong>#{}</strong>',
-            str(obj.booking.id)[:8]
-        )
-    booking_link.short_description = 'Reserva'
-    
+        
     def customer_name(self, obj):
         return obj.booking.customer.get_full_name() or obj.booking.customer.username
     customer_name.short_description = 'Cliente'
@@ -771,6 +753,7 @@ class PaymentProofAdmin(admin.ModelAdmin):
             count += 1
         
         self.message_user(request, f'{count} pago(s) aprobado(s) exitosamente.')
+    
     approve_payments.short_description = '✅ Aprobar pago(s) seleccionado(s)'
     
     def reject_payment(self, request, queryset):
@@ -794,7 +777,71 @@ class PaymentProofAdmin(admin.ModelAdmin):
             proof.save()
         
         self.message_user(request, f'{len(queryset)} pago(s) marcado(s) como rechazado(s).')
+    
     reject_payment.short_description = '❌ Rechazar pago(s) seleccionado(s)'
+
+    def get_urls(self):
+        urls = super().get_urls()
+        custom_urls = [
+            path('<path:object_id>/approve_single_payment/', self.admin_site.admin_view(self.approve_single_payment_view), name='approve-single-payment'),
+        ]
+        return custom_urls + urls
+    
+    # Método que lanza el error si no existe:
+    def get_changelist_url(self):
+        """Construye la URL de la vista de listado para este modelo."""
+        # self.opts es la configuración del modelo (ModelOptions)
+        app_label = self.opts.app_label
+        model_name = self.opts.model_name
+        url_name = f'admin:{app_label}_{model_name}_changelist'
+        return reverse(url_name)
+
+    def approve_single_payment_view(self, request, object_id):
+        if request.method != 'GET':
+            return redirect(self.get_changelist_url())
+        
+        try:
+            proof = self.get_object(request, object_id) 
+        except Exception:
+            self.message_user(request, "Pago no encontrado.", level=messages.ERROR)
+            # Redirección de fallback, aunque deberíamos usar la correcta
+            return redirect(self.get_changelist_url()) 
+
+        if proof.verified:
+            self.message_user(request, f"El pago #{proof.id} ya estaba aprobado.", level=messages.INFO)
+            # Utiliza la redirección correcta aquí
+            return redirect(self.get_changelist_url()) 
+
+        # --- Lógica de Aprobación ---
+        proof.verified = True
+        proof.verified_by = request.user
+        proof.verified_at = timezone.now()
+        proof.save()
+        
+        booking = proof.booking
+        booking.payment_status = 'paid'
+        booking.save()
+        
+        self.message_user(request, f'✅ Pago #{proof.id} aprobado exitosamente.', level=messages.SUCCESS)
+        
+        # 1. Ejecuta la redirección correcta
+        return redirect(self.get_changelist_url())
+
+    def booking_link(self, obj):
+        # Si ya está aprobado, solo muestra el texto
+        if obj.verified:
+            return format_html('<strong>#{}</strong> (Aprobado)', str(obj.booking.id)[:8])
+        
+        # URL al método que creamos: /admin/app/proofofpayment/<id>/approve_single_payment/
+        approve_url = reverse('admin:approve-single-payment', args=[obj.pk]) 
+        
+        # Dibuja el botón con la URL
+        return format_html(
+            '<strong>#{}</strong><br><a href="{}" class="button" style="margin-top: 5px;">Aprobar</a>',
+            str(obj.booking.id)[:8],
+            approve_url
+        )
+    booking_link.short_description = 'Reserva / Acción'
 
 
 # ============================================
