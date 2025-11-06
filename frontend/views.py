@@ -25,6 +25,7 @@ from core.image_upload import (
 )
 from .forms import BankTransferForm
 
+categories = Category.objects.all()
 
 # ============================================================================
 # HOME & PUBLIC VIEWS
@@ -32,7 +33,6 @@ from .forms import BankTransferForm
 
 def home(request):
     """Página principal"""
-    categories = Category.objects.all()
     featured_services = Service.objects.filter(
         available=True, 
         provider__provider_profile__is_active=True,
@@ -49,7 +49,6 @@ def home(request):
 def services_list(request):
     """Listado de servicios con filtros mejorados por zona"""
     services = Service.objects.filter(available=True).select_related('provider')
-    categories = Category.objects.all()
     zones = Zone.objects.filter(active=True).order_by('name')
     
     # Obtener zona actual del usuario (de sesión o ubicación)
@@ -144,11 +143,11 @@ def services_list(request):
     return render(request, 'services/list.html', context)
 
 
-def service_detail(request, service_id):
+def service_detail(request, service_code):
     """Detalle de un servicio con validación de zona"""
     from core.models import ProviderZoneCost, SystemConfig
     
-    service = get_object_or_404(Service, id=service_id)
+    service = get_object_or_404(Service, service_code=service_code)
     
     # Obtener zona actual
     current_zone_id = request.session.get('current_zone_id')
@@ -229,9 +228,7 @@ def providers_list(request):
     providers = ProviderProfile.objects.filter(
         status='approved'
     ).select_related('user', 'category').prefetch_related('coverage_zones')
-    
-    categories = Category.objects.all()
-    
+        
     # Filtros
     category_id = request.GET.get('category')
     search = request.GET.get('search')
@@ -316,8 +313,7 @@ def provider_profile_edit(request):
         return redirect('dashboard')
     
     provider_profile = request.user.provider_profile
-    categories = Category.objects.all()
-    
+        
     if request.method == 'POST':
         # Datos de usuario
         first_name = request.POST.get('first_name')
@@ -496,7 +492,9 @@ def register_view(request):
 
 def register_provider_view(request):
     """Registro de proveedor"""
-    categories = Category.objects.all()
+    if request.user.is_authenticated:
+        messages.info(request, 'Ya tienes una sesión activa')
+        return redirect('dashboard')
     
     if request.method == 'POST':
         # Datos de usuario
@@ -562,18 +560,18 @@ def register_provider_view(request):
                 description=description,
                 business_name=business_name,
                 profile_photo=photo_url,
-                status='created'
+                status='created',
+                registration_step=1  # Primer paso completado
             )
             
             # Login automático
             login(request, user)
+
             messages.success(
-                request, 
-                f'¡Registro exitoso, {business_name}! Tu perfil está en revisión. '
-                'Crea tu primer servicio para solicitar la aprobación.'
+                request,
+                'Perfil creado exitosamente. Por favor completa la verificación de identidad.'
             )
-            
-            return redirect('dashboard')
+            return redirect('provider_register_step2')
 
         except ValueError as e:
             # Error de validación
@@ -593,6 +591,113 @@ def register_provider_view(request):
         'categories': categories,
     }
     return render(request, 'auth/register_provider.html', context)
+
+@login_required
+def provider_register_step2(request):
+    """
+    Segundo paso del registro de proveedor: Verificación de identidad
+    """
+    # Verificar que sea proveedor
+    if request.user.profile.role != 'provider':
+        messages.error(request, 'Solo los proveedores pueden acceder a esta página')
+        return redirect('home')
+    
+    # Verificar que tenga perfil de proveedor
+    if not hasattr(request.user, 'provider_profile'):
+        messages.error(request, 'No tienes un perfil de proveedor')
+        return redirect('home')
+    
+    provider_profile = request.user.provider_profile
+    
+    # Verificar que esté en el paso correcto
+    if provider_profile.registration_step >= 2:
+        messages.info(request, 'Ya completaste la verificación de identidad')
+        return redirect('dashboard')
+    
+    if request.method == 'POST':
+        # Obtener archivos
+        id_card_front = request.FILES.get('id_card_front')
+        id_card_back = request.FILES.get('id_card_back')
+        selfie_with_id = request.FILES.get('selfie_with_id')
+        
+        # Validar que se subieron las 3 imágenes
+        if not all([id_card_front, id_card_back, selfie_with_id]):
+            messages.error(request, 'Debes subir las 3 imágenes requeridas')
+            return render(request, 'auth/register_step2.html', {
+                'provider_profile': provider_profile
+            })
+        
+        # Validar tamaño de archivos
+        for file in [id_card_front, id_card_back, selfie_with_id]:
+            if file.size > 2 * 1024 * 1024:  # 2MB
+                messages.error(request, f'La imagen {file.name} supera el tamaño máximo de 2MB')
+                return render(request, 'auth/register_step2.html', {
+                    'provider_profile': provider_profile
+                })
+        
+        try:
+            # Subir imágenes a Supabase/Storage
+            from core.image_upload import upload_image
+            
+            front_url = upload_image(
+                file=id_card_front,
+                folder='documents/id_cards',
+                user_id=request.user.id,
+                prefix='front'
+            )
+            
+            back_url = upload_image(
+                file=id_card_back,
+                folder='documents/id_cards',
+                user_id=request.user.id,
+                prefix='back'
+            )
+            
+            selfie_url = upload_image(
+                file=selfie_with_id,
+                folder='documents/selfies',
+                user_id=request.user.id,
+                prefix='selfie'
+            )
+            
+            # CORRECCIÓN: Actualizar perfil pero MANTENER status='created'
+            provider_profile.id_card_front = front_url
+            provider_profile.id_card_back = back_url
+            provider_profile.selfie_with_id = selfie_url
+            provider_profile.registration_step = 2
+            provider_profile.status = 'created'  # Mantener en 'created', NO cambiar a 'pending'
+            provider_profile.documents_verified = False  # Documentos aún no verificados
+            provider_profile.save()
+            
+            # Log de auditoría
+            AuditLog.objects.create(
+                user=request.user,
+                action='Documentos de identidad subidos',
+                metadata={
+                    'step': 2,
+                    'status': 'created',
+                    'next_step': 'create_first_service'
+                }
+            )
+            
+            # CORRECCIÓN: Mensaje indicando siguiente paso
+            messages.success(
+                request,
+                '¡Documentos subidos exitosamente! '
+                'Ahora crea tu primer servicio para solicitar la aprobación de tu perfil.'
+            )
+            return redirect('dashboard')
+            
+        except Exception as e:
+            messages.error(request, f'Error al subir documentos: {str(e)}')
+            return render(request, 'auth/register_step2.html', {
+                'provider_profile': provider_profile
+            })
+    
+    context = {
+        'provider_profile': provider_profile
+    }
+    return render(request, 'auth/register_step2.html', context)
 
 
 def logout_view(request):
@@ -641,9 +746,6 @@ def dashboard_customer(request):
     # Ubicaciones
     locations = Location.objects.filter(customer=request.user)
     total_locations = locations.count()
-    
-    # Categorías
-    categories = Category.objects.all()
     
     context = {
         'total_bookings': total_bookings,
@@ -1467,6 +1569,8 @@ def get_available_time_slots(provider, service_date, service_duration_minutes):
     """
     Obtiene los horarios disponibles para un proveedor en una fecha específica
     """
+    from django.utils import timezone
+    
     # Obtener día de la semana (0=Lunes, 6=Domingo)
     day_of_week = service_date.weekday()
     
@@ -1500,9 +1604,13 @@ def get_available_time_slots(provider, service_date, service_duration_minutes):
     available_slots = []
     
     for schedule in schedules:
-        # Crear slots de 30 minutos dentro del horario
+        # CORRECCIÓN: Crear slots AWARE en lugar de NAIVE
         current_time = datetime.combine(service_date, schedule.start_time)
         end_time = datetime.combine(service_date, schedule.end_time)
+        
+        # Hacer los datetimes "aware" con el timezone configurado
+        current_time = timezone.make_aware(current_time)
+        end_time = timezone.make_aware(end_time)
         
         while current_time + timedelta(minutes=service_duration_minutes) <= end_time:
             slot_start = current_time
@@ -1514,7 +1622,7 @@ def get_available_time_slots(provider, service_date, service_duration_minutes):
                 booking_start = booking.scheduled_time
                 booking_end = booking_start + timedelta(minutes=60)  # Estimado
                 
-                # Verificar solapamiento
+                # AHORA AMBOS SON AWARE - la comparación funcionará
                 if (slot_start < booking_end and slot_end > booking_start):
                     is_occupied = True
                     break
@@ -1522,7 +1630,7 @@ def get_available_time_slots(provider, service_date, service_duration_minutes):
             if not is_occupied:
                 # Verificar que sea al menos 1 hora en el futuro
                 now = timezone.now()
-                if timezone.make_aware(slot_start) > now + timedelta(hours=1):
+                if slot_start > now + timedelta(hours=1):
                     available_slots.append({
                         'time': slot_start.time(),
                         'display': slot_start.strftime('%H:%M')

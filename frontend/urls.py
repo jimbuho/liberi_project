@@ -6,16 +6,12 @@ from . import views
 urlpatterns = [
     # Home & Public
     path('', views.home, name='home'),
-    path('services/', views.services_list, name='services_list'),
-    path('services/<int:service_id>/', views.service_detail, name='service_detail'),
-    path('providers/', views.providers_list, name='providers_list'),
-    path('providers/<slug:slug>/', views.provider_profile, name='provider_profile'),
-    path('provider/profile/edit/', views.provider_profile_edit, name='provider_profile_edit'),
-    
+
     # Authentication
     path('login/', views.login_view, name='login'),
     path('register/', views.register_view, name='register'),
     path('register/provider/', views.register_provider_view, name='register_provider'),
+    path('register/provider/step2/', views.provider_register_step2, name='provider_register_step2'),
     path('logout/', views.logout_view, name='logout'),
     
     # Dashboard
@@ -38,14 +34,19 @@ urlpatterns = [
     path('bookings/<uuid:booking_id>/review/', views.review_create, name='review_create'),
     
     # Service Management (Provider)
+    path('services/', views.services_list, name='services_list'),
+    path('services/<uuid:service_code>/', views.service_detail, name='service_detail'),
     path('services/create/', views.service_create, name='service_create'),
-    path('services/<int:service_id>/edit/', views.service_edit, name='service_edit'),
-    path('services/<int:service_id>/delete/', views.service_delete, name='service_delete'),
+    path('services/<int:service_id>/edit/', views.service_edit, name='service_edit'),  # Mantener ID para edición (admin)
+    path('services/<int:service_id>/delete/', views.service_delete, name='service_delete'),  # Mantener ID para eliminación (admin)
 
     # Booking con horarios
     path('bookings/create/<int:service_id>/', views.booking_create_step1, name='booking_create_step1'),
     
     # Provider Schedule Management
+    path('providers/', views.providers_list, name='providers_list'),
+    path('providers/<slug:slug>/', views.provider_profile, name='provider_profile'),
+    path('provider/profile/edit/', views.provider_profile_edit, name='provider_profile_edit'),
     path('provider/schedules/', views.provider_schedule_manage, name='provider_schedule_manage'),
     path('provider/schedules/create/', views.provider_schedule_create, name='provider_schedule_create'),
     path('provider/schedules/<int:schedule_id>/delete/', views.provider_schedule_delete, name='provider_schedule_delete'),

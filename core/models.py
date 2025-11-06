@@ -110,6 +110,11 @@ class ProviderProfile(models.Model):
         blank=True,
         null=True
     )
+    registration_step = models.IntegerField(
+        'Paso de Registro',
+        default=1,
+        help_text='1: Datos básicos, 2: Verificación identidad, 3: Completo'
+    )
     created_at = models.DateTimeField('Fecha de creación', auto_now_add=True)
     updated_at = models.DateTimeField('Última actualización', auto_now=True)
 
@@ -148,6 +153,13 @@ class ProviderProfile(models.Model):
 class Service(models.Model):
     provider = models.ForeignKey(User, on_delete=models.CASCADE, related_name='services',
                                 verbose_name='Proveedor')
+    service_code = models.UUIDField(
+        'Código de Servicio',
+        default=uuid.uuid4, 
+        editable=False, 
+        unique=True,
+        help_text='Identificador único del servicio'
+    )
     name = models.CharField('Nombre', max_length=200)
     description = models.TextField('Descripción')
     base_price = models.DecimalField('Precio base', max_digits=8, decimal_places=2)
@@ -236,9 +248,6 @@ class Booking(models.Model):
         if isinstance(self.service_list, list):
             return ', '.join([s.get('name', '') for s in self.service_list])
         return 'N/A'
-
-    def get_provider(self):
-        return ProviderProfile.objects.get(user=self.provider)
 
     def __str__(self):
         return f"Reserva {str(self.id)[:8]} - {self.get_status_display()}"

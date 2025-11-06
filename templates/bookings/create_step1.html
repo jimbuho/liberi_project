@@ -8,7 +8,7 @@
         <ol class="breadcrumb">
             <li class="breadcrumb-item"><a href="{% url 'home' %}">Inicio</a></li>
             <li class="breadcrumb-item"><a href="{% url 'services_list' %}">Servicios</a></li>
-            <li class="breadcrumb-item"><a href="{% url 'service_detail' service.id %}">{{ service.name }}</a></li>
+            <li class="breadcrumb-item"><a href="{% url 'service_detail' service.service_code %}">{{ service.name }}</a></li>
             <li class="breadcrumb-item active">Agendar</li>
         </ol>
     </nav>
@@ -180,7 +180,7 @@
                     </p>
                     {% endif %}
                     
-                    <a href="{% url 'provider_profile' provider.get_provider.slug %}" class="btn btn-sm btn-outline-primary w-100">
+                    <a href="{% url 'provider_profile' provider.provider_profile.slug %}" class="btn btn-sm btn-outline-primary w-100">
                         Ver Perfil Completo
                     </a>
                 </div>
