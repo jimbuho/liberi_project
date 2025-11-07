@@ -10,7 +10,7 @@ class PayPhoneService:
     """
     def __init__(self):
         self.token = settings.PAYPHONE_TOKEN
-        self.store_id = settings.PAYPHONE_STORE_ID
+        self.store_id = settings.PAYPHONE_CLIENT_ID
         self.api_url = settings.PAYPHONE_API_URL
     
     def create_payment(self, booking_id, amount, customer_email, customer_phone):
@@ -70,7 +70,7 @@ class PayPhoneService:
         Verifica el estado de un pago
         """
         try:
-            verify_url = "https://pay.payphonetodoesposible.com/api/button/Confirm"
+            verify_url = settings.PAYPHONE_URL_CONFIRM_PAYPHONE
             
             payload = {
                 "id": transaction_id,

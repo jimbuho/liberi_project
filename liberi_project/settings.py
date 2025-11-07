@@ -145,9 +145,13 @@ EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD', '')
 EMAIL_USE_TLS = os.getenv('EMAIL_USE_TLS', 'True') == 'True'
 DEFAULT_FROM_EMAIL = os.getenv('DEFAULT_FROM_EMAIL', 'noreply@liberi.ec')
 
-PAYPHONE_TOKEN = os.getenv('PAYPHONE_TOKEN', '')
+PAYPHONE_API_TOKEN = os.getenv('PAYPHONE_API_TOKEN', '')
+PAYPHONE_CLIENT_ID = os.getenv('PAYPHONE_CLIENT_ID', '')
+PAYPHONE_CALLBACK_URL = os.getenv('PAYPHONE_CALLBACK_URL', '')
+PAYPHONE_API_URL = os.getenv('PAYPHONE_API_URL', '')
 PAYPHONE_STORE_ID = os.getenv('PAYPHONE_STORE_ID', '')
-PAYPHONE_API_URL = 'https://pay.payphonetodoesposible.com/api/button/Prepare'
+PAYPHONE_URL_CONFIRM_PAYPHONE = os.getenv('PAYPHONE_URL_CONFIRM_PAYPHONE', '')
+SITE_URL = os.getenv('SITE_URL', '')
 
 WHATSAPP_PHONE_NUMBER = os.getenv('WHATSAPP_PHONE_NUMBER', '')
 WHATSAPP_TOKEN = os.getenv('WHATSAPP_TOKEN', '')

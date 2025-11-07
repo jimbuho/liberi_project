@@ -75,7 +75,7 @@ urlpatterns = [
 
     # Pagos v2 (con imagen)
     path('payments/<uuid:booking_id>/', views.payment_process, name='payment_process'),
-    path('payments/payphone/create/', views.payphone_create, name='payphone_create'),
+    path('payments/payphone/callback/', views.payphone_callback, name='payphone_callback'),
     
     path('payment/bank-transfer/<uuid:booking_id>/', views.payment_bank_transfer, name='payment_bank_transfer'),
     path('payment/confirm-transfer/<uuid:booking_id>/', views.confirm_bank_transfer_payment, name='confirm_bank_transfer'),

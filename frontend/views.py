@@ -10,6 +10,9 @@ from datetime import timedelta, datetime
 from django.contrib.auth.models import User
 from django.http import JsonResponse
 
+import requests
+from django.db import transaction
+
 from core.models import (
     Profile, Category, Service, ProviderProfile, 
     Booking, Location, Review, AuditLog,
@@ -911,6 +914,9 @@ def booking_detail(request, booking_id):
 
 # Reemplazar la función booking_create en frontend/views.py
 
+SERVICE_COST = 1
+IVA = 0.15
+
 @login_required
 def booking_create(request):
     """Crear una nueva reserva con validaciones mejoradas por zona"""
@@ -993,7 +999,9 @@ def booking_create(request):
         'price': float(service.base_price)
     }]
     
-    total_cost = float(service.base_price)
+    sub_total_cost = float(service.base_price)
+
+    total_cost = sub_total_cost
     
     # Agregar costo de traslado según zona específica
     zone_cost = ProviderZoneCost.objects.filter(
@@ -1009,12 +1017,21 @@ def booking_create(request):
     
     total_cost += travel_cost
     
+    service = SERVICE_COST
+    tax = sub_total_cost * IVA +  service * IVA
+
+    total_cost += tax
+    
     # Crear reserva
     booking = Booking.objects.create(
         customer=request.user,
         provider=provider,
         service_list=service_list,
+        sub_total_cost=sub_total_cost,
+        service=service,
+        tax=tax,
         total_cost=total_cost,
+        travel_cost=travel_cost,
         location=location,
         scheduled_time=scheduled_datetime,
         notes=notes,
@@ -1352,30 +1369,6 @@ def review_create(request, booking_id):
     }
     return render(request, 'reviews/create.html', context)
 
-
-# ============================================================================
-# PAYMENT VIEWS
-# ============================================================================
-
-
-@login_required
-def payphone_create(request):
-    """Crear pago con PayPhone - placeholder"""
-    if request.method == 'POST':
-        booking_id = request.POST.get('booking_id')
-        booking = get_object_or_404(Booking, id=booking_id, customer=request.user)
-        
-        # TODO: Integrar con PayPhone API real
-        # Por ahora, simulamos el proceso
-        
-        booking.payment_method = 'payphone'
-        booking.payment_status = 'pending'
-        booking.save()
-        
-        messages.info(request, 'Redirigiendo a PayPhone... (Por implementar)')
-        return redirect('booking_detail', booking_id=booking.id)
-    
-    return redirect('bookings_list')
 
 
 # ============================================================================
@@ -2249,10 +2242,25 @@ def payment_process(request, booking_id):
         messages.info(request, 'Esta reserva ya ha sido pagada.')
         return redirect('booking_detail', booking_id=booking.id)
     
+    # Calculo de valores e impuestos
+    amount_with_tax = booking.sub_total_cost * 100
+    service = booking.service * 100
+    tax = booking.tax
+    amount_without_tax = booking.travel_cost * 100
+    
+    amount = amount_with_tax + amount_without_tax + tax + service
+
     context = {
         'booking': booking,
+        'amount_with_tax':amount_with_tax,
+        'amount_without_tax':amount_without_tax,
+        'service':service,
+        'tax':tax,
+        'amount':amount,
         'payphone_enabled': True,  # Configurar según tus necesidades
         'bank_transfer_enabled': True,
+        'PAYPHONE_API_TOKEN':settings.PAYPHONE_API_TOKEN,
+        'PAYPHONE_STORE_ID':settings.PAYPHONE_STORE_ID,
     }
     
     return render(request, 'payments/process.html', context)
@@ -2375,7 +2383,7 @@ def payment_bank_transfer(request, booking_id):
                     title='💰 Nuevo Comprobante de Pago Pendiente',
                     message=f'Cliente: {booking.customer.get_full_name()}\n'
                             f'Reserva: #{booking.id}\n'
-                            f'Monto: ${booking.total_cost}\n'
+                            f'Monto: ${booking.sub_total_cost}\n'
                             f'Referencia: {reference_code}',
                     booking=booking,
                     action_url=f'/admin/core/paymentproof/{payment_proof.id}/change/'
@@ -2709,3 +2717,99 @@ def api_upload_image(request):
         
     except Exception as e:
         return JsonResponse({'error': str(e)}, status=500)
+
+# ============================================================================
+# PAYMENT VIEWS
+# ============================================================================
+
+def payphone_callback(request):
+    """
+    Endpoint para recibir el resultado del pago (Webhook/Callback de PayPhone).
+    """
+    
+    # 1. Validar el método HTTP (PayPhone usa GET para el responseUrl y POST para el callbackUrl)
+    # Aquí vamos a manejar ambos en un solo endpoint por simplicidad, usando los parámetros de la URL
+    
+    transaction_id = request.GET.get('transactionId') or request.POST.get('transactionId')
+    client_transaction_id = request.GET.get('clientTransactionId') or request.POST.get('clientTransactionId')
+    
+    if not client_transaction_id:
+        # Si no hay ID, no podemos procesar. Retornar 200 para no reintentos.
+        return JsonResponse({'status': 'error', 'message': 'Missing clientTransactionId'}, status=400)
+
+    # 2. Obtener la reserva
+    try:
+        booking = Booking.objects.get(id=client_transaction_id)
+    except Booking.DoesNotExist:
+        # Reserva no encontrada. Retornar 200 para no reintentos.
+        return JsonResponse({'status': 'error', 'message': 'Booking not found'}, status=404)
+
+    # 3. Consultar el estado real de la transacción a PayPhone (recomendado por seguridad)
+    headers = {
+        'Authorization': f'Bearer {settings.PAYPHONE_API_TOKEN}',
+        'Content-Type': 'application/json'
+    }
+
+    try:
+        response = requests.post(
+            settings.PAYPHONE_URL_CONFIRM_PAYPHONE,
+            headers=headers,
+            json={'id': transaction_id},
+            timeout=10
+        )
+        response.raise_for_status()
+        transaction_data = response.json()
+
+        print('Transaction Data', transaction_data)
+        
+    except requests.exceptions.RequestException:
+        # Error al consultar, se podría reintentar o marcar para revisión manual
+        return JsonResponse({'status': 'error', 'message': 'Failed to check transaction status'}, status=500)
+
+
+    # 4. Procesar el estado de la transacción
+    transaction_status = transaction_data.get('transactionStatus') # 'Approved', 'Pending', 'Rejected'
+    
+    if transaction_status == 'Approved':
+        with transaction.atomic():
+            # Evitar doble procesamiento
+            if booking.status == 'pending': 
+                # Crear el registro de Payment
+                Payment.objects.create(
+                    booking=booking,
+                    user=booking.customer,
+                    amount=booking.total_cost,
+                    payment_method='payphone',
+                    external_id=transaction_id,
+                    status='verified'
+                )
+                
+                # Actualizar el estado de la reserva
+                booking.status = 'accepted' # O 'confirmed', si tienes un estado intermedio
+                booking.save()
+                
+                print('PAGO LISTO NOTIFICANDO...')
+                # Disparar notificaciones al Proveedor/Cliente
+                # Asumo que tienes una función para esto, como `create_notification`
+                # create_notification(booking, 'payment_verified') 
+                
+        # PayPhone usa GET para redirigir al usuario, así que se redirige
+        if request.method == 'GET':
+             messages.success(request, 'Pago con PayPhone aprobado. Reserva confirmada.')
+             return redirect('payment_confirmation', payment_id=Payment.objects.get(external_id=transaction_id).id)
+
+        # Si es el POST del callback, solo retornar 200
+        return JsonResponse({'status': 'success', 'message': 'Payment Approved and processed'})
+    
+    elif transaction_status == 'Rejected' or transaction_status == 'Failed':
+        # Si el usuario es redirigido con GET
+        if request.method == 'GET':
+            messages.error(request, 'El pago fue rechazado por PayPhone o el banco.')
+            return redirect('payment_process', booking_id=booking.id)
+            
+        # Para el POST del callback, solo retornar 200
+        return JsonResponse({'status': 'rejected', 'message': 'Payment Rejected'})
+
+    else: 
+        # Estado pendiente, no hacer nada por ahora
+        return JsonResponse({'status': 'pending', 'message': 'Transaction is still pending'}, status=200)

@@ -58,6 +58,8 @@
         margin: 2rem 0;
     }
 </style>
+<link rel="stylesheet" href="https://cdn.payphonetodoesposible.com/box/v1.1/payphone-payment-box.css">
+<script type="module" src="https://cdn.payphonetodoesposible.com/box/v1.1/payphone-payment-box.js"></script>  
 {% endblock %}
 
 {% block content %}
@@ -108,15 +110,15 @@
             <div class="col-md-6">
                 <div class="payment-method-card text-center" onclick="selectPaymentMethod('payphone')">
                     <div class="payment-icon">
-                        <i class="fas fa-mobile-alt text-primary"></i>
+                        <i class="fas fa-mobile-alt text-primary"></i> 
                     </div>
                     <h4>PayPhone</h4>
-                    <p class="text-muted mb-3">Pago instantáneo con tu teléfono</p>
-                    <!--
-                    <a href="" class="btn btn-primary">
-                        <i class="fas fa-arrow-right me-2"></i>Pagar con PayPhone
-                    </a>
-                    -->
+                    <p class="text-muted mb-3">Paga fácilmente con tu app PayPhone</p>
+                    <button onclick="mostrarPopup()">Realizar Pago</button>
+                    <div id="popup">
+                        <button id="btn-cerrar" onclick="cerrarPopup()">Cerrar</button>    
+                        <div id="pp-button"></div>
+                    </div>
                 </div>
             </div>
             {% endif %}
@@ -158,5 +160,43 @@ function selectPaymentMethod(method) {
     // Opcional: agregar lógica para resaltar la opción seleccionada
     console.log('Payment method selected:', method);
 }
+</script>
+{% endblock %}
+
+{% block extra_js %}
+
+<script>
+    document.getElementById('btn-cerrar').style.display = 'none';
+    function mostrarPopup() {
+        // Mostrar el popup y overlay
+        document.getElementById('popup').style.display = 'block';
+        //document.getElementById('overlay').style.display = 'block';
+        document.getElementById('btn-cerrar').style.display = 'block';
+
+        ejecutarCajitaPagos();
+    }
+
+    function cerrarPopup() {
+        document.getElementById('popup').style.display = 'none';
+        //document.getElementById('overlay').style.display = 'none';
+    }
+
+    function ejecutarCajitaPagos() {
+        const ppb  = new PPaymentButtonBox({                            
+            //token obtenido desde la consola de developer
+            token: "{{PAYPHONE_API_TOKEN}}",
+            amount: parseInt('{{amount}}'),
+            amountWithoutTax: parseInt('{{amount_without_tax}}'), 	
+            amountWithTax:parseInt('{{amount_with_tax}}'), 	
+            tax: parseInt('{{tax}}'),                                       
+            service: parseInt('{{service}}'),
+            tip:0,
+            storeId:"{{PAYPHONE_STORE_ID}}", 
+            reference:"{{booking}}",
+            currency: 'USD',
+            clientTransactionId:  '{{booking.id}}',
+            backgroundColor: "#6610f2"
+        }).render('pp-button');
+    }
 </script>
 {% endblock %}

@@ -209,7 +209,7 @@ class Booking(models.Model):
         ('cancelled', 'Cancelado'),
         ('dispute', 'Disputa'),
     ]
-    
+    ProviderProfile
     PAYMENT_STATUS_CHOICES = [
         ('pending', 'Pendiente'),
         ('pending_validation', 'Pendiente de Validación'),
@@ -223,7 +223,11 @@ class Booking(models.Model):
     provider = models.ForeignKey(User, on_delete=models.CASCADE, related_name='provider_bookings',
                                 verbose_name='Proveedor')
     service_list = models.JSONField('Lista de servicios', default=list)
+    sub_total_cost = models.DecimalField('Subtotal', max_digits=10, decimal_places=2, default=0.0)
     total_cost = models.DecimalField('Costo total', max_digits=10, decimal_places=2)
+    tax = models.DecimalField('Impuesto / IVA', max_digits=10, decimal_places=2, default=0.0)
+    service = models.DecimalField('Costo del servicio', max_digits=10, decimal_places=2, default=0.0)
+    travel_cost = models.DecimalField('Costo de movilizacion', max_digits=10, decimal_places=2, default=0.0)
     location = models.ForeignKey(Location, on_delete=models.SET_NULL, null=True,
                                 verbose_name='Ubicación')
     status = models.CharField('Estado', max_length=15, choices=STATUS_CHOICES, default='pending')
