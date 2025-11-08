@@ -87,4 +87,10 @@ urlpatterns = [
     path('api/notifications/<int:notification_id>/mark-read/', views.api_notification_mark_read, name='api_notification_mark_read'),
     path('api/notifications/mark-all-read/', views.api_notifications_mark_all_read, name='api_notifications_mark_all_read'),
 
+    # Retiros y cuentas bancarias
+    path('provider/bank-accounts/', views.provider_bank_accounts, name='provider_bank_accounts'),
+    path('provider/bank-accounts/<uuid:account_id>/delete/', views.provider_bank_account_delete, name='provider_bank_account_delete'),
+    path('provider/withdrawals/', views.provider_withdrawal_list, name='provider_withdrawal_list'),
+    path('provider/withdrawals/create/', views.provider_withdrawal_create, name='provider_withdrawal_create'),
+
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

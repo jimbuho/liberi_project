@@ -11,7 +11,8 @@ from django.contrib import messages
 from .models import (
     Profile, Category, ProviderProfile, Service, Location, Booking, Review, AuditLog,
     Zone, ProviderSchedule, ProviderUnavailability, SystemConfig, ProviderZoneCost,
-    PaymentMethod, BankAccount, PaymentProof, Notification, Payment
+    PaymentMethod, BankAccount, PaymentProof, Notification, Payment,
+    WithdrawalRequest, ProviderBankAccount, Bank
 )
 
 # Inline para Profile en User admin
@@ -892,3 +893,107 @@ class NotificationAdmin(admin.ModelAdmin):
     
     def has_delete_permission(self, request, obj=None):
         return False  # No se pueden eliminar notificaciones
+    
+@admin.register(Bank)
+class BankAdmin(admin.ModelAdmin):
+    list_display = ['name', 'code', 'country', 'is_active_display', 'created_at']
+    list_filter = ['is_active', 'country']
+    search_fields = ['name', 'code']
+    readonly_fields = ['created_at']
+    
+    def is_active_display(self, obj):
+        return format_html('✅ Activo' if obj.is_active else '❌ Inactivo')
+    is_active_display.short_description = 'Estado'
+
+@admin.register(ProviderBankAccount)
+class ProviderBankAccountAdmin(admin.ModelAdmin):
+    list_display = ['provider', 'bank', 'account_number_masked', 'owner_fullname', 'is_primary', 'created_at']
+    list_filter = ['bank', 'is_primary', 'account_type']
+    search_fields = ['provider__username', 'owner_fullname', 'bank__name']
+    readonly_fields = ['created_at', 'updated_at']
+    autocomplete_fields = ['bank']  # Para búsqueda rápida
+    
+    fieldsets = (
+        ('Información Básica', {
+            'fields': ('provider', 'bank', 'account_type', 'country')
+        }),
+        ('Datos de Cuenta', {
+            'fields': ('owner_fullname', 'account_number_masked', 'account_number_encrypted')
+        }),
+        ('Configuración', {
+            'fields': ('is_primary',)
+        }),
+        ('Auditoría', {
+            'fields': ('created_at', 'updated_at'),
+            'classes': ('collapse',)
+        }),
+    )
+    
+    search_fields = ['provider__username', 'owner_fullname', 'bank__name']
+
+@admin.register(WithdrawalRequest)
+class WithdrawalRequestAdmin(admin.ModelAdmin):
+    list_display = ['withdrawal_id', 'provider_name', 'requested_amount', 'commission_amount', 'amount_payable', 'status_badge', 'created_at']
+    list_filter = ['status', 'created_at']
+    search_fields = ['provider__username', 'provider__email', 'id']
+    date_hierarchy = 'created_at'
+    readonly_fields = ['id', 'commission_percent', 'commission_amount', 'amount_payable', 'created_at', 'updated_at']
+    actions = ['mark_as_completed', 'mark_as_rejected']
+    
+    fieldsets = (
+        ('Solicitud', {
+            'fields': ('id', 'provider', 'provider_bank_account', 'description')
+        }),
+        ('Montos', {
+            'fields': ('requested_amount', 'commission_percent', 'commission_amount', 'amount_payable')
+        }),
+        ('Procesamiento', {
+            'fields': ('status', 'transfer_receipt_number', 'admin_note', 'processed_by')
+        }),
+        ('Reservas Cubiertas', {
+            'fields': ('covered_bookings',),
+            'classes': ('collapse',)
+        }),
+        ('Auditoría', {
+            'fields': ('created_at', 'updated_at'),
+            'classes': ('collapse',)
+        }),
+    )
+    
+    def withdrawal_id(self, obj):
+        return str(obj.id)[:8]
+    withdrawal_id.short_description = 'ID'
+    
+    def provider_name(self, obj):
+        return obj.provider.get_full_name() or obj.provider.username
+    provider_name.short_description = 'Proveedor'
+    
+    def status_badge(self, obj):
+        colors = {'pending': 'warning', 'completed': 'success', 'rejected': 'danger'}
+        color = colors.get(obj.status, 'secondary')
+        return format_html(f'<span class="badge bg-{color}">{obj.get_status_display()}</span>')
+    status_badge.short_description = 'Estado'
+    
+    def mark_as_completed(self, request, queryset):
+        for withdrawal in queryset.filter(status='pending'):
+            if not withdrawal.transfer_receipt_number:
+                messages.warning(request, f'Retiro {withdrawal.id} sin número de comprobante')
+                continue
+            
+            withdrawal.status = 'completed'
+            withdrawal.processed_by = request.user
+            withdrawal.save()
+            
+            AuditLog.objects.create(
+                user=request.user,
+                action='Retiro completado',
+                metadata={'withdrawal_id': str(withdrawal.id), 'amount': str(withdrawal.amount_payable)}
+            )
+        
+        self.message_user(request, 'Retiros marcados como completados')
+    mark_as_completed.short_description = 'Marcar como completado'
+    
+    def mark_as_rejected(self, request, queryset):
+        queryset.filter(status='pending').update(status='rejected', processed_by=request.user)
+        self.message_user(request, 'Retiros rechazados')
+    mark_as_rejected.short_description = 'Rechazar'

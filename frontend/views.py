@@ -5,7 +5,7 @@ from django.contrib import messages
 from django.utils import timezone
 from django.conf import settings
 from django.core.mail import send_mail
-from django.db.models import Q, Avg, Count, Sum
+from django.db.models import Q, Avg, Count, Sum, F
 from datetime import timedelta, datetime
 from django.contrib.auth.models import User
 from django.http import JsonResponse
@@ -18,7 +18,8 @@ from core.models import (
     Booking, Location, Review, AuditLog,
     Zone, ProviderSchedule, ProviderUnavailability,
     PaymentMethod, BankAccount, PaymentProof,
-    ProviderZoneCost, SystemConfig, Notification, Payment
+    ProviderZoneCost, SystemConfig, Notification, Payment,
+    WithdrawalRequest, ProviderBankAccount, Bank
 )
 
 from core.image_upload import (
@@ -26,9 +27,78 @@ from core.image_upload import (
     upload_service_image, upload_payment_proof,
     delete_image, upload_image, validate_image
 )
-from .forms import BankTransferForm
+
+from decimal import Decimal, ROUND_HALF_UP
 
 categories = Category.objects.all()
+
+def get_active_balance(provider):
+    """Calcula el saldo activo (no pagado) del proveedor, restando retiros pendientes"""
+    # Dinero ganado (completado y pagado)
+    qs = Booking.objects.filter(
+        provider=provider, 
+        status__in=['completed','accepted'], 
+        payment_status='paid'
+    )
+    earned = qs.aggregate(total=Sum(F('sub_total_cost') + F('travel_cost')))['total'] or Decimal('0.00')
+    
+    # Restar retiros completados
+    completed_withdrawals = WithdrawalRequest.objects.filter(
+        provider=provider,
+        status='completed'
+    ).aggregate(total=Sum('amount_payable'))['total'] or Decimal('0.00')
+    
+    # Restar retiros pendientes
+    pending_withdrawals = WithdrawalRequest.objects.filter(
+        provider=provider,
+        status='pending'
+    ).aggregate(total=Sum('requested_amount'))['total'] or Decimal('0.00')
+    
+    return earned - completed_withdrawals - pending_withdrawals
+
+
+def check_withdrawal_limits(provider):
+    """Verifica si el proveedor puede hacer un retiro hoy"""
+    from django.conf import settings
+    
+    today = timezone.now().date()
+    
+    # Verificar retiros de hoy
+    today_withdrawals = WithdrawalRequest.objects.filter(
+        provider=provider,
+        created_at__date=today,
+        status__in=['pending', 'completed']
+    ).count()
+    
+    max_per_day = settings.LIBERI_WITHDRAWAL_MAX_PER_DAY
+    if today_withdrawals >= max_per_day:
+        return False, f"Ya realizaste {today_withdrawals} retiro(s) hoy. Máximo: {max_per_day} por día"
+    
+    return True, None
+
+
+def check_weekly_withdrawal_limit(provider, amount):
+    """Verifica si el retiro no excede el límite semanal"""
+    from django.conf import settings
+    
+    today = timezone.now().date()
+    week_start = today - timedelta(days=today.weekday())  # Lunes de esta semana
+    
+    # Sumar retiros de esta semana
+    weekly_total = WithdrawalRequest.objects.filter(
+        provider=provider,
+        created_at__date__gte=week_start,
+        status__in=['pending', 'completed']
+    ).aggregate(total=Sum('requested_amount'))['total'] or Decimal('0.00')
+    
+    weekly_limit = Decimal(str(settings.LIBERI_WITHDRAWAL_WEEKLY_LIMIT))
+    new_total = weekly_total + Decimal(str(amount))
+    
+    if new_total > weekly_limit:
+        remaining = weekly_limit - weekly_total
+        return False, f"Límite semanal: ${weekly_limit}. Ya has retirado ${weekly_total}. Puedes retirar máximo: ${remaining}"
+    
+    return True, None
 
 # ============================================================================
 # HOME & PUBLIC VIEWS
@@ -785,6 +855,9 @@ def dashboard_provider(request):
         payment_status='paid'
     ).aggregate(total=Sum('total_cost'))['total'] or 0
     
+    # NUEVO: Calcular saldo activo disponible para retirar
+    active_balance = get_active_balance(request.user)
+    
     # Reservas recientes
     recent_bookings = bookings.order_by('-created_at')[:5]
     
@@ -810,6 +883,7 @@ def dashboard_provider(request):
         'pending_bookings': pending_bookings,
         'completed_bookings': completed_bookings,
         'total_earnings': total_earnings,
+        'active_balance': active_balance,  # NUEVO
         'recent_bookings': recent_bookings,
         'services': services,
         'recent_reviews': recent_reviews,
@@ -2813,3 +2887,267 @@ def payphone_callback(request):
     else: 
         # Estado pendiente, no hacer nada por ahora
         return JsonResponse({'status': 'pending', 'message': 'Transaction is still pending'}, status=200)
+
+# ============================================================================
+# WITHDRAWS VIEWS
+# ============================================================================
+
+# Agregar funciones de utilidad
+def get_active_balance(provider):
+    """Calcula el saldo activo (no pagado) del proveedor"""
+    qs = Booking.objects.filter(
+        provider=provider, 
+        status__in=['completed','accepted'], 
+        payment_status='paid'
+    )
+    agg = qs.aggregate(total=Sum(F('sub_total_cost') + F('travel_cost')))
+    return agg['total'] or Decimal('0.00')
+
+
+def calculate_withdrawal(requested_amount, commission_percent):
+    """Calcula comisión y monto a pagar"""
+    requested = Decimal(str(requested_amount))
+    percent = Decimal(str(commission_percent))
+    commission_amount = (requested * percent / Decimal('100')).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+    amount_payable = (requested - commission_amount).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+    return commission_amount, amount_payable
+
+@login_required
+def provider_bank_accounts(request):
+    """Gestión de cuentas bancarias del proveedor"""
+    if request.user.profile.role != 'provider':
+        messages.error(request, 'Solo los proveedores pueden acceder')
+        return redirect('dashboard')
+    
+    bank_accounts = ProviderBankAccount.objects.filter(provider=request.user)
+    banks = Bank.objects.filter(is_active=True).order_by('name')
+    
+    if request.method == 'POST':
+        bank_id = request.POST.get('bank_id')
+        account_type = request.POST.get('account_type')
+        account_number = request.POST.get('account_number')
+        owner_fullname = request.POST.get('owner_fullname')
+        is_primary = request.POST.get('is_primary') == 'on'
+        
+        # Validar banco
+        if not bank_id:
+            messages.error(request, 'Selecciona un banco')
+            return render(request, 'providers/bank_accounts.html', {
+                'bank_accounts': bank_accounts,
+                'banks': banks,
+                'account_types': [('checking', 'Cuenta Corriente'), ('savings', 'Cuenta de Ahorros')]
+            })
+        
+        # Enmascarar número
+        account_masked = f"{account_number[:4]}****{account_number[-4:]}" if len(account_number) > 8 else account_number
+        
+        try:
+            bank = Bank.objects.get(id=bank_id, is_active=True)
+            
+            # Si es primaria, desmarcar otras
+            if is_primary:
+                ProviderBankAccount.objects.filter(provider=request.user).update(is_primary=False)
+            
+            account = ProviderBankAccount.objects.create(
+                provider=request.user,
+                bank=bank,
+                account_type=account_type,
+                account_number_masked=account_masked,
+                owner_fullname=owner_fullname,
+                is_primary=is_primary
+            )
+            
+            AuditLog.objects.create(
+                user=request.user,
+                action='Cuenta bancaria agregada',
+                metadata={'bank': bank.name}
+            )
+            
+            messages.success(request, 'Cuenta bancaria agregada')
+            return redirect('provider_bank_accounts')
+        except Bank.DoesNotExist:
+            messages.error(request, 'Banco no válido')
+        except Exception as e:
+            messages.error(request, f'Error: {str(e)}')
+    
+    context = {
+        'bank_accounts': bank_accounts,
+        'banks': banks,
+        'account_types': [('checking', 'Cuenta Corriente'), ('savings', 'Cuenta de Ahorros')]
+    }
+    return render(request, 'providers/bank_accounts.html', context)
+
+
+@login_required
+def provider_bank_account_delete(request, account_id):
+    """Eliminar cuenta bancaria"""
+    account = get_object_or_404(ProviderBankAccount, id=account_id, provider=request.user)
+    
+    if request.method == 'POST':
+        account.delete()
+        messages.success(request, 'Cuenta eliminada')
+    
+    return redirect('provider_bank_accounts')
+
+
+@login_required
+def provider_withdrawal_list(request):
+    """Listado de retiros del proveedor"""
+    if request.user.profile.role != 'provider':
+        messages.error(request, 'Solo los proveedores pueden acceder')
+        return redirect('dashboard')
+    
+    withdrawals = WithdrawalRequest.objects.filter(provider=request.user).order_by('-created_at')
+    active_balance = get_active_balance(request.user)
+    
+    context = {
+        'withdrawals': withdrawals,
+        'active_balance': active_balance
+    }
+    return render(request, 'providers/withdrawals_list.html', context)
+
+
+@login_required
+def provider_withdrawal_create(request):
+    """Crear solicitud de retiro"""
+    if request.user.profile.role != 'provider':
+        messages.error(request, 'Solo los proveedores pueden acceder')
+        return redirect('dashboard')
+    
+    active_balance = get_active_balance(request.user)
+    bank_accounts = ProviderBankAccount.objects.filter(provider=request.user).select_related('bank')
+    commission_percent = Decimal(settings.LIBERI_WITHDRAWAL_COMMISSION_PERCENT or '4.0')
+    weekly_limit = Decimal(str(settings.LIBERI_WITHDRAWAL_WEEKLY_LIMIT or '500.0'))
+    
+    # Verificar si puede hacer retiro hoy
+    can_withdraw_today, error_msg = check_withdrawal_limits(request.user)
+    
+    if request.method == 'POST':
+        # Validación 1: Puede retirar hoy?
+        if not can_withdraw_today:
+            messages.error(request, error_msg)
+            return render(request, 'providers/withdrawal_create.html', {
+                'active_balance': active_balance,
+                'bank_accounts': bank_accounts,
+                'commission_percent': commission_percent,
+                'weekly_limit': weekly_limit,
+                'can_withdraw_today': can_withdraw_today,
+                'error_msg': error_msg
+            })
+        
+        bank_account_id = request.POST.get('bank_account_id')
+        requested_amount = Decimal(request.POST.get('requested_amount', 0))
+        description = request.POST.get('description', '')
+        
+        # Validación 2: Cuenta seleccionada?
+        if not bank_account_id:
+            messages.error(request, 'Selecciona una cuenta bancaria')
+            return render(request, 'providers/withdrawal_create.html', {
+                'active_balance': active_balance,
+                'bank_accounts': bank_accounts,
+                'commission_percent': commission_percent,
+                'weekly_limit': weekly_limit,
+                'can_withdraw_today': can_withdraw_today
+            })
+        
+        # Validación 3: Monto válido?
+        if requested_amount <= 0:
+            messages.error(request, 'El monto debe ser mayor a 0')
+            return render(request, 'providers/withdrawal_create.html', {
+                'active_balance': active_balance,
+                'bank_accounts': bank_accounts,
+                'commission_percent': commission_percent,
+                'weekly_limit': weekly_limit,
+                'can_withdraw_today': can_withdraw_today
+            })
+        
+        # Validación 4: Saldo suficiente?
+        if requested_amount > active_balance:
+            messages.error(request, f'Saldo insuficiente. Disponible: ${active_balance}')
+            return render(request, 'providers/withdrawal_create.html', {
+                'active_balance': active_balance,
+                'bank_accounts': bank_accounts,
+                'commission_percent': commission_percent,
+                'weekly_limit': weekly_limit,
+                'can_withdraw_today': can_withdraw_today
+            })
+        
+        # Validación 5: Límite semanal?
+        can_withdraw_weekly, weekly_error = check_weekly_withdrawal_limit(request.user, requested_amount)
+        if not can_withdraw_weekly:
+            messages.error(request, weekly_error)
+            return render(request, 'providers/withdrawal_create.html', {
+                'active_balance': active_balance,
+                'bank_accounts': bank_accounts,
+                'commission_percent': commission_percent,
+                'weekly_limit': weekly_limit,
+                'can_withdraw_today': can_withdraw_today,
+                'weekly_error': weekly_error
+            })
+        
+        try:
+            bank_account = ProviderBankAccount.objects.get(id=bank_account_id, provider=request.user)
+            
+            # Calcular comisión
+            commission_amount, amount_payable = calculate_withdrawal(requested_amount, commission_percent)
+            
+            # Crear solicitud
+            withdrawal = WithdrawalRequest.objects.create(
+                provider=request.user,
+                provider_bank_account=bank_account,
+                requested_amount=requested_amount,
+                commission_percent=commission_percent,
+                commission_amount=commission_amount,
+                amount_payable=amount_payable,
+                description=description,
+                status='pending'
+            )
+            
+            # Notificar admins
+            admin_users = User.objects.filter(is_staff=True, is_active=True)
+            admin_emails = [a.email for a in admin_users if a.email]
+            
+            if admin_emails:
+                try:
+                    send_mail(
+                        subject=f'💰 Nueva Solicitud de Retiro - {request.user.get_full_name()}',
+                        message=f"""
+Nuevo retiro solicitado:
+
+Proveedor: {request.user.get_full_name()}
+Monto Solicitado: ${requested_amount}
+Comisión (4%): ${commission_amount}
+A Pagar: ${amount_payable}
+Banco: {bank_account.bank.name}
+Cuenta: {bank_account.account_number_masked}
+
+Revisa en admin: /admin/core/withdrawalrequest/{withdrawal.id}/change/
+                        """,
+                        from_email=settings.DEFAULT_FROM_EMAIL,
+                        recipient_list=admin_emails,
+                        fail_silently=True
+                    )
+                except:
+                    pass
+            
+            AuditLog.objects.create(
+                user=request.user,
+                action='Solicitud de retiro creada',
+                metadata={'amount': str(requested_amount), 'commission': str(commission_amount)}
+            )
+            
+            messages.success(request, '✅ Solicitud de retiro creada. Espera la validación del equipo.')
+            return redirect('provider_withdrawal_list')
+            
+        except ProviderBankAccount.DoesNotExist:
+            messages.error(request, 'Cuenta no encontrada')
+    
+    context = {
+        'active_balance': active_balance,
+        'bank_accounts': bank_accounts,
+        'commission_percent': commission_percent,
+        'weekly_limit': weekly_limit,
+        'can_withdraw_today': can_withdraw_today,
+        'error_msg': error_msg if not can_withdraw_today else None
+    }
+    return render(request, 'providers/withdrawal_create.html', context)

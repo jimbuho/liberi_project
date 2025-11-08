@@ -499,7 +499,6 @@ class PaymentMethod(models.Model):
     def __str__(self):
         return f"{self.name} {'(Activo)' if self.is_active else '(Inactivo)'}"
 
-
 # ============================================
 # MODELO: BankAccount
 # ============================================
@@ -1000,3 +999,76 @@ El Equipo de Liberi
             )
         except Exception as e:
             print(f"❌ Error enviando email al proveedor: {e}")
+
+# ============================================
+# MODELO: Bank
+# ============================================
+class Bank(models.Model):
+    """Bancos disponibles en el sistema"""
+    name = models.CharField('Nombre', max_length=128, unique=True)
+    code = models.CharField('Código', max_length=10, unique=True)
+    country = models.CharField('País', max_length=64, default='EC')
+    is_active = models.BooleanField('Activo', default=True)
+    created_at = models.DateTimeField('Creado', auto_now_add=True)
+
+    class Meta:
+        db_table = 'banks'
+        verbose_name = 'Banco'
+        verbose_name_plural = 'Bancos'
+        ordering = ['name']
+
+    def __str__(self):
+        return self.name
+
+class ProviderBankAccount(models.Model):
+    """Cuenta bancaria del proveedor para recibir retiros"""
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    provider = models.ForeignKey(User, on_delete=models.CASCADE, related_name='provider_bank_accounts', verbose_name='Proveedor')
+    bank = models.ForeignKey(Bank, on_delete=models.PROTECT, verbose_name='Banco')  # CAMBIADO
+    account_type = models.CharField('Tipo de Cuenta', max_length=64, choices=[('checking','Cuenta Corriente'),('savings','Cuenta de Ahorros')])
+    country = models.CharField('País', max_length=64, default='EC')
+    account_number_masked = models.CharField('Número Enmascarado', max_length=64)
+    account_number_encrypted = models.TextField('Número Cifrado', null=True, blank=True)
+    owner_fullname = models.CharField('Titular', max_length=200)
+    is_primary = models.BooleanField('Principal', default=False)
+    created_at = models.DateTimeField('Creado', auto_now_add=True)
+    updated_at = models.DateTimeField('Actualizado', auto_now=True)
+
+    class Meta:
+        db_table = 'provider_bank_accounts'
+        verbose_name = 'Cuenta Bancaria del Proveedor'
+        verbose_name_plural = 'Cuentas Bancarias de Proveedores'
+        unique_together = (('provider', 'account_number_masked'),)
+
+    def __str__(self):
+        return f"{self.bank.name} - {self.account_number_masked}"
+
+
+class WithdrawalRequest(models.Model):
+    """Solicitud de retiro del proveedor"""
+    STATUS_CHOICES = (('pending','Pendiente'), ('rejected','Rechazado'), ('completed','Completado'))
+    
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    provider = models.ForeignKey(User, on_delete=models.CASCADE, related_name='withdrawal_requests', verbose_name='Proveedor')
+    provider_bank_account = models.ForeignKey(ProviderBankAccount, on_delete=models.SET_NULL, null=True, blank=True, verbose_name='Cuenta Bancaria')
+    requested_amount = models.DecimalField('Monto Solicitado', max_digits=10, decimal_places=2)
+    commission_percent = models.DecimalField('% Comisión', max_digits=5, decimal_places=2)
+    commission_amount = models.DecimalField('Monto Comisión', max_digits=10, decimal_places=2)
+    amount_payable = models.DecimalField('Monto a Pagar', max_digits=10, decimal_places=2)
+    description = models.TextField('Descripción', blank=True)
+    status = models.CharField('Estado', max_length=20, choices=STATUS_CHOICES, default='pending')
+    admin_note = models.TextField('Nota Admin', blank=True)
+    transfer_receipt_number = models.CharField('Nº Comprobante', max_length=256, blank=True)
+    covered_bookings = models.JSONField('Reservas Cubiertas', default=list, blank=True)
+    created_at = models.DateTimeField('Creado', auto_now_add=True)
+    updated_at = models.DateTimeField('Actualizado', auto_now=True)
+    processed_by = models.ForeignKey(User, null=True, blank=True, on_delete=models.SET_NULL, related_name='processed_withdrawals', verbose_name='Procesado Por')
+
+    class Meta:
+        db_table = 'withdrawal_requests'
+        verbose_name = 'Solicitud de Retiro'
+        verbose_name_plural = 'Solicitudes de Retiro'
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"Retiro {str(self.id)[:8]} - ${self.requested_amount}"
