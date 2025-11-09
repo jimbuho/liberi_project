@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background-color: #f5f5f5;
+            margin: 0;
+            padding: 0;
+        }
+        
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            background-color: white;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+            color: white;
+            padding: 2rem;
+            text-align: center;
+        }
+        
+        .header h1 {
+            margin: 0;
+            font-size: 1.8rem;
+        }
+        
+        .content {
+            padding: 2rem;
+        }
+        
+        .content p {
+            margin: 1rem 0;
+            font-size: 0.95rem;
+        }
+        
+        .success-badge {
+            display: inline-block;
+            background-color: #28a745;
+            color: white;
+            padding: 0.5rem 1rem;
+            border-radius: 20px;
+            font-weight: bold;
+            margin: 1rem 0;
+        }
+        
+        .next-steps {
+            background-color: #f9f9f9;
+            border-left: 4px solid #28a745;
+            padding: 1.5rem;
+            border-radius: 4px;
+            margin: 1.5rem 0;
+        }
+        
+        .next-steps h3 {
+            margin-top: 0;
+            color: #28a745;
+        }
+        
+        .next-steps ol {
+            margin: 1rem 0;
+            padding-left: 1.5rem;
+        }
+        
+        .next-steps li {
+            margin: 0.5rem 0;
+        }
+        
+        .btn-login {
+            display: inline-block;
+            background-color: #28a745;
+            color: white;
+            padding: 12px 30px;
+            text-decoration: none;
+            border-radius: 5px;
+            font-weight: bold;
+            text-align: center;
+            margin: 1rem 0;
+        }
+        
+        .btn-login:hover {
+            background-color: #218838;
+        }
+        
+        .features {
+            background-color: #e8f5e9;
+            padding: 1.5rem;
+            border-radius: 5px;
+            margin: 1.5rem 0;
+        }
+        
+        .feature-item {
+            margin: 0.8rem 0;
+            padding-left: 1.5rem;
+            position: relative;
+        }
+        
+        .feature-item:before {
+            content: "✓";
+            position: absolute;
+            left: 0;
+            color: #28a745;
+            font-weight: bold;
+        }
+        
+        .footer {
+            background-color: #f8f9fa;
+            padding: 1.5rem;
+            text-align: center;
+            border-top: 1px solid #e9ecef;
+            font-size: 0.85rem;
+            color: #666;
+        }
+        
+        .footer a {
+            color: #28a745;
+            text-decoration: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <div class="header">
+            <h1>✓ ¡Bienvenido a Liberi!</h1>
+        </div>
+        
+        <!-- Content -->
+        <div class="content">
+            <p>Hola <strong>{{ user_name }}</strong>,</p>
+            
+            <p>¡Tu correo electrónico ha sido verificado exitosamente!</p>
+            
+            <div class="success-badge">
+                ✓ Tu cuenta está activada
+            </div>
+            
+            <p>Ya puedes acceder a tu cuenta y comenzar a usar Liberi.</p>
+            
+            <!-- Next Steps -->
+            <div class="next-steps">
+                <h3>Próximos Pasos</h3>
+                <ol>
+                    <li><strong>Inicia sesión</strong> con tus credenciales</li>
+                    <li><strong>Completa tu perfil</strong> con tu información</li>
+                    <li>{% if is_provider %}<strong>Carga tus documentos</strong> de verificación{% else %}<strong>Agrega una ubicación</strong> para recibir servicios{% endif %}</li>
+                    <li>{% if is_provider %}<strong>Crea tus servicios</strong> y solicita aprobación{% else %}<strong>Busca proveedores</strong> en tu zona{% endif %}</li>
+                </ol>
+            </div>
+            
+            <!-- Features -->
+            <div class="features">
+                <h4 style="margin-top: 0; color: #28a745;">Lo que puedes hacer en Liberi:</h4>
+                <div class="feature-item">Encuentra servicios profesionales cerca de ti</div>
+                <div class="feature-item">Reserva en línea de forma fácil y segura</div>
+                <div class="feature-item">Paga de forma segura con múltiples métodos</div>
+                <div class="feature-item">Deja reseñas y calificaciones</div>
+                <div class="feature-item">Recibe notificaciones en tiempo real</div>
+            </div>
+            
+            <!-- CTA Button -->
+            <div style="text-align: center;">
+                <a href="{{ login_url }}" class="btn-login">
+                    Iniciar Sesión
+                </a>
+            </div>
+            
+            <!-- Contact Support -->
+            <p style="color: #666; font-size: 0.9rem; margin-top: 2rem; text-align: center;">
+                ¿Necesitas ayuda?<br>
+                Contáctanos a <a href="mailto:soporte@liberi.com">soporte@liberi.com</a>
+            </p>
+        </div>
+        
+        <!-- Footer -->
+        <div class="footer">
+            <p style="margin: 0 0 0.5rem 0;">© 2024 Liberi. Todos los derechos reservados.</p>
+            <p style="margin: 0.5rem 0;">
+                <a href="https://liberi.com">www.liberi.com</a>
+            </p>
+            <p style="margin: 0.5rem 0; font-size: 0.8rem; color: #999;">
+                Avenida Amazonas, Quito - Ecuador
+            </p>
+        </div>
+    </div>
+</body>
+</html>

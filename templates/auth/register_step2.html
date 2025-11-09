@@ -1,0 +1,150 @@
+<!-- templates/auth/register_step2.html -->
+{% extends 'base.html' %}
+
+{% block title %}Verificación de Identidad - Liberi{% endblock %}
+
+{% block content %}
+<div class="container mt-5 mb-5">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-body p-5">
+                    <div class="text-center mb-4">
+                        <i class="fas fa-id-card fa-3x text-primary mb-3"></i>
+                        <h2>Verificación de Identidad</h2>
+                        <p class="text-muted">Paso 2 de 2 - Último paso para completar tu registro</p>
+                    </div>
+
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle"></i>
+                        <strong>¿Por qué necesitamos esto?</strong>
+                        <p class="mb-0 mt-2">
+                            Para garantizar la seguridad de nuestra plataforma y la confianza entre usuarios,
+                            necesitamos verificar tu identidad. Estos documentos son confidenciales y solo
+                            serán revisados por nuestro equipo de administración.
+                        </p>
+                    </div>
+
+                    <form method="post" enctype="multipart/form-data">
+                        {% csrf_token %}
+                        
+                        <h5 class="mb-3">Sube las siguientes imágenes:</h5>
+
+                        <!-- Cédula Frontal -->
+                        <div class="mb-4">
+                            <label for="id_card_front" class="form-label">
+                                <i class="fas fa-id-card"></i> 1. Cédula de Identidad (Anverso) *
+                            </label>
+                            <input type="file" 
+                                   class="form-control" 
+                                   id="id_card_front" 
+                                   name="id_card_front" 
+                                   accept="image/jpeg,image/png,image/jpg"
+                                   required>
+                            <small class="text-muted">
+                                Foto clara del frente de tu cédula. Máximo 2MB.
+                            </small>
+                        </div>
+
+                        <!-- Cédula Posterior -->
+                        <div class="mb-4">
+                            <label for="id_card_back" class="form-label">
+                                <i class="fas fa-id-card"></i> 2. Cédula de Identidad (Reverso) *
+                            </label>
+                            <input type="file" 
+                                   class="form-control" 
+                                   id="id_card_back" 
+                                   name="id_card_back" 
+                                   accept="image/jpeg,image/png,image/jpg"
+                                   required>
+                            <small class="text-muted">
+                                Foto clara del reverso de tu cédula. Máximo 2MB.
+                            </small>
+                        </div>
+
+                        <!-- Selfie con Cédula -->
+                        <div class="mb-4">
+                            <label for="selfie_with_id" class="form-label">
+                                <i class="fas fa-camera"></i> 3. Foto de tu Rostro Sosteniendo la Cédula *
+                            </label>
+                            <input type="file" 
+                                   class="form-control" 
+                                   id="selfie_with_id" 
+                                   name="selfie_with_id" 
+                                   accept="image/jpeg,image/png,image/jpg"
+                                   required>
+                            <small class="text-muted">
+                                Selfie donde se vea claramente tu rostro y tu cédula. Máximo 2MB.
+                            </small>
+                            
+                            <div class="alert alert-warning mt-2">
+                                <strong><i class="fas fa-camera"></i> Consejos para una buena foto:</strong>
+                                <ul class="mb-0 mt-2">
+                                    <li>Asegúrate de que haya buena iluminación</li>
+                                    <li>Tu rostro y la cédula deben verse claramente</li>
+                                    <li>La foto debe estar enfocada, no borrosa</li>
+                                    <li>Sostén la cédula cerca de tu rostro</li>
+                                </ul>
+                            </div>
+                        </div>
+
+                        <div class="alert alert-success">
+                            <i class="fas fa-shield-alt"></i>
+                            <strong>Tus datos están seguros</strong>
+                            <p class="mb-0 mt-2">
+                                Toda tu información está protegida y encriptada. Solo será utilizada
+                                para verificar tu identidad y nunca será compartida con terceros.
+                            </p>
+                        </div>
+
+                        <div class="d-grid gap-2">
+                            <button type="submit" class="btn btn-primary btn-lg">
+                                <i class="fas fa-check-circle"></i> Completar Verificación
+                            </button>
+                        </div>
+                    </form>
+
+                    <div class="text-center mt-4">
+                        <small class="text-muted">
+                            Al continuar, aceptas que verificaremos tu identidad con los documentos proporcionados.
+                        </small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Preview de imágenes antes de subir
+document.querySelectorAll('input[type="file"]').forEach(input => {
+    input.addEventListener('change', function(e) {
+        const file = e.target.files[0];
+        if (file) {
+            // Validar tamaño
+            if (file.size > 2 * 1024 * 1024) {
+                alert('La imagen no puede superar los 2MB');
+                this.value = '';
+                return;
+            }
+            
+            // Validar tipo
+            if (!['image/jpeg', 'image/png', 'image/jpg'].includes(file.type)) {
+                alert('Solo se permiten archivos JPG o PNG');
+                this.value = '';
+                return;
+            }
+            
+            // Agregar check visual
+            const label = this.previousElementSibling;
+            if (!label.querySelector('.badge')) {
+                const badge = document.createElement('span');
+                badge.className = 'badge bg-success ms-2';
+                badge.innerHTML = '<i class="fas fa-check"></i> Cargado';
+                label.appendChild(badge);
+            }
+        }
+    });
+});
+</script>
+{% endblock %}

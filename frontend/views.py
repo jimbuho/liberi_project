@@ -448,7 +448,7 @@ def login_view(request):
 
 
 def register_view(request):
-    """Registro de cliente"""
+    """Registro de cliente CON VERIFICACIÓN DE EMAIL"""
     if request.user.is_authenticated:
         return redirect('dashboard')
     
@@ -461,7 +461,6 @@ def register_view(request):
         last_name = request.POST.get('last_name')
         phone = request.POST.get('phone')
         
-        # Validaciones
         if password != password_confirm:
             messages.error(request, 'Las contraseñas no coinciden')
             return render(request, 'auth/register.html')
@@ -474,39 +473,58 @@ def register_view(request):
             messages.error(request, 'El email ya está registrado')
             return render(request, 'auth/register.html')
         
-        # Crear usuario
         user = User.objects.create_user(
             username=username,
             email=email,
             password=password,
             first_name=first_name,
-            last_name=last_name
+            last_name=last_name,
+            is_active=False
         )
         
-        # Crear perfil
         Profile.objects.create(
             user=user,
             phone=phone,
             role='customer'
         )
         
-        # Login automático
-        login(request, user)
-        messages.success(request, '¡Registro exitoso! Bienvenido a Liberi')
-        
-        return redirect('dashboard')
+        try:
+            success, message = send_verification_email(user, email)
+            
+            if success:
+                messages.success(
+                    request,
+                    '¡Registro exitoso! Te hemos enviado un email de verificación. '
+                    'Revisa tu bandeja de entrada (y carpeta de spam) para confirmar tu email.'
+                )
+                
+                AuditLog.objects.create(
+                    user=user,
+                    action='Registro iniciado - Esperando verificación de email',
+                    metadata={'email': email}
+                )
+                
+                return redirect('login')
+            else:
+                user.delete()
+                messages.error(request, f'Error al enviar email: {message}')
+                return render(request, 'auth/register.html')
+                
+        except Exception as e:
+            user.delete()
+            messages.error(request, f'Error en el registro: {str(e)}')
+            return render(request, 'auth/register.html')
     
     return render(request, 'auth/register.html')
 
 
 def register_provider_view(request):
-    """Registro de proveedor"""
+    """Registro de proveedor CON VERIFICACIÓN DE EMAIL"""
     if request.user.is_authenticated:
         messages.info(request, 'Ya tienes una sesión activa')
         return redirect('dashboard')
     
     if request.method == 'POST':
-        # Datos de usuario
         username = request.POST.get('username')
         email = request.POST.get('email')
         password = request.POST.get('password')
@@ -515,13 +533,11 @@ def register_provider_view(request):
         last_name = request.POST.get('last_name')
         phone = request.POST.get('phone')
         
-        # Datos de proveedor
         category_id = request.POST.get('category')
         description = request.POST.get('description')
         business_name = request.POST.get('business_name')
         profile_photo = request.FILES.get('profile_photo')
         
-        # Validaciones
         if password != password_confirm:
             messages.error(request, 'Las contraseñas no coinciden')
             return render(request, 'auth/register_provider.html', {'categories': categories})
@@ -539,30 +555,26 @@ def register_provider_view(request):
             return render(request, 'auth/register_provider.html', {'categories': categories})
 
         try:
-            # Crear usuario
             user = User.objects.create_user(
                 username=username,
                 email=email,
                 password=password,
                 first_name=first_name,
-                last_name=last_name
+                last_name=last_name,
+                is_active=False
             )
 
-            # Subir foto usando el helper (detecta automáticamente el ambiente)
             photo_url = upload_profile_photo(
                 file=profile_photo,
                 user_id=user.id
             )
             
-            # Crear perfil
             Profile.objects.create(
                 user=user,
                 phone=phone,
                 role='provider'
             )
             
-            # Crear perfil de proveedor
-            # Las zonas de cobertura y costos se configurarán después del primer servicio
             ProviderProfile.objects.create(
                 user=user,
                 category_id=category_id,
@@ -570,27 +582,40 @@ def register_provider_view(request):
                 business_name=business_name,
                 profile_photo=photo_url,
                 status='created',
-                registration_step=1  # Primer paso completado
+                registration_step=1
             )
             
-            # Login automático
-            login(request, user)
-
-            messages.success(
-                request,
-                'Perfil creado exitosamente. Por favor completa la verificación de identidad.'
-            )
-            return redirect('provider_register_step2')
+            success, message = send_verification_email(user, email)
+            
+            if success:
+                messages.success(
+                    request,
+                    '¡Perfil creado! Te hemos enviado un email de verificación. '
+                    'Completa la verificación para acceder a tu cuenta y continuar con la verificación de identidad.'
+                )
+                
+                AuditLog.objects.create(
+                    user=user,
+                    action='Registro de proveedor iniciado - Esperando verificación de email',
+                    metadata={
+                        'email': email,
+                        'business_name': business_name
+                    }
+                )
+                
+                return redirect('login')
+            else:
+                user.delete()
+                messages.error(request, f'Error al enviar email: {message}')
+                return render(request, 'auth/register_provider.html', {'categories': categories})
 
         except ValueError as e:
-            # Error de validación
             messages.error(request, str(e))
             return render(request, 'auth/register_provider.html', {'categories': categories})
         except Exception as e:
-            # Error general
             try:
                 user = User.objects.get(username=username)
-                user.delete()  # Rollback
+                user.delete()
             except:
                 pass
             messages.error(request, f'Error al subir la foto: {str(e)}')
@@ -708,48 +733,53 @@ def provider_register_step2(request):
     }
     return render(request, 'auth/register_step2.html', context)
 
-@login_required
 def verify_email_view(request, token):
-    """Verifica el email del usuario usando el token"""
+    """Verifica el email del usuario usando el token y lo activa"""
     try:
         verification_token = EmailVerificationToken.objects.get(token=token)
     except EmailVerificationToken.DoesNotExist:
         messages.error(request, 'Token de verificación inválido o expirado')
-        return redirect('home')
+        return redirect('login')
     
-    # Validar que el token sea válido
     if not verification_token.is_valid():
-        messages.error(request, 'El token de verificación ha expirado')
-        return redirect('home')
+        verification_token.delete_if_expired()
+        messages.error(request, 'El token de verificación ha expirado. Por favor regístrate nuevamente.')
+        return redirect('register')
     
-    # Verificar el token
     verification_token.verify()
     
-    # Activar usuario
     user = verification_token.user
     user.is_active = True
     user.save()
     
-    # Determinar si es proveedor
     is_provider = user.profile.role == 'provider'
     
-    # Enviar email de bienvenida
     send_welcome_email(user, is_provider=is_provider)
     
-    # Log
     AuditLog.objects.create(
         user=user,
-        action='Email verificado',
-        metadata={'email': user.email}
+        action='Email verificado exitosamente',
+        metadata={
+            'email': user.email,
+            'role': user.profile.role
+        }
     )
     
-    messages.success(
-        request,
-        '✓ Email verificado exitosamente. Tu cuenta está activa. Ya puedes iniciar sesión.'
-    )
+    if is_provider:
+        messages.success(
+            request,
+            '✓ Email verificado exitosamente. Tu cuenta está activa. '
+            'Inicia sesión para continuar con la verificación de identidad.'
+        )
+    else:
+        messages.success(
+            request,
+            '✓ Email verificado exitosamente. Tu cuenta está activa. ¡Bienvenido a Liberi!'
+        )
     
     return redirect('login')
 
+@login_required
 def logout_view(request):
     """Logout"""
     logout(request)

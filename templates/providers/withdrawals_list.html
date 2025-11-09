@@ -1,0 +1,91 @@
+{% extends 'base.html' %}
+
+{% block title %}Mis Retiros - Liberi{% endblock %}
+
+{% block content %}
+<div class="container mt-4 mb-5">
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <div class="card bg-primary text-white">
+                <div class="card-body">
+                    <div class="row align-items-center">
+                        <div class="col-md-8">
+                            <h4 class="mb-0"><i class="fas fa-wallet"></i> Saldo Activo</h4>
+                            <p class="mb-0 mt-2">Dinero disponible para retirar (sin contar retiros pendientes)</p>
+                        </div>
+                        <div class="col-md-4 text-end">
+                            <h2 class="mb-0">${{ active_balance }}</h2>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row mb-4">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-body">
+                    <h6><i class="fas fa-calendar-day"></i> Límite Diario</h6>
+                    <h3 class="mb-0">1 retiro/día</h3>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-body">
+                    <h6><i class="fas fa-calendar-week"></i> Límite Semanal</h6>
+                    <h3 class="mb-0">$500 USD</h3>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2><i class="fas fa-exchange-alt"></i> Mis Retiros</h2>
+        {% if active_balance > 0 %}
+        <a href="{% url 'provider_withdrawal_create' %}" class="btn btn-success">
+            <i class="fas fa-plus"></i> Solicitar Retiro
+        </a>
+        {% endif %}
+    </div>
+
+    {% if withdrawals %}
+    <div class="table-responsive">
+        <table class="table table-hover">
+            <thead class="table-light">
+                <tr>
+                    <th>Fecha</th>
+                    <th>Monto Solicitado</th>
+                    <th>Comisión</th>
+                    <th>A Recibir</th>
+                    <th>Estado</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for withdrawal in withdrawals %}
+                <tr>
+                    <td>{{ withdrawal.created_at|date:"d/m/Y H:i" }}</td>
+                    <td>${{ withdrawal.requested_amount }}</td>
+                    <td>
+                        <small class="text-muted">${{ withdrawal.commission_amount }} ({{ withdrawal.commission_percent }}%)</small>
+                    </td>
+                    <td><strong>${{ withdrawal.amount_payable }}</strong></td>
+                    <td>
+                        <span class="badge bg-{% if withdrawal.status == 'pending' %}warning{% elif withdrawal.status == 'completed' %}success{% else %}danger{% endif %}">
+                            {{ withdrawal.get_status_display }}
+                        </span>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <div class="alert alert-info text-center">
+        <i class="fas fa-info-circle fa-3x mb-3"></i>
+        <p>No tienes retiros aún</p>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

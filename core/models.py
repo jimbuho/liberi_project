@@ -1,12 +1,14 @@
 from django.db import models
 from django.contrib.auth.models import User
 from django.utils import timezone
+from datetime import timedelta
 from django.conf import settings
 from django.core.validators import RegexValidator
 from django.utils.text import slugify
 from .custom_fields import SmartImageField, SmartFileField
 from .validators import validate_image_size_2mb
 
+import secrets
 import uuid
 
 # Extender el User de Django con un Profile
@@ -1072,3 +1074,49 @@ class WithdrawalRequest(models.Model):
 
     def __str__(self):
         return f"Retiro {str(self.id)[:8]} - ${self.requested_amount}"
+    
+class EmailVerificationToken(models.Model):
+    """Token para verificar email de usuarios nuevos"""
+    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='email_verification_token')
+    email = models.EmailField('Email a Verificar')
+    token = models.CharField('Token', max_length=255, unique=True)
+    created_at = models.DateTimeField('Creado', auto_now_add=True)
+    verified_at = models.DateTimeField('Verificado en', null=True, blank=True)
+    is_verified = models.BooleanField('Verificado', default=False)
+    
+    class Meta:
+        db_table = 'email_verification_tokens'
+        verbose_name = 'Token de Verificación de Email'
+        verbose_name_plural = 'Tokens de Verificación de Email'
+    
+    def __str__(self):
+        return f"Token para {self.user.username} - {self.email}"
+    
+    @classmethod
+    def create_for_user(cls, user, email):
+        cls.objects.filter(user=user).delete()
+        token = secrets.token_urlsafe(32)
+        verification_token = cls.objects.create(
+            user=user,
+            email=email,
+            token=token,
+            is_verified=False
+        )
+        return verification_token
+    
+    def is_valid(self):
+        if self.is_verified:
+            return False
+        expiry_time = self.created_at + timedelta(hours=24)
+        return timezone.now() < expiry_time
+    
+    def verify(self):
+        self.is_verified = True
+        self.verified_at = timezone.now()
+        self.save()
+    
+    def delete_if_expired(self):
+        if not self.is_valid():
+            self.delete()
+            return True
+        return False

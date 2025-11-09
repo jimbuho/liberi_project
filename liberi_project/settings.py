@@ -157,7 +157,7 @@ WHATSAPP_PHONE_NUMBER = os.getenv('WHATSAPP_PHONE_NUMBER', '')
 WHATSAPP_TOKEN = os.getenv('WHATSAPP_TOKEN', '')
 WHATSAPP_ACCOUNT_SID = os.getenv('WHATSAPP_ACCOUNT_SID', '')
 
-FRONTEND_URL = os.getenv('FRONTEND_URL', 'http://localhost:3000')
+FRONTEND_URL = os.getenv('FRONTEND_URL', 'http://localhost:8000')
 
 LOGIN_URL = '/login/'
 LOGIN_REDIRECT_URL = '/dashboard/'
@@ -181,3 +181,17 @@ EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER', '')
 EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD', '')
 DEFAULT_FROM_EMAIL =  os.getenv('DEFAULT_FROM_EMAIL', 'noreply@liberi.app')
 EMAIL_VERIFICATION_EXPIRE_HOURS = 24
+
+BASE_URL = os.getenv('BASE_URL', 'http://localhost:8000')
+
+
+# ============================================
+# TAREAS SEGUNDO PLANO - CELERY
+# ============================================
+CELERY_BROKER_URL = 'redis://localhost:6379/0'
+CELERY_RESULT_BACKEND = 'redis://localhost:6379/0'
+CELERY_ACCEPT_CONTENT = ['json']
+CELERY_TASK_SERIALIZER = 'json'
+CELERY_RESULT_SERIALIZER = 'json'
+CELERY_TIMEZONE = 'UTC'
+CELERY_TASK_TIME_LIMIT = 30 * 60  # 30 minutos max
