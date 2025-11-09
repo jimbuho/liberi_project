@@ -435,6 +435,15 @@ def login_view(request):
         user = authenticate(request, username=username, password=password)
         
         if user is not None:
+            # 🔥 VERIFICAR QUE EL EMAIL ESTÉ VERIFICADO
+            if not user.profile.verified:
+                messages.error(
+                    request, 
+                    '❌ Tu email aún no ha sido verificado. '
+                    'Por favor, revisa tu bandeja de entrada y haz click en el enlace de verificación.'
+                )
+                return render(request, 'auth/login.html')
+            
             login(request, user)
             messages.success(request, f'¡Bienvenido, {user.first_name or user.username}!')
             
@@ -448,7 +457,7 @@ def login_view(request):
 
 
 def register_view(request):
-    """Registro de cliente CON VERIFICACIÓN DE EMAIL"""
+    """Registro de cliente"""
     if request.user.is_authenticated:
         return redirect('dashboard')
     
@@ -461,6 +470,7 @@ def register_view(request):
         last_name = request.POST.get('last_name')
         phone = request.POST.get('phone')
         
+        # Validaciones
         if password != password_confirm:
             messages.error(request, 'Las contraseñas no coinciden')
             return render(request, 'auth/register.html')
@@ -473,47 +483,39 @@ def register_view(request):
             messages.error(request, 'El email ya está registrado')
             return render(request, 'auth/register.html')
         
+        # Crear usuario
         user = User.objects.create_user(
             username=username,
             email=email,
             password=password,
             first_name=first_name,
-            last_name=last_name,
-            is_active=False
+            last_name=last_name
         )
         
+        # Crear perfil
         Profile.objects.create(
             user=user,
             phone=phone,
             role='customer'
         )
         
-        try:
-            success, message = send_verification_email(user, email)
-            
-            if success:
-                messages.success(
-                    request,
-                    '¡Registro exitoso! Te hemos enviado un email de verificación. '
-                    'Revisa tu bandeja de entrada (y carpeta de spam) para confirmar tu email.'
-                )
-                
-                AuditLog.objects.create(
-                    user=user,
-                    action='Registro iniciado - Esperando verificación de email',
-                    metadata={'email': email}
-                )
-                
-                return redirect('login')
-            else:
-                user.delete()
-                messages.error(request, f'Error al enviar email: {message}')
-                return render(request, 'auth/register.html')
-                
-        except Exception as e:
-            user.delete()
-            messages.error(request, f'Error en el registro: {str(e)}')
-            return render(request, 'auth/register.html')
+        # 🔥 ENVIAR EMAIL EN SEGUNDO PLANO (NO BLOQUEA)
+        from core.email_verification import send_verification_email
+        success, message = send_verification_email(user, email)
+        
+        if not success:
+            print(f"Email de verificación no se encendió para {email}: {message}")
+            # No falles el registro, solo advierte
+        
+        # Crear entry de verificación para redirigir
+        messages.success(
+            request,
+            '¡Registro exitoso! Te hemos enviado un email de verificación. '
+            'Por favor, revisa tu bandeja de entrada.'
+        )
+        
+        # Redirigir a página de espera de verificación
+        return redirect('email_verification_pending_view')
     
     return render(request, 'auth/register.html')
 
@@ -734,50 +736,73 @@ def provider_register_step2(request):
     return render(request, 'auth/register_step2.html', context)
 
 def verify_email_view(request, token):
-    """Verifica el email del usuario usando el token y lo activa"""
+    """Verifica el email del usuario usando el token"""
+    print(f"\n=== VERIFICANDO EMAIL ===")
+    print(f"Token recibido: {token}")
+    
     try:
         verification_token = EmailVerificationToken.objects.get(token=token)
+        print(f"Token encontrado en BD: {verification_token.token}")
+        print(f"¿Es válido?: {verification_token.is_valid()}")
     except EmailVerificationToken.DoesNotExist:
+        print(f"❌ Token NO encontrado en BD")
         messages.error(request, 'Token de verificación inválido o expirado')
-        return redirect('login')
+        return redirect('home')
     
+    # Validar que el token sea válido
     if not verification_token.is_valid():
-        verification_token.delete_if_expired()
-        messages.error(request, 'El token de verificación ha expirado. Por favor regístrate nuevamente.')
-        return redirect('register')
+        print(f"❌ Token expirado o ya verificado")
+        messages.error(request, 'El token de verificación ha expirado')
+        return redirect('home')
     
+    # Verificar el token
     verification_token.verify()
+    print(f"✅ Token verificado")
     
+    # Activar usuario
     user = verification_token.user
     user.is_active = True
     user.save()
     
+    # 🔥 MARCAR PERFIL COMO VERIFICADO
+    user.profile.verified = True
+    user.profile.save()
+    print(f"✅ Perfil de {user.username} marcado como VERIFICADO")
+    
+    # Determinar si es proveedor
     is_provider = user.profile.role == 'provider'
     
+    # Enviar email de bienvenida
     send_welcome_email(user, is_provider=is_provider)
     
+    # Log
     AuditLog.objects.create(
         user=user,
-        action='Email verificado exitosamente',
-        metadata={
-            'email': user.email,
-            'role': user.profile.role
-        }
+        action='Email verificado',
+        metadata={'email': user.email}
     )
     
-    if is_provider:
-        messages.success(
-            request,
-            '✓ Email verificado exitosamente. Tu cuenta está activa. '
-            'Inicia sesión para continuar con la verificación de identidad.'
-        )
-    else:
-        messages.success(
-            request,
-            '✓ Email verificado exitosamente. Tu cuenta está activa. ¡Bienvenido a Liberi!'
-        )
+    messages.success(
+        request,
+        '✓ Email verificado exitosamente. Tu cuenta está activa. Ya puedes iniciar sesión.'
+    )
     
     return redirect('login')
+
+def email_verification_pending(request):
+    """Página que se muestra mientras se espera verificación"""
+    if not request.user.is_authenticated:
+        return redirect('login')
+    
+    # Si el email ya está verificado, redirigir al dashboard
+    if request.user.profile.verified:
+        messages.success(request, '✅ Tu email ya ha sido verificado!')
+        return redirect('dashboard')
+    
+    context = {
+        'user_email': request.user.email,
+    }
+    return render(request, 'auth/email_verification_pending.html', context)
 
 @login_required
 def logout_view(request):

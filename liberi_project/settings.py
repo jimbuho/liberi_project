@@ -47,6 +47,7 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    'core.middleware.EmailVerificationMiddleware',
 ]
 
 ROOT_URLCONF = 'liberi_project.urls'
@@ -188,10 +189,12 @@ BASE_URL = os.getenv('BASE_URL', 'http://localhost:8000')
 # ============================================
 # TAREAS SEGUNDO PLANO - CELERY
 # ============================================
-CELERY_BROKER_URL = 'redis://localhost:6379/0'
-CELERY_RESULT_BACKEND = 'redis://localhost:6379/0'
+CELERY_BROKER_URL = os.getenv('CELERY_BROKER_URL', 'redis://localhost:6379/0')
+CELERY_RESULT_BACKEND = os.getenv('CELERY_RESULT_BACKEND', 'redis://localhost:6379/0')
 CELERY_ACCEPT_CONTENT = ['json']
 CELERY_TASK_SERIALIZER = 'json'
 CELERY_RESULT_SERIALIZER = 'json'
-CELERY_TIMEZONE = 'UTC'
-CELERY_TASK_TIME_LIMIT = 30 * 60  # 30 minutos max
+CELERY_TIMEZONE = 'America/Guayaquil'
+CELERY_TASK_TIME_LIMIT = 30 * 60  # 30 minutos máximo
+CELERY_TASK_SOFT_TIME_LIMIT = 25 * 60  # 25 minutos soft limit
+CELERY_BEAT_SCHEDULE = {}
