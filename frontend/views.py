@@ -32,73 +32,6 @@ from decimal import Decimal, ROUND_HALF_UP
 
 categories = Category.objects.all()
 
-def get_active_balance(provider):
-    """Calcula el saldo activo (no pagado) del proveedor, restando retiros pendientes"""
-    # Dinero ganado (completado y pagado)
-    qs = Booking.objects.filter(
-        provider=provider, 
-        status__in=['completed','accepted'], 
-        payment_status='paid'
-    )
-    earned = qs.aggregate(total=Sum(F('sub_total_cost') + F('travel_cost')))['total'] or Decimal('0.00')
-    
-    # Restar retiros completados
-    completed_withdrawals = WithdrawalRequest.objects.filter(
-        provider=provider,
-        status='completed'
-    ).aggregate(total=Sum('amount_payable'))['total'] or Decimal('0.00')
-    
-    # Restar retiros pendientes
-    pending_withdrawals = WithdrawalRequest.objects.filter(
-        provider=provider,
-        status='pending'
-    ).aggregate(total=Sum('requested_amount'))['total'] or Decimal('0.00')
-    
-    return earned - completed_withdrawals - pending_withdrawals
-
-
-def check_withdrawal_limits(provider):
-    """Verifica si el proveedor puede hacer un retiro hoy"""
-    from django.conf import settings
-    
-    today = timezone.now().date()
-    
-    # Verificar retiros de hoy
-    today_withdrawals = WithdrawalRequest.objects.filter(
-        provider=provider,
-        created_at__date=today,
-        status__in=['pending', 'completed']
-    ).count()
-    
-    max_per_day = settings.LIBERI_WITHDRAWAL_MAX_PER_DAY
-    if today_withdrawals >= max_per_day:
-        return False, f"Ya realizaste {today_withdrawals} retiro(s) hoy. Máximo: {max_per_day} por día"
-    
-    return True, None
-
-
-def check_weekly_withdrawal_limit(provider, amount):
-    """Verifica si el retiro no excede el límite semanal"""
-    from django.conf import settings
-    
-    today = timezone.now().date()
-    week_start = today - timedelta(days=today.weekday())  # Lunes de esta semana
-    
-    # Sumar retiros de esta semana
-    weekly_total = WithdrawalRequest.objects.filter(
-        provider=provider,
-        created_at__date__gte=week_start,
-        status__in=['pending', 'completed']
-    ).aggregate(total=Sum('requested_amount'))['total'] or Decimal('0.00')
-    
-    weekly_limit = Decimal(str(settings.LIBERI_WITHDRAWAL_WEEKLY_LIMIT))
-    new_total = weekly_total + Decimal(str(amount))
-    
-    if new_total > weekly_limit:
-        remaining = weekly_limit - weekly_total
-        return False, f"Límite semanal: ${weekly_limit}. Ya has retirado ${weekly_total}. Puedes retirar máximo: ${remaining}"
-    
-    return True, None
 
 # ============================================================================
 # HOME & PUBLIC VIEWS
@@ -2892,18 +2825,6 @@ def payphone_callback(request):
 # WITHDRAWS VIEWS
 # ============================================================================
 
-# Agregar funciones de utilidad
-def get_active_balance(provider):
-    """Calcula el saldo activo (no pagado) del proveedor"""
-    qs = Booking.objects.filter(
-        provider=provider, 
-        status__in=['completed','accepted'], 
-        payment_status='paid'
-    )
-    agg = qs.aggregate(total=Sum(F('sub_total_cost') + F('travel_cost')))
-    return agg['total'] or Decimal('0.00')
-
-
 def calculate_withdrawal(requested_amount, commission_percent):
     """Calcula comisión y monto a pagar"""
     requested = Decimal(str(requested_amount))
@@ -2911,6 +2832,74 @@ def calculate_withdrawal(requested_amount, commission_percent):
     commission_amount = (requested * percent / Decimal('100')).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
     amount_payable = (requested - commission_amount).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
     return commission_amount, amount_payable
+
+def get_active_balance(provider):
+    """Calcula el saldo activo (no pagado) del proveedor, restando retiros pendientes"""
+    # Dinero ganado (completado y pagado)
+    qs = Booking.objects.filter(
+        provider=provider, 
+        status__in=['completed','accepted'], 
+        payment_status='paid'
+    )
+    earned = qs.aggregate(total=Sum(F('sub_total_cost') + F('travel_cost')))['total'] or Decimal('0.00')
+    
+    # Restar retiros completados
+    completed_withdrawals = WithdrawalRequest.objects.filter(
+        provider=provider,
+        status='completed'
+    ).aggregate(total=Sum('amount_payable'))['total'] or Decimal('0.00')
+    
+    # Restar retiros pendientes
+    pending_withdrawals = WithdrawalRequest.objects.filter(
+        provider=provider,
+        status='pending'
+    ).aggregate(total=Sum('requested_amount'))['total'] or Decimal('0.00')
+    
+    return earned - completed_withdrawals - pending_withdrawals
+
+
+def check_withdrawal_limits(provider):
+    """Verifica si el proveedor puede hacer un retiro hoy"""
+    from django.conf import settings
+    
+    today = timezone.now().date()
+    
+    # Verificar retiros de hoy
+    today_withdrawals = WithdrawalRequest.objects.filter(
+        provider=provider,
+        created_at__date=today,
+        status__in=['pending', 'completed']
+    ).count()
+    
+    max_per_day = settings.LIBERI_WITHDRAWAL_MAX_PER_DAY
+    if today_withdrawals >= max_per_day:
+        return False, f"Ya realizaste {today_withdrawals} retiro(s) hoy. Máximo: {max_per_day} por día"
+    
+    return True, None
+
+
+def check_weekly_withdrawal_limit(provider, amount):
+    """Verifica si el retiro no excede el límite semanal"""
+    from django.conf import settings
+    
+    today = timezone.now().date()
+    week_start = today - timedelta(days=today.weekday())  # Lunes de esta semana
+    
+    # Sumar retiros de esta semana
+    weekly_total = WithdrawalRequest.objects.filter(
+        provider=provider,
+        created_at__date__gte=week_start,
+        status__in=['pending', 'completed']
+    ).aggregate(total=Sum('requested_amount'))['total'] or Decimal('0.00')
+    
+    weekly_limit = Decimal(str(settings.LIBERI_WITHDRAWAL_WEEKLY_LIMIT))
+    new_total = weekly_total + Decimal(str(amount))
+    
+    if new_total > weekly_limit:
+        remaining = weekly_limit - weekly_total
+        return False, f"Límite semanal: ${weekly_limit}. Ya has retirado ${weekly_total}. Puedes retirar máximo: ${remaining}"
+    
+    return True, None
 
 @login_required
 def provider_bank_accounts(request):

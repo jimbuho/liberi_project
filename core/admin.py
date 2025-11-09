@@ -937,7 +937,7 @@ class WithdrawalRequestAdmin(admin.ModelAdmin):
     list_filter = ['status', 'created_at']
     search_fields = ['provider__username', 'provider__email', 'id']
     date_hierarchy = 'created_at'
-    readonly_fields = ['id', 'commission_percent', 'commission_amount', 'amount_payable', 'created_at', 'updated_at']
+    readonly_fields = ['id', 'commission_amount', 'amount_payable', 'created_at', 'updated_at', 'processed_by']
     actions = ['mark_as_completed', 'mark_as_rejected']
     
     fieldsets = (
@@ -948,14 +948,14 @@ class WithdrawalRequestAdmin(admin.ModelAdmin):
             'fields': ('requested_amount', 'commission_percent', 'commission_amount', 'amount_payable')
         }),
         ('Procesamiento', {
-            'fields': ('status', 'transfer_receipt_number', 'admin_note', 'processed_by')
+            'fields': ('status', 'transfer_receipt_number', 'admin_note')
         }),
         ('Reservas Cubiertas', {
             'fields': ('covered_bookings',),
             'classes': ('collapse',)
         }),
         ('Auditoría', {
-            'fields': ('created_at', 'updated_at'),
+            'fields': ('created_at', 'updated_at', 'processed_by'),
             'classes': ('collapse',)
         }),
     )
@@ -975,25 +975,83 @@ class WithdrawalRequestAdmin(admin.ModelAdmin):
     status_badge.short_description = 'Estado'
     
     def mark_as_completed(self, request, queryset):
+        from django.core.mail import send_mail
+        from django.conf import settings
+        
+        count = 0
         for withdrawal in queryset.filter(status='pending'):
-            if not withdrawal.transfer_receipt_number:
-                messages.warning(request, f'Retiro {withdrawal.id} sin número de comprobante')
-                continue
-            
             withdrawal.status = 'completed'
             withdrawal.processed_by = request.user
             withdrawal.save()
             
+            # ========================================
+            # NOTIFICACIÓN EN EL CENTRO
+            # ========================================
+            Notification.objects.create(
+                user=withdrawal.provider,
+                notification_type='payment_verified',
+                title='💰 Retiro Completado',
+                message=f'Tu solicitud de retiro de ${withdrawal.amount_payable} ha sido procesada y completada exitosamente. Revisa tu cuenta bancaria.',
+                action_url=f'/provider/withdrawals/'
+            )
+            
+            # ========================================
+            # EMAIL AL PROVEEDOR
+            # ========================================
+            try:
+                send_mail(
+                    subject=f'💰 Retiro Completado - ${withdrawal.amount_payable}',
+                    message=f"""
+    Hola {withdrawal.provider.get_full_name() or withdrawal.provider.username},
+
+    ¡Excelentes noticias! Tu solicitud de retiro ha sido procesada y completada exitosamente.
+
+    ═══════════════════════════════════════
+    DETALLES DEL RETIRO
+    ═══════════════════════════════════════
+
+    - Monto Solicitado: ${withdrawal.requested_amount}
+    - Comisión ({withdrawal.commission_percent}%): ${withdrawal.commission_amount}
+    - Monto a Pagar: ${withdrawal.amount_payable}
+    - Banco: {withdrawal.provider_bank_account.bank.name}
+    - Cuenta: {withdrawal.provider_bank_account.account_number_masked}
+    - Número de Comprobante: {withdrawal.transfer_receipt_number or 'N/A'}
+    - Fecha de Procesamiento: {withdrawal.updated_at.strftime('%d de %B del %Y a las %H:%M')}
+
+    ═══════════════════════════════════════
+
+    El dinero ha sido transferido a tu cuenta bancaria. Según tu banco, puede tardar entre 1-3 días hábiles en aparecer en tu cuenta.
+
+    Si tienes preguntas o no recibiste el dinero en 3 días, por favor contacta a nuestro equipo de soporte.
+
+    ¡Gracias por confiar en Liberi! 💙
+
+    ---
+    El Equipo de Liberi
+                    """,
+                    from_email=settings.DEFAULT_FROM_EMAIL,
+                    recipient_list=[withdrawal.provider.email],
+                    fail_silently=True,
+                )
+            except Exception as e:
+                print(f"Error enviando email al proveedor: {e}")
+            
+            # LOG
             AuditLog.objects.create(
                 user=request.user,
                 action='Retiro completado',
-                metadata={'withdrawal_id': str(withdrawal.id), 'amount': str(withdrawal.amount_payable)}
+                metadata={
+                    'withdrawal_id': str(withdrawal.id),
+                    'amount': str(withdrawal.amount_payable),
+                    'provider': withdrawal.provider.username
+                }
             )
+            count += 1
         
-        self.message_user(request, 'Retiros marcados como completados')
-    mark_as_completed.short_description = 'Marcar como completado'
+        self.message_user(request, f'✅ {count} retiro(s) marcado(s) como completado(s). Notificaciones enviadas al proveedor.')
+    mark_as_completed.short_description = '✅ Marcar como completado'
     
     def mark_as_rejected(self, request, queryset):
         queryset.filter(status='pending').update(status='rejected', processed_by=request.user)
         self.message_user(request, 'Retiros rechazados')
-    mark_as_rejected.short_description = 'Rechazar'
+    mark_as_rejected.short_description = '❌ Rechazar'
