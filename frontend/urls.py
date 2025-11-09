@@ -13,6 +13,9 @@ urlpatterns = [
     path('register/provider/', views.register_provider_view, name='register_provider'),
     path('register/provider/step2/', views.provider_register_step2, name='provider_register_step2'),
     path('logout/', views.logout_view, name='logout'),
+
+    # urls.py
+    path('verify-email/<str:token>/', views.verify_email_view, name='verify_email'),
     
     # Dashboard
     path('dashboard/', views.dashboard, name='dashboard'),

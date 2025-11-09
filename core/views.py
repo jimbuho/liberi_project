@@ -3,15 +3,19 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework_simplejwt.tokens import RefreshToken
-from django.shortcuts import get_object_or_404
-from django.db.models import Q, Avg
-from .models import User, Category, ProviderProfile, Service, Location, Booking, Review, AuditLog
+from django.core.exceptions import ValidationError
+
+from .models import (
+    Category, ProviderProfile, Service, Location, 
+    Booking, Review, AuditLog
+)
+
 from .serializers import (
     UserSerializer, RegisterSerializer, LoginSerializer, CategorySerializer,
     ProviderProfileSerializer, ServiceSerializer, LocationSerializer,
     BookingSerializer, ReviewSerializer
 )
-from .permissions import IsOwnerOrReadOnly, IsProviderOrReadOnly
+from .permissions import IsProviderOrReadOnly
 
 def log_action(user, action, metadata=None):
     """Helper function to log actions"""
@@ -283,7 +287,7 @@ class ReviewViewSet(viewsets.ModelViewSet):
         booking = serializer.validated_data['booking']
         
         if booking.customer != self.request.user:
-            raise serializers.ValidationError('No puedes reseñar esta reserva')
+            raise ValidationError('No puedes reseñar esta reserva')
         
         serializer.save(customer=self.request.user)
         log_action(self.request.user, 'Reseña creada')

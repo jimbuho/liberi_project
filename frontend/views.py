@@ -19,7 +19,8 @@ from core.models import (
     Zone, ProviderSchedule, ProviderUnavailability,
     PaymentMethod, BankAccount, PaymentProof,
     ProviderZoneCost, SystemConfig, Notification, Payment,
-    WithdrawalRequest, ProviderBankAccount, Bank
+    WithdrawalRequest, ProviderBankAccount, Bank,
+    EmailVerificationToken
 )
 
 from core.image_upload import (
@@ -27,6 +28,8 @@ from core.image_upload import (
     upload_service_image, upload_payment_proof,
     delete_image, upload_image, validate_image
 )
+
+from core.email_verification import send_verification_email, send_welcome_email
 
 from decimal import Decimal, ROUND_HALF_UP
 
@@ -705,6 +708,47 @@ def provider_register_step2(request):
     }
     return render(request, 'auth/register_step2.html', context)
 
+@login_required
+def verify_email_view(request, token):
+    """Verifica el email del usuario usando el token"""
+    try:
+        verification_token = EmailVerificationToken.objects.get(token=token)
+    except EmailVerificationToken.DoesNotExist:
+        messages.error(request, 'Token de verificación inválido o expirado')
+        return redirect('home')
+    
+    # Validar que el token sea válido
+    if not verification_token.is_valid():
+        messages.error(request, 'El token de verificación ha expirado')
+        return redirect('home')
+    
+    # Verificar el token
+    verification_token.verify()
+    
+    # Activar usuario
+    user = verification_token.user
+    user.is_active = True
+    user.save()
+    
+    # Determinar si es proveedor
+    is_provider = user.profile.role == 'provider'
+    
+    # Enviar email de bienvenida
+    send_welcome_email(user, is_provider=is_provider)
+    
+    # Log
+    AuditLog.objects.create(
+        user=user,
+        action='Email verificado',
+        metadata={'email': user.email}
+    )
+    
+    messages.success(
+        request,
+        '✓ Email verificado exitosamente. Tu cuenta está activa. Ya puedes iniciar sesión.'
+    )
+    
+    return redirect('login')
 
 def logout_view(request):
     """Logout"""
