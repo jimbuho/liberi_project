@@ -46,7 +46,6 @@ def send_verification_email(user, email):
 
 def _send_email_sync(email, token, user_name):
     """Envío sincrónico como fallback"""
-    # 🔧 AQUÍ ESTÁ EL FIX - SIN /auth/
     verification_url = f"{settings.BASE_URL}/verify-email/{token}/"
     
     print(f"📧 URL de verificación: {verification_url}")

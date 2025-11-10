@@ -11,6 +11,8 @@ from django.contrib.auth.models import User
 from django.http import JsonResponse
 
 import requests
+import logging
+
 from django.db import transaction
 
 from core.models import (
@@ -32,6 +34,8 @@ from core.image_upload import (
 from core.email_verification import send_verification_email, send_welcome_email
 
 from decimal import Decimal, ROUND_HALF_UP
+
+logger = logging.getLogger(__name__)
 
 categories = Category.objects.all()
 
@@ -1018,8 +1022,6 @@ def booking_detail(request, booking_id):
     return render(request, 'bookings/detail.html', context)
 
 
-# Reemplazar la función booking_create en frontend/views.py
-
 SERVICE_COST = 1
 IVA = 0.15
 
@@ -1158,34 +1160,12 @@ def booking_create(request):
     )
 
     # Enviar email al proveedor
+    # Enviar email de forma asincrónica
     try:
-        send_mail(
-            subject=f'📋 Nueva Reserva - {request.user.get_full_name()}',
-            message=f"""
-    Hola {provider.get_full_name() or provider.username},
-
-    ¡Una nueva reserva ha llegado!
-
-    DETALLES:
-    - Cliente: {request.user.get_full_name() or request.user.username}
-    - Teléfono: {request.user.profile.phone if hasattr(request.user, 'profile') else 'No disponible'}
-    - Servicio: {service.name}
-    - Fecha: {scheduled_datetime.strftime("%d de %B del %Y a las %H:%M")}
-    - Ubicación: {location.address}
-    - Zona: {location.zone.name}
-    - Monto: ${total_cost}
-
-    Accede a tu panel para aceptar o rechazar esta reserva.
-
-    ---
-    Liberi
-            """,
-            from_email=settings.DEFAULT_FROM_EMAIL,
-            recipient_list=[provider.email],
-            fail_silently=True,
-        )
+        from core.tasks import send_new_booking_to_provider_task
+        send_new_booking_to_provider_task.delay(booking_id=str(booking.id))
     except Exception as e:
-        print(f"Error enviando email al proveedor: {e}")
+        logger.error(f"Error enviando email al proveedor: {e}")
     
     # Log
     AuditLog.objects.create(
@@ -1237,40 +1217,12 @@ def booking_accept(request, booking_id):
         action_url=f'/bookings/{booking.id}/'
     )
 
-    # Enviar email al cliente
+    # Enviar email de forma asincrónica
     try:
-        send_mail(
-            subject=f'✅ Tu Reserva Ha Sido Aceptada',
-            message=f"""
-    Hola {booking.customer.get_full_name() or booking.customer.username},
-
-    ¡Excelentes noticias! Tu reserva ha sido aceptada.
-
-    DETALLES DE TU RESERVA:
-    - Proveedor: {booking.provider.get_full_name() or booking.provider.username}
-    - Teléfono: {booking.provider.profile.phone if hasattr(booking.provider, 'profile') else 'No disponible'}
-    - Servicio(s): {booking.get_services_display()}
-    - Fecha: {booking.scheduled_time.strftime("%d de %B del %Y a las %H:%M")}
-    - Ubicación: {booking.location.address if booking.location else 'Por confirmar'}
-    - Monto Total: ${booking.total_cost}
-
-    PRÓXIMO PASO:
-    Completa el pago para confirmar definitivamente tu reserva. 
-    El proveedor está esperando la confirmación del pago.
-
-    Accede a tu reserva en: {settings.BASE_URL}/bookings/{booking.id}/
-
-    ¡Gracias por confiar en Liberi!
-
-    ---
-    El Equipo de Liberi
-            """,
-            from_email=settings.DEFAULT_FROM_EMAIL,
-            recipient_list=[booking.customer.email],
-            fail_silently=True,
-        )
+        from core.tasks import send_booking_accepted_to_customer_task
+        send_booking_accepted_to_customer_task.delay(booking_id=str(booking.id))
     except Exception as e:
-        print(f"Error enviando email al cliente: {e}")
+        logger.error(f"Error enviando email al cliente: {e}")
     
     # Log
     AuditLog.objects.create(
@@ -1534,44 +1486,18 @@ def service_create(request):
                 
                 # Obtener todos los administradores
                 admin_users = User.objects.filter(is_staff=True, is_active=True)
-                
-                # Enviar emails a los admins
                 admin_emails = [admin.email for admin in admin_users if admin.email]
+                
+                # Enviar notificación asincrónica
                 if admin_emails:
                     try:
-                        send_mail(
-                            subject=f'🆕 Nueva Solicitud de Aprobación de Proveedor - {provider_profile.get_display_name()}',
-                            message=f"""
-Hola Equipo Administrativo,
-
-Un nuevo proveedor ha completado el requisito y solicita aprobación de su perfil.
-
-INFORMACIÓN DEL PROVEEDOR:
-- Nombre: {request.user.get_full_name()}
-- Nombre Comercial: {provider_profile.business_name or 'No especificado'}
-- Email: {request.user.email}
-- Categoría: {provider_profile.category.name}
-- Descripción: {provider_profile.description[:200]}...
-
-PRIMER SERVICIO CREADO:
-- Nombre: {name}
-- Precio: ${service.base_price}
-- Duración: {service.duration_minutes} minutos
-
-ACCIÓN REQUERIDA:
-Revisa el perfil del proveedor en el panel administrativo y aprueba o rechaza su solicitud.
-
-Link directo: /admin/core/providerprofile/{request.user.id}/change/
-
----
-Sistema Liberi
-                            """,
-                            from_email=settings.DEFAULT_FROM_EMAIL,
-                            recipient_list=admin_emails,
-                            fail_silently=True,
+                        from core.tasks import send_provider_approval_notification_task
+                        send_provider_approval_notification_task.delay(
+                            provider_id=request.user.id,
+                            admin_emails=admin_emails
                         )
                     except Exception as e:
-                        print(f"Error enviando email a admins: {e}")
+                        logger.error(f"Error enviando notificación a admins: {e}")
                 
                 # Mostrar mensaje especial al proveedor
                 messages.success(
@@ -2375,9 +2301,7 @@ def payment_process(request, booking_id):
 @login_required
 def payment_bank_transfer(request, booking_id):
     """
-    Vista COMPLETA para procesar pagos por transferencia bancaria (FASE 3)
-    - GET: Muestra cuentas bancarias y formulario para subir comprobante
-    - POST: Procesa el formulario, crea PaymentProof y notifica
+    Vista COMPLETA para procesar pagos por transferencia bancaria
     """
     booking = get_object_or_404(Booking, id=booking_id, customer=request.user)
     
@@ -2390,14 +2314,11 @@ def payment_bank_transfer(request, booking_id):
     bank_accounts = BankAccount.objects.filter(is_active=True).order_by('display_order')
     
     if request.method == 'POST':
-        # ========================================
-        # PASO 1: Validar datos del formulario
-        # ========================================
         reference_code = request.POST.get('reference_code', '').strip()
         bank_account_id = request.POST.get('bank_account_id')
         proof_image = request.FILES.get('proof_image')
         
-        # Validar que se seleccionó una cuenta
+        # Validaciones
         if not bank_account_id:
             messages.error(request, 'Debes seleccionar una cuenta bancaria.')
             return render(request, 'payments/bank_transfer.html', {
@@ -2407,7 +2328,6 @@ def payment_bank_transfer(request, booking_id):
         
         bank_account = get_object_or_404(BankAccount, id=bank_account_id, is_active=True)
         
-        # Validar referencia
         if not reference_code:
             messages.error(request, 'El número de comprobante/referencia es obligatorio.')
             return render(request, 'payments/bank_transfer.html', {
@@ -2415,7 +2335,6 @@ def payment_bank_transfer(request, booking_id):
                 'bank_accounts': bank_accounts,
             })
         
-        # Validar imagen del comprobante
         if not proof_image:
             messages.error(request, 'Debes subir una imagen del comprobante de pago.')
             return render(request, 'payments/bank_transfer.html', {
@@ -2423,27 +2342,21 @@ def payment_bank_transfer(request, booking_id):
                 'bank_accounts': bank_accounts,
             })
         
-        # ========================================
-        # PASO 2: Obtener o crear método de pago
-        # ========================================
-        payment_method, created = PaymentMethod.objects.get_or_create(
-            code='bank_transfer',
-            defaults={
-                'name': 'Transferencia Bancaria',
-                'description': 'Pago mediante transferencia bancaria',
-                'is_active': True,
-                'requires_proof': True,
-                'requires_reference': True,
-                'display_order': 2,
-                'icon': '🏦'
-            }
-        )
-        
-        # ========================================
-        # PASO 3: Crear PaymentProof
-        # ========================================
-
         try:
+            # Obtener o crear método de pago
+            payment_method, created = PaymentMethod.objects.get_or_create(
+                code='bank_transfer',
+                defaults={
+                    'name': 'Transferencia Bancaria',
+                    'description': 'Pago mediante transferencia bancaria',
+                    'is_active': True,
+                    'requires_proof': True,
+                    'requires_reference': True,
+                    'display_order': 2,
+                    'icon': '🏦'
+                }
+            )
+            
             # Subir comprobante
             proof_url = upload_payment_proof(
                 file=proof_image,
@@ -2456,13 +2369,11 @@ def payment_bank_transfer(request, booking_id):
                 payment_method=payment_method,
                 bank_account=bank_account,
                 reference_code=reference_code,
-                proof_image=proof_url,  # URL de la imagen
+                proof_image=proof_url,
                 verified=False
             )
             
-            # ========================================
-            # PASO 4: Actualizar estado de la reserva
-            # ========================================
+            # Actualizar estado de la reserva
             booking.payment_status = 'pending_validation'
             booking.save()
             
@@ -2478,52 +2389,55 @@ def payment_bank_transfer(request, booking_id):
                 }
             )
             
-            # ========================================
-            # PASO 5: Crear notificaciones (ADMIN)
-            # ========================================
-            admin_users = User.objects.filter(is_staff=True, is_active=True)
-            for admin in admin_users:
-                Notification.objects.create(
-                    user=admin,
-                    notification_type='payment_received',
-                    title='💰 Nuevo Comprobante de Pago Pendiente',
-                    message=f'Cliente: {booking.customer.get_full_name()}\n'
-                            f'Reserva: #{booking.id}\n'
-                            f'Monto: ${booking.sub_total_cost}\n'
-                            f'Referencia: {reference_code}',
-                    booking=booking,
-                    action_url=f'/admin/core/paymentproof/{payment_proof.id}/change/'
-                )
+            # 🔥 NOTIFICACIONES - USANDO TAREAS CELERY
             
-            # ========================================
-            # PASO 6: Crear notificación (CLIENTE)
-            # ========================================
+            # 1. Email al CLIENTE
+            try:
+                from core.tasks import send_payment_proof_received_task
+                send_payment_proof_received_task.delay(
+                    booking_id=str(booking.id),
+                    customer_email=booking.customer.email,
+                    customer_name=booking.customer.get_full_name() or booking.customer.username,
+                    amount=str(booking.total_cost)
+                )
+            except Exception as e:
+                logger.warning(f"Error enviando email al cliente: {e}")
+            
+            # 2. Email a ADMINS
+            try:
+                from core.tasks import notify_admin_payment_pending_task
+                admin_users = User.objects.filter(is_staff=True, is_active=True)
+                admin_emails = [admin.email for admin in admin_users if admin.email]
+                
+                if admin_emails:
+                    notify_admin_payment_pending_task.delay(
+                        booking_id=str(booking.id),
+                        customer_name=booking.customer.get_full_name() or booking.customer.username,
+                        amount=str(booking.total_cost),
+                        admin_email_list=admin_emails
+                    )
+            except Exception as e:
+                logger.warning(f"Error enviando notificación a admins: {e}")
+            
+            # 3. Notificación en el CENTRO (modelo Notification)
             Notification.objects.create(
                 user=booking.customer,
                 notification_type='payment_received',
-                title='Comprobante de Pago Recibido',
-                message=f'Hemos recibido tu comprobante de transferencia bancaria. '
-                        f'Nuestro equipo lo está validando y recibirás una confirmación en 1-4 horas hábiles.',
+                title='💳 Comprobante de Pago Recibido',
+                message=f'Hemos recibido tu comprobante de transferencia bancaria. Nuestro equipo lo está validando.',
                 booking=booking,
                 action_url=f'/bookings/{booking.id}/'
             )
             
-            # ========================================
-            # PASO 7: Crear notificación (PROVEEDOR)
-            # ========================================
             Notification.objects.create(
                 user=booking.provider,
                 notification_type='payment_received',
-                title='Comprobante de Pago Pendiente de Validación',
-                message=f'El cliente {booking.customer.get_full_name()} ha enviado el comprobante de pago. '
-                        f'Se confirmará en breve.',
+                title='💳 Comprobante de Pago Pendiente',
+                message=f'El cliente {booking.customer.get_full_name()} ha enviado un comprobante de pago. Pendiente de validación.',
                 booking=booking,
                 action_url=f'/bookings/{booking.id}/'
             )
             
-            # ========================================
-            # PASO 8: Redireccionar a confirmación
-            # ========================================
             messages.success(
                 request,
                 '✅ Comprobante recibido. Nuestro equipo lo verificará pronto. '
@@ -2531,12 +2445,10 @@ def payment_bank_transfer(request, booking_id):
             )
             return redirect('payment_confirmation', payment_id=payment_proof.id)
             
-        except ValueError as e:
-            messages.error(request, str(e))
         except Exception as e:
+            logger.error(f"Error en payment_bank_transfer: {e}")
             messages.error(request, f'Error al subir comprobante: {str(e)}')
-
-    # GET request - Mostrar formulario
+    
     return render(request, 'payments/bank_transfer.html', {
         'booking': booking,
         'bank_accounts': bank_accounts,

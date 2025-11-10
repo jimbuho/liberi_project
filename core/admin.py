@@ -975,9 +975,7 @@ class WithdrawalRequestAdmin(admin.ModelAdmin):
     status_badge.short_description = 'Estado'
     
     def mark_as_completed(self, request, queryset):
-        from django.core.mail import send_mail
-        from django.conf import settings
-        
+        """Marca retiros como completados y notifica al proveedor"""
         count = 0
         for withdrawal in queryset.filter(status='pending'):
             withdrawal.status = 'completed'
@@ -994,45 +992,13 @@ class WithdrawalRequestAdmin(admin.ModelAdmin):
                 message=f'Tu solicitud de retiro de ${withdrawal.amount_payable} ha sido procesada y completada exitosamente. Revisa tu cuenta bancaria.',
                 action_url=f'/provider/withdrawals/'
             )
-            
+
             # ========================================
-            # EMAIL AL PROVEEDOR
+            # EMAIL AL PROVEEDOR (ASINCRÓNICO)
             # ========================================
             try:
-                send_mail(
-                    subject=f'💰 Retiro Completado - ${withdrawal.amount_payable}',
-                    message=f"""
-    Hola {withdrawal.provider.get_full_name() or withdrawal.provider.username},
-
-    ¡Excelentes noticias! Tu solicitud de retiro ha sido procesada y completada exitosamente.
-
-    ═══════════════════════════════════════
-    DETALLES DEL RETIRO
-    ═══════════════════════════════════════
-
-    - Monto Solicitado: ${withdrawal.requested_amount}
-    - Comisión ({withdrawal.commission_percent}%): ${withdrawal.commission_amount}
-    - Monto a Pagar: ${withdrawal.amount_payable}
-    - Banco: {withdrawal.provider_bank_account.bank.name}
-    - Cuenta: {withdrawal.provider_bank_account.account_number_masked}
-    - Número de Comprobante: {withdrawal.transfer_receipt_number or 'N/A'}
-    - Fecha de Procesamiento: {withdrawal.updated_at.strftime('%d de %B del %Y a las %H:%M')}
-
-    ═══════════════════════════════════════
-
-    El dinero ha sido transferido a tu cuenta bancaria. Según tu banco, puede tardar entre 1-3 días hábiles en aparecer en tu cuenta.
-
-    Si tienes preguntas o no recibiste el dinero en 3 días, por favor contacta a nuestro equipo de soporte.
-
-    ¡Gracias por confiar en Liberi! 💙
-
-    ---
-    El Equipo de Liberi
-                    """,
-                    from_email=settings.DEFAULT_FROM_EMAIL,
-                    recipient_list=[withdrawal.provider.email],
-                    fail_silently=True,
-                )
+                from core.tasks import send_withdrawal_completed_to_provider_task
+                send_withdrawal_completed_to_provider_task.delay(withdrawal_id=withdrawal.id)
             except Exception as e:
                 print(f"Error enviando email al proveedor: {e}")
             

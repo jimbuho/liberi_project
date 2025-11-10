@@ -884,7 +884,6 @@ class Payment(models.Model):
         """
         Crea notificaciones en la base de datos y envía emails tanto al cliente como al proveedor
         """
-        from django.core.mail import send_mail
         from django.conf import settings
         
         # ============================================
@@ -900,47 +899,15 @@ class Payment(models.Model):
             booking=self.booking,
             action_url=f'/bookings/{self.booking.id}/'
         )
-        
-        # Enviar email al cliente
-        customer_subject = f'✅ Pago Aprobado - Reserva #{str(self.booking.id)[:8]}'
-        customer_message = f"""
-Hola {self.booking.customer.get_full_name() or self.booking.customer.username},
 
-¡Excelentes noticias! Tu pago ha sido validado y aprobado exitosamente.
-
-═══════════════════════════════════════
-📋 DETALLES DE TU RESERVA
-═══════════════════════════════════════
-
-• Número de Reserva: #{str(self.booking.id)[:8]}
-• Servicio(s): {self.booking.get_services_display()}
-• Monto Pagado: ${self.amount} USD
-• Fecha Programada: {self.booking.scheduled_time.strftime('%d de %B del %Y a las %H:%M')}
-• Proveedor: {self.booking.provider.get_full_name() or self.booking.provider.username}
-
-═══════════════════════════════════════
-
-✅ Tu reserva está CONFIRMADA
-El proveedor ha sido notificado y se pondrá en contacto contigo próximamente para coordinar los detalles finales.
-
-Si tienes alguna pregunta, no dudes en contactarnos.
-
-¡Gracias por confiar en Liberi! 💙
-
----
-El Equipo de Liberi
-        """
-        
+        # Enviar email de forma asincrónica
         try:
-            send_mail(
-                subject=customer_subject,
-                message=customer_message,
-                from_email=settings.DEFAULT_FROM_EMAIL,
-                recipient_list=[self.booking.customer.email],
-                fail_silently=False,
-            )
+            from core.tasks import send_payment_approved_to_customer_task
+            send_payment_approved_to_customer_task.delay(payment_id=self.id)
         except Exception as e:
-            print(f"❌ Error enviando email al cliente: {e}")
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.error(f"Error enviando email al cliente: {e}")
         
         # ============================================
         # NOTIFICACIÓN PARA EL PROVEEDOR
@@ -955,52 +922,15 @@ El Equipo de Liberi
             booking=self.booking,
             action_url=f'/bookings/{self.booking.id}/'
         )
-        
-        # Enviar email al proveedor
-        provider_subject = f'💰 Pago Confirmado - Reserva #{str(self.booking.id)[:8]}'
-        provider_message = f"""
-Hola {self.booking.provider.get_full_name() or self.booking.provider.username},
 
-¡Buenas noticias! El pago de tu cliente ha sido verificado y confirmado.
-
-═══════════════════════════════════════
-📋 DETALLES DE LA RESERVA
-═══════════════════════════════════════
-
-• Número de Reserva: #{str(self.booking.id)[:8]}
-• Cliente: {self.booking.customer.get_full_name() or self.booking.customer.username}
-• Teléfono del Cliente: {self.booking.customer.profile.phone if hasattr(self.booking.customer, 'profile') else 'No disponible'}
-• Servicio(s): {self.booking.get_services_display()}
-• Monto Pagado: ${self.amount} USD
-• Fecha Programada: {self.booking.scheduled_time.strftime('%d de %B del %Y a las %H:%M')}
-• Dirección: {self.booking.location.address if self.booking.location else 'Por confirmar'}
-
-═══════════════════════════════════════
-
-✅ PRÓXIMOS PASOS:
-1. Revisa los detalles de la reserva
-2. Contacta al cliente para confirmar la hora exacta
-3. Prepara todo lo necesario para el servicio
-4. Acude puntualmente a la cita
-
-El cliente está esperando tu confirmación. Por favor, ponte en contacto lo antes posible.
-
-¡Éxito con tu servicio! 💪
-
----
-El Equipo de Liberi
-        """
-        
+        # Enviar email de forma asincrónica
         try:
-            send_mail(
-                subject=provider_subject,
-                message=provider_message,
-                from_email=settings.DEFAULT_FROM_EMAIL,
-                recipient_list=[self.booking.provider.email],
-                fail_silently=False,
-            )
+            from core.tasks import send_payment_approved_to_provider_task
+            send_payment_approved_to_provider_task.delay(payment_id=self.id)
         except Exception as e:
-            print(f"❌ Error enviando email al proveedor: {e}")
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.error(f"Error enviando email al proveedor: {e}")
 
 # ============================================
 # MODELO: Bank
