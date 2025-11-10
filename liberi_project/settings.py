@@ -14,10 +14,39 @@ DEBUG = os.getenv('DEBUG', 'False') == 'True'
 
 ALLOWED_HOSTS = os.getenv('ALLOWED_HOSTS', 'localhost,127.0.0.1').split(',')
 
+# ============================================
+# REFERRER-POLICY PARA PAYPHONE - CRÍTICO
+# ============================================
+SECURE_REFERRER_POLICY = 'origin-when-cross-origin'
+
 CSRF_TRUSTED_ORIGINS = [
     "https://liberi-project.fly.dev",
-    "https://liberi.app"
+    "https://liberi.app",
+    "https://www.liberi.app",  # Si usas www
+    "http://localhost:8000",
 ]
+
+# ============================================
+# CONTENT SECURITY POLICY - PAYPHONE COMPATIBLE
+# ============================================
+SECURE_CONTENT_SECURITY_POLICY = {
+    'default-src': ("'self'",),
+    'script-src': (
+        "'self'",
+        "'unsafe-inline'",
+        'https://cdn.payphonetodoesposible.com',
+    ),
+    'style-src': (
+        "'self'",
+        "'unsafe-inline'",
+        'https://cdn.payphonetodoesposible.com',
+    ),
+    'connect-src': (
+        "'self'",
+        'https://cdn.payphonetodoesposible.com',
+    ),
+    'frame-src': ('https://cdn.payphonetodoesposible.com',),
+}
 
 INSTALLED_APPS = [
     'django.contrib.admin',
@@ -45,6 +74,7 @@ MIDDLEWARE = [
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
+    'core.middleware.PayPhoneReferrerPolicyMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
     'core.middleware.EmailVerificationMiddleware',

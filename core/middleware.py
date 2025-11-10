@@ -11,6 +11,25 @@ ALLOWED_UNVERIFIED_PATHS = [
     '/media/',
 ]
 
+class PayPhoneReferrerPolicyMiddleware:
+    """
+    Middleware para asegurar que PayPhone reciba correctamente la información de referencia.
+    CRÍTICO para que el botón de pago funcione.
+    """
+    
+    def __init__(self, get_response):
+        self.get_response = get_response
+    
+    def __call__(self, request):
+        response = self.get_response(request)
+        
+        # Headers críticos para PayPhone
+        response['Referrer-Policy'] = 'origin-when-cross-origin'
+        response['X-Frame-Options'] = 'SAMEORIGIN'
+        
+        return response
+
+
 class EmailVerificationMiddleware:
     """Middleware que protege rutas para usuarios no verificados"""
     
