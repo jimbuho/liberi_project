@@ -1,4 +1,5 @@
 {% extends 'base.html' %}
+{% load l10n %}
 
 {% block title %}Detalle de Reserva - Liberi{% endblock %}
 
@@ -135,33 +136,27 @@
                                 <strong>📝 Referencia:</strong> {{ booking.location.reference }}
                             </div>
                             {% endif %}
+
                             <hr>
-                            <div id="locationMap" style="height: 350px; border-radius: 10px; margin-bottom: 1rem; border: 1px solid #ddd;"></div>
-                            <div class="alert alert-info">
-                                <small>Lat: {{ booking.location.latitude }} | Lng: {{ booking.location.longitude }}</small>
-                            </div>
+
+                            {% if booking.location.latitude and booking.location.longitude %}
+                                <div class="text-center">
+                                    {% localize off %}
+                                        <a href="https://www.google.com/maps/search/?api=1&query={{ booking.location.latitude }},{{ booking.location.longitude }}" 
+                                        target="_blank" class="btn btn-outline-primary btn-lg">
+                                            <i class="fas fa-map-location-dot"></i> Ver en Google Maps
+                                        </a>
+                                    {% endlocalize %}
+                                </div>
+                            {% else %}
+                                <div class="alert alert-warning">
+                                    <small>No hay coordenadas disponibles para mostrar la ubicación.</small>
+                                </div>
+                            {% endif %}
                         </div>
                     </div>
-
-                    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-                    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-
-                    <script>
-                    document.addEventListener('DOMContentLoaded', function() {
-                        const lat = parseFloat("{{ booking.location.latitude }}");
-                        const lng = parseFloat("{{ booking.location.longitude }}");
-                        
-                        if (!isNaN(lat) && !isNaN(lng)) {
-                            const map = L.map('locationMap').setView([lat, lng], 16);
-                            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-                                attribution: '© OpenStreetMap',
-                                maxZoom: 19
-                            }).addTo(map);
-                            L.marker([lat, lng]).addTo(map).bindPopup('<strong>{{ booking.location.label }}</strong><br>{{ booking.location.address }}').openPopup();
-                        }
-                    });
-                    </script>
                     {% endif %}
+
 
                     <!-- Services -->
                     <h5><i class="fas fa-concierge-bell"></i> Servicios Contratados</h5>
