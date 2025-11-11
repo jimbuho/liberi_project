@@ -16,12 +16,6 @@
                     <i class="fas fa-search"></i>
                     Buscar Servicios
                 </a>
-                {% comment %}
-                <a href="{% url 'become_provider' %}" class="btn-hero btn-hero-secondary">
-                    <i class="fas fa-briefcase"></i>
-                    Ser Proveedor
-                </a>
-                {% endcomment %}
                 <a href="{% url 'register_provider' %}" class="btn-hero btn-hero-secondary">
                     <i class="fas fa-briefcase"></i>
                     Ser Proveedor
@@ -53,31 +47,27 @@
 <!-- Categories Section -->
 <section class="categories-section">
     <div class="container">
-        <h2 class="section-title">Nuestras Categorías</h2>
-        <div class="categories-grid">
-            <!-- Beauty Category -->
-            <div class="category-card">
-                <span class="category-icon">💅</span>
-                <h3 class="category-name">Belleza</h3>
-                <p class="category-description">
-                    Servicios de belleza profesional: manicure, pedicure, tratamientos faciales, masajes y más
+        <h2 class="section-title">Categorías</h2>
+        <div class="categories-grid-compact">
+            {% for category in categories %}
+            <div class="category-card-compact">
+                <span class="category-icon-compact">{{ category.icon }}</span>
+                <h4 class="category-name-compact">{{ category.name }}</h4>
+                <p class="category-description-compact">
+                    {{ category.description|truncatewords:12 }}
                 </p>
-                <a href="{% url 'services_list' %}" class="btn-category">
-                    Ver Servicios <i class="fas fa-arrow-right ms-2"></i>
+                <a href="{% url 'services_list' %}?category={{ category.id }}" class="btn-category-compact">
+                    Ver Servicios <i class="fas fa-arrow-right ms-1"></i>
                 </a>
             </div>
-
-            <!-- Cleaning Category -->
-            <div class="category-card">
-                <span class="category-icon">🧹</span>
-                <h3 class="category-name">Limpieza</h3>
-                <p class="category-description">
-                    Servicios de limpieza para hogar, oficinas, muebles y espacios especiales
+            {% empty %}
+            <div class="col-12 text-center py-5">
+                <i class="fas fa-info-circle text-muted" style="font-size: 3rem;"></i>
+                <p class="text-muted mt-3">
+                    Pronto tendremos categorías disponibles
                 </p>
-                <a href="{% url 'services_list' %}" class="btn-category">
-                    Ver Servicios <i class="fas fa-arrow-right ms-2"></i>
-                </a>
             </div>
+            {% endfor %}
         </div>
     </div>
 </section>
