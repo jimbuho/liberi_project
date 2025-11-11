@@ -31,6 +31,11 @@ from core.image_upload import (
     delete_image, upload_image, validate_image
 )
 
+from core.tasks import (
+    send_payment_confirmed_to_customer_task,
+    send_payment_received_to_provider_task
+)
+
 from core.email_verification import send_verification_email, send_welcome_email
 
 from decimal import Decimal, ROUND_HALF_UP
@@ -2743,94 +2748,151 @@ def api_upload_image(request):
 def payphone_callback(request):
     """
     Endpoint para recibir el resultado del pago (Webhook/Callback de PayPhone).
+    Valida la transacción con PayPhone y procesa el pago si es aprobado.
     """
-    
-    # 1. Validar el método HTTP (PayPhone usa GET para el responseUrl y POST para el callbackUrl)
-    # Aquí vamos a manejar ambos en un solo endpoint por simplicidad, usando los parámetros de la URL
-    
-    transaction_id = request.GET.get('transactionId') or request.POST.get('transactionId')
+    # PayPhone envía los parámetros en la URL de redirección
+    transaction_id = request.GET.get('id') or request.POST.get('id')
     client_transaction_id = request.GET.get('clientTransactionId') or request.POST.get('clientTransactionId')
     
-    if not client_transaction_id:
-        # Si no hay ID, no podemos procesar. Retornar 200 para no reintentos.
-        return JsonResponse({'status': 'error', 'message': 'Missing clientTransactionId'}, status=400)
+    if not transaction_id or not client_transaction_id:
+        return JsonResponse({
+            'status': 'error', 
+            'message': 'Missing required parameters (id or clientTransactionId)'
+        }, status=400)
 
-    # 2. Obtener la reserva
     try:
         booking = Booking.objects.get(id=client_transaction_id)
     except Booking.DoesNotExist:
-        # Reserva no encontrada. Retornar 200 para no reintentos.
-        return JsonResponse({'status': 'error', 'message': 'Booking not found'}, status=404)
+        return JsonResponse({
+            'status': 'error', 
+            'message': 'Booking not found'
+        }, status=404)
 
-    # 3. Consultar el estado real de la transacción a PayPhone (recomendado por seguridad)
+    # Preparar headers para la llamada de confirmación a PayPhone
     headers = {
         'Authorization': f'Bearer {settings.PAYPHONE_API_TOKEN}',
         'Content-Type': 'application/json'
     }
 
+    # Llamada POST a PayPhone para confirmar el estado de la transacción
     try:
         response = requests.post(
             settings.PAYPHONE_URL_CONFIRM_PAYPHONE,
             headers=headers,
-            json={'id': transaction_id},
+            json={
+                'id': int(transaction_id),
+                'clientTxId': client_transaction_id
+            },
             timeout=10
         )
         response.raise_for_status()
         transaction_data = response.json()
-
-        print('Transaction Data', transaction_data)
         
-    except requests.exceptions.RequestException:
-        # Error al consultar, se podría reintentar o marcar para revisión manual
-        return JsonResponse({'status': 'error', 'message': 'Failed to check transaction status'}, status=500)
+        logger.info(f"PayPhone response: {transaction_data}")
+        
+    except requests.exceptions.RequestException as e:
+        logger.error(f"Error al confirmar transacción PayPhone: {e}")
+        return JsonResponse({
+            'status': 'error', 
+            'message': 'Failed to check transaction status'
+        }, status=500)
 
-
-    # 4. Procesar el estado de la transacción
-    transaction_status = transaction_data.get('transactionStatus') # 'Approved', 'Pending', 'Rejected'
+    # Obtener el estado de la transacción
+    transaction_status = transaction_data.get('transactionStatus')
     
     if transaction_status == 'Approved':
+        # Procesar el pago aprobado
         with transaction.atomic():
-            # Evitar doble procesamiento
-            if booking.status == 'pending': 
-                # Crear el registro de Payment
-                Payment.objects.create(
+            # Verificar que el booking no haya sido pagado ya
+            if booking.payment_status != 'paid':
+                # Crear el registro de pago
+                payment = Payment.objects.create(
                     booking=booking,
-                    user=booking.customer,
                     amount=booking.total_cost,
                     payment_method='payphone',
-                    external_id=transaction_id,
-                    status='verified'
+                    status='completed',
+                    transaction_id=transaction_id
                 )
                 
-                # Actualizar el estado de la reserva
-                booking.status = 'accepted' # O 'confirmed', si tienes un estado intermedio
+                # Actualizar el estado de pago del booking
+                booking.payment_status = 'paid'
                 booking.save()
                 
-                print('PAGO LISTO NOTIFICANDO...')
-                # Disparar notificaciones al Proveedor/Cliente
-                # Asumo que tienes una función para esto, como `create_notification`
-                # create_notification(booking, 'payment_verified') 
+                # Enviar notificaciones por email de forma asíncrona
+                send_payment_confirmed_to_customer_task.delay(
+                    booking_id=str(booking.id),
+                    customer_email=booking.customer.email,
+                    customer_name=booking.customer.get_full_name() or booking.customer.username,
+                    amount=str(booking.total_cost),
+                    provider_name=booking.provider.get_full_name() or booking.provider.username
+                )
                 
-        # PayPhone usa GET para redirigir al usuario, así que se redirige
+                send_payment_received_to_provider_task.delay(
+                    booking_id=str(booking.id),
+                    provider_email=booking.provider.email,
+                    provider_name=booking.provider.get_full_name() or booking.provider.username,
+                    amount=str(booking.total_cost),
+                    customer_name=booking.customer.get_full_name() or booking.customer.username
+                )
+                
+                # Crear notificaciones en la base de datos
+                # Notificación para el cliente
+                Notification.objects.create(
+                    user=booking.customer,
+                    notification_type='payment_verified',
+                    title='✅ Pago Verificado',
+                    message=f'Tu pago de ${booking.total_cost} ha sido confirmado. Tu reserva está activa.',
+                    booking=booking,
+                    action_url=f'/bookings/{booking.id}/'
+                )
+                
+                # Notificación para el proveedor
+                Notification.objects.create(
+                    user=booking.provider,
+                    notification_type='booking_paid',
+                    title='💰 Pago Recibido',
+                    message=f'Has recibido un pago de ${booking.total_cost} por la reserva de {booking.customer.get_full_name() or booking.customer.username}.',
+                    booking=booking,
+                    action_url=f'/bookings/{booking.id}/'
+                )
+                
+                logger.info(f"✅ Pago PayPhone procesado exitosamente para booking {booking.id}")
+            else:
+                logger.warning(f"⚠️ Booking {booking.id} ya estaba marcado como pagado")
+                payment = Payment.objects.filter(booking=booking).first()
+                
         if request.method == 'GET':
-             messages.success(request, 'Pago con PayPhone aprobado. Reserva confirmada.')
-             return redirect('payment_confirmation', payment_id=Payment.objects.get(external_id=transaction_id).id)
+            messages.success(request, '✅ Pago con PayPhone aprobado. Tu reserva ha sido confirmada.')
+            return redirect('payment_confirmation', payment_id=payment.id)
 
-        # Si es el POST del callback, solo retornar 200
-        return JsonResponse({'status': 'success', 'message': 'Payment Approved and processed'})
+        return JsonResponse({
+            'status': 'success', 
+            'message': 'Payment approved and processed'
+        })
     
-    elif transaction_status == 'Rejected' or transaction_status == 'Failed':
-        # Si el usuario es redirigido con GET
+    elif transaction_status in ['Rejected', 'Failed', 'Cancelled']:
+        # Pago rechazado o fallido
         if request.method == 'GET':
-            messages.error(request, 'El pago fue rechazado por PayPhone o el banco.')
+            messages.error(request, '❌ El pago fue rechazado por PayPhone o el banco. Por favor, intenta nuevamente.')
             return redirect('payment_process', booking_id=booking.id)
             
-        # Para el POST del callback, solo retornar 200
-        return JsonResponse({'status': 'rejected', 'message': 'Payment Rejected'})
+        return JsonResponse({
+            'status': 'rejected', 
+            'message': 'Payment rejected or failed'
+        })
 
-    else: 
-        # Estado pendiente, no hacer nada por ahora
-        return JsonResponse({'status': 'pending', 'message': 'Transaction is still pending'}, status=200)
+    else:
+        # Estado pendiente u otro
+        logger.info(f"Transacción PayPhone en estado: {transaction_status}")
+        
+        if request.method == 'GET':
+            messages.info(request, 'El pago está siendo procesado. Te notificaremos cuando se complete.')
+            return redirect('payment_process', booking_id=booking.id)
+            
+        return JsonResponse({
+            'status': 'pending', 
+            'message': f'Transaction status: {transaction_status}'
+        }, status=200)
 
 # ============================================================================
 # WITHDRAWS VIEWS

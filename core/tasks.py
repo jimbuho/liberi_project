@@ -536,3 +536,82 @@ El Equipo de Liberi
     except Exception as e:
         logger.error(f"❌ Error enviando email de retiro completado: {e}")
         raise
+
+# ============================================
+# NOTIFICACIONES DE PAGOS
+# ============================================
+
+@shared_task
+def send_payment_confirmed_to_customer_task(booking_id, customer_email, customer_name, amount, provider_name):
+    """Notifica al cliente que su pago fue confirmado"""
+    subject = '✅ Pago Confirmado - Liberi'
+    message = f"""
+Hola {customer_name},
+
+¡Tu pago ha sido confirmado exitosamente!
+
+DETALLES DEL PAGO:
+- Monto: ${amount}
+- Proveedor: {provider_name}
+- Método: PayPhone
+- Estado: Confirmado
+
+Tu reserva está activa y el proveedor ha sido notificado.
+
+Puedes ver los detalles de tu reserva en: {settings.BASE_URL}/bookings/{booking_id}/
+
+¡Gracias por usar Liberi!
+
+---
+El Equipo de Liberi
+    """
+    
+    try:
+        send_mail(
+            subject=subject,
+            message=message,
+            from_email=settings.DEFAULT_FROM_EMAIL,
+            recipient_list=[customer_email],
+            fail_silently=False,
+        )
+        logger.info(f"✅ Email de confirmación de pago enviado a {customer_email}")
+    except Exception as e:
+        logger.error(f"❌ Error enviando email de confirmación de pago: {e}")
+        raise
+
+
+@shared_task
+def send_payment_received_to_provider_task(booking_id, provider_email, provider_name, amount, customer_name):
+    """Notifica al proveedor que ha recibido un pago"""
+    subject = '💰 Pago Recibido - Liberi'
+    message = f"""
+Hola {provider_name},
+
+¡Has recibido un nuevo pago!
+
+DETALLES DEL PAGO:
+- Monto: ${amount}
+- Cliente: {customer_name}
+- Método: PayPhone
+- Estado: Confirmado
+
+El dinero está disponible en tu balance y podrás retirarlo una vez completado el servicio.
+
+Ver detalles de la reserva: {settings.BASE_URL}/bookings/{booking_id}/
+
+---
+El Equipo de Liberi
+    """
+    
+    try:
+        send_mail(
+            subject=subject,
+            message=message,
+            from_email=settings.DEFAULT_FROM_EMAIL,
+            recipient_list=[provider_email],
+            fail_silently=False,
+        )
+        logger.info(f"✅ Email de pago recibido enviado a {provider_email}")
+    except Exception as e:
+        logger.error(f"❌ Error enviando email de pago recibido: {e}")
+        raise
