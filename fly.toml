@@ -16,9 +16,9 @@ console_command = '/code/manage.py shell'
   PORT = '8080'
 
 [processes]
-  web = "gunicorn config.wsgi:application"
-  worker = "celery -A config worker --loglevel=info"
-  beat = "celery -A config beat --loglevel=info --scheduler django_celery_beat.schedulers:DatabaseScheduler"
+  web = "gunicorn liberi_project.wsgi:application"
+  worker = "celery -A liberi_project worker --loglevel=info"
+  beat = "celery -A liberi_project beat --loglevel=info --scheduler django_celery_beat.schedulers:DatabaseScheduler"
 
 [http_service]
   internal_port = 8080

@@ -64,6 +64,10 @@ INSTALLED_APPS = [
     'payments',
     'messaging',
     'frontend',
+
+    # Celery y Beat
+    'django_celery_beat',
+    'django_celery_results',
 ]
 
 MIDDLEWARE = [
