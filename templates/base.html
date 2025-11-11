@@ -291,37 +291,70 @@
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     
     <!-- Loader Global Script -->
+    <!-- Loader Global Script -->
     <script>
         const loader = document.getElementById('globalLoader');
         
         // Mostrar loader en envío de formularios
         document.addEventListener('submit', function(e) {
-            // Evitar mostrar loader en formularios de búsqueda o filtros
             const form = e.target;
-            if (!form.classList.contains('no-loader') && form.method.toLowerCase() === 'post') {
+            // No mostrar loader en formularios GET (búsqueda/filtros) o con clase no-loader
+            if (form.method.toLowerCase() === 'post' && !form.classList.contains('no-loader')) {
                 loader.classList.add('active');
             }
         });
 
-        // Mostrar loader en clics de botones específicos
+        // Mostrar loader en clics de botones y enlaces
         document.addEventListener('click', function(e) {
-            const target = e.target.closest('button[type="submit"], a.btn-primary, a.btn-success, a.btn-warning');
-            if (target && !target.classList.contains('no-loader')) {
-                // Solo para botones de submit o enlaces que parecen acciones importantes
-                if (target.tagName === 'BUTTON' && target.type === 'submit') {
-                    // Ya se maneja en el evento submit
+            // Buscar el elemento clickeado o su padre más cercano que sea un botón/enlace
+            const target = e.target.closest('a, button');
+            
+            if (!target) return;
+            
+            // No mostrar loader si tiene la clase no-loader
+            if (target.classList.contains('no-loader')) return;
+            
+            // No mostrar loader en enlaces de dropdown o navegación del navbar
+            if (target.closest('.dropdown-menu') || target.closest('.navbar-nav')) return;
+            
+            // No mostrar loader en botones de cerrar (btn-close)
+            if (target.classList.contains('btn-close')) return;
+            
+            // No mostrar loader en enlaces con # (modales, tabs, etc)
+            if (target.tagName === 'A' && target.getAttribute('href') === '#') return;
+            
+            // No mostrar loader en enlaces con data-bs-toggle (Bootstrap components)
+            if (target.hasAttribute('data-bs-toggle')) return;
+            
+            // MOSTRAR LOADER EN:
+            
+            // 1. Todos los botones con clase btn (Bootstrap)
+            if (target.classList.contains('btn')) {
+                // Si es un enlace con clase btn
+                if (target.tagName === 'A') {
+                    loader.classList.add('active');
                     return;
                 }
-                if (target.tagName === 'A' && (
-                    target.href.includes('/booking') || 
-                    target.href.includes('/payment') ||
-                    target.href.includes('/create') ||
-                    target.href.includes('/accept') ||
-                    target.href.includes('/reject') ||
-                    target.href.includes('/complete')
-                )) {
+                // Si es un botón type="submit"
+                if (target.tagName === 'BUTTON' && target.type === 'submit') {
                     loader.classList.add('active');
+                    return;
                 }
+            }
+            
+            // 2. Enlaces con clases específicas de acción
+            if (target.classList.contains('btn-hero') || 
+                target.classList.contains('btn-book') || 
+                target.classList.contains('btn-category') ||
+                target.classList.contains('btn-category-compact') ||
+                target.classList.contains('btn-search')) {
+                loader.classList.add('active');
+                return;
+            }
+            
+            // 3. Botones de submit sin clase btn
+            if (target.tagName === 'BUTTON' && target.type === 'submit') {
+                loader.classList.add('active');
             }
         });
 
@@ -334,6 +367,20 @@
         window.addEventListener('pageshow', function() {
             loader.classList.remove('active');
         });
+
+        // Ocultar loader después de 10 segundos como fallback
+        let loaderTimeout;
+        const observer = new MutationObserver(function(mutations) {
+            mutations.forEach(function(mutation) {
+                if (mutation.target.classList.contains('active')) {
+                    clearTimeout(loaderTimeout);
+                    loaderTimeout = setTimeout(function() {
+                        loader.classList.remove('active');
+                    }, 10000);
+                }
+            });
+        });
+        observer.observe(loader, { attributes: true, attributeFilter: ['class'] });
     </script>
     
     {% if user.is_authenticated %}
