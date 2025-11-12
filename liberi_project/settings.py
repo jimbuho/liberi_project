@@ -147,35 +147,31 @@ LOGGING = {
             'style': '{',
         },
     },
-    'filters': {
-        'require_debug_false': {
-            '()': 'django.utils.log.RequireDebugFalse',
-        },
-        'require_debug_true': {
-            '()': 'django.utils.log.RequireDebugTrue',
-        },
-    },
     'handlers': {
-        'console': {
-            'level': 'DEBUG',
-            'class': 'logging.StreamHandler',
-            'formatter': 'simple'
-        },
         'file': {
             'level': 'DEBUG',
             'class': 'logging.FileHandler',
-            'filename': os.path.join(BASE_DIR, 'logs', 'liberi.log'),
+            'filename': 'liberi.log',
             'formatter': 'verbose',
         },
+        'console': {
+            'level': 'DEBUG',
+            'class': 'logging.StreamHandler',
+            'formatter': 'simple',
+        },
+    },
+    'root': {
+        'handlers': ['file', 'console'],
+        'level': 'DEBUG',
     },
     'loggers': {
         'django': {
-            'handlers': ['console', 'file'],
+            'handlers': ['file', 'console'],
             'level': 'INFO',
-            'propagate': True,
+            'propagate': False,
         },
-        'core': {
-            'handlers': ['console', 'file'],
+        'payments': {  # Tu app de pagos
+            'handlers': ['file', 'console'],
             'level': 'DEBUG',
             'propagate': False,
         },

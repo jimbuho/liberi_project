@@ -2751,6 +2751,10 @@ def payphone_callback(request):
     """
     Callback de PayPhone - Redirige al usuario después del pago
     """
+    logger.debug("="*50)
+    logger.debug("INICIANDO PAYPHONE CALLBACK")
+    logger.debug("="*50)
+    logger.debug(f"Callback recibido: {request.POST}")
     transaction_id = request.GET.get('id')
     client_transaction_id = request.GET.get('clientTransactionId')
     
