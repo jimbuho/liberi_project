@@ -114,9 +114,9 @@
                     </div>
                     <h4>PayPhone</h4>
                     <p class="text-muted mb-3">Paga fácilmente con tu app PayPhone</p>
-                    <button onclick="mostrarPopup()">Realizar Pago</button>
-                    <div id="popup">
-                        <button id="btn-cerrar" onclick="cerrarPopup()">Cerrar</button>    
+                    <button onclick="mostrarPopup()" class="no-loader btn btn-primary">Realizar Pago</button>
+                    <div id="popup" style="display: none;">
+                        <button id="btn-cerrar" onclick="cerrarPopup()" class="no-loader">Cerrar</button>    
                         <div id="pp-button"></div>
                     </div>
                 </div>

@@ -7,6 +7,11 @@ from django.utils import timezone
 from django.urls import path
 from django.shortcuts import redirect
 from django.contrib import messages
+from django.conf import settings
+
+import requests
+import json
+import logging
 
 from .models import (
     Profile, Category, ProviderProfile, Service, Location, Booking, Review, AuditLog,
@@ -14,6 +19,8 @@ from .models import (
     PaymentMethod, BankAccount, PaymentProof, Notification, Payment,
     WithdrawalRequest, ProviderBankAccount, Bank
 )
+
+logger = logging.getLogger(__name__)
 
 # Inline para Profile en User admin
 class ProfileInline(admin.StackedInline):
@@ -208,12 +215,84 @@ class ProviderUnavailabilityAdmin(admin.ModelAdmin):
         return delta.days + 1
     duration_days.short_description = 'Días'
 
+# PAYMENTS
 
+class PaymentRefundUtil:
+    """Utilidad para procesar refunds con PayPhone"""
+    
+    @staticmethod
+    def process_refund(payment):
+        """
+        Procesa un refund para un pago de PayPhone
+        Retorna: (success, message)
+        """
+        # Solo refundar pagos completados de PayPhone
+        if payment.payment_method != 'payphone':
+            return False, 'Solo se pueden refundar pagos de PayPhone'
+        
+        if payment.status != 'completed':
+            return False, f'Solo se pueden refundar pagos completados. Estado actual: {payment.get_status_display()}'
+        
+        # Verificar si ya fue refundado
+        if payment.status == 'refunded':
+            return False, 'Este pago ya fue reembolsado'
+        
+        # Si está en modo test, no hacer refund real
+        if settings.DEBUG:
+            logger.info('MODO TEST: Simulando refund')
+            return True, 'Refund simulado (MODO TEST)'
+        
+        try:
+            headers = {
+                'Authorization': f'Bearer {settings.PAYPHONE_API_TOKEN}',
+                'Content-Type': 'application/json'
+            }
+            
+            payload = {
+                'transactionId': payment.transaction_id,
+                'clientTransactionId': str(payment.booking.id)
+            }
+            
+            logger.info(f'Procesando refund para Payment {payment.id}')
+            logger.info(f'Payload: {payload}')
+            
+            # Usar endpoint de refund
+            refund_url = settings.PAYPHONE_URL_CONFIRM_PAYPHONE.replace('confirm', 'refund')
+            
+            response = requests.post(
+                refund_url,
+                headers=headers,
+                json=payload,
+                timeout=10
+            )
+            
+            logger.info(f'Respuesta de refund: {response.status_code} - {response.text}')
+            
+            if response.status_code == 200:
+                data = response.json()
+                
+                if data.get('statusCode') == 0 or data.get('status') == 'Success':
+                    logger.info(f'✅ Refund exitoso para Payment {payment.id}')
+                    return True, 'Refund procesado exitosamente'
+                else:
+                    error_msg = data.get('message', 'Error desconocido')
+                    logger.error(f'❌ PayPhone retornó error: {error_msg}')
+                    return False, f'Error de PayPhone: {error_msg}'
+            else:
+                logger.error(f'❌ Error HTTP {response.status_code}: {response.text}')
+                return False, f'Error de comunicación: {response.status_code}'
+                
+        except requests.exceptions.RequestException as e:
+            logger.error(f'❌ Excepción en refund: {e}')
+            return False, f'Error de conexión: {str(e)}'
+        except Exception as e:
+            logger.error(f'❌ Error inesperado: {e}')
+            return False, f'Error inesperado: {str(e)}'
 
 @admin.register(Payment)
 class PaymentAdmin(admin.ModelAdmin):
     """
-    Administración de pagos con funcionalidad para validar transferencias
+    Administración de pagos con funcionalidad para validar transferencias y refunds
     """
     list_display = [
         'id',
@@ -229,7 +308,6 @@ class PaymentAdmin(admin.ModelAdmin):
         'status',
         'payment_method',
         'created_at',
-        'transfer_date',
     ]
     
     search_fields = [
@@ -246,7 +324,6 @@ class PaymentAdmin(admin.ModelAdmin):
         'updated_at',
         'validated_by',
         'validated_at',
-        'receipt_preview',
     ]
     
     fieldsets = (
@@ -264,7 +341,6 @@ class PaymentAdmin(admin.ModelAdmin):
                 'reference_number',
                 'transfer_date',
                 'transfer_receipt',
-                'receipt_preview',
             )
         }),
         ('Validación', {
@@ -283,7 +359,7 @@ class PaymentAdmin(admin.ModelAdmin):
         }),
     )
     
-    actions = ['approve_payments', 'reject_payments']
+    actions = ['approve_payments', 'reject_payments', 'process_refunds']
     
     def booking_link(self, obj):
         """Link a la reserva asociada"""
@@ -316,32 +392,36 @@ class PaymentAdmin(admin.ModelAdmin):
         )
     status_badge.short_description = 'Estado'
     
-    def receipt_preview(self, obj):
-        """Preview del comprobante de pago"""
-        if obj.transfer_receipt:
-            return format_html(
-                '<a href="{}" target="_blank">'
-                '<img src="{}" style="max-width: 300px; max-height: 300px;" />'
-                '</a><br><a href="{}" target="_blank" class="button">Descargar Comprobante</a>',
-                obj.transfer_receipt.url,
-                obj.transfer_receipt.url,
-                obj.transfer_receipt.url
-            )
-        return 'Sin comprobante'
-    receipt_preview.short_description = 'Comprobante'
-    
     def approve_payments(self, request, queryset):
         """Acción masiva para aprobar pagos"""
         count = 0
         for payment in queryset.filter(status='pending_validation'):
-            payment.mark_as_completed(validated_by=request.user)
+            payment.status = 'completed'
+            payment.validated_by = request.user
+            payment.validated_at = timezone.now()
+            payment.save()
+            
+            # Actualizar booking
+            payment.booking.payment_status = 'paid'
+            payment.booking.save()
+            
+            # Notificaciones
+            Notification.objects.create(
+                user=payment.booking.customer,
+                notification_type='payment_verified',
+                title='✅ Pago Verificado',
+                message=f'Tu pago de ${payment.amount} ha sido confirmado.',
+                booking=payment.booking,
+                action_url=f'/bookings/{payment.booking.id}/'
+            )
+            
             count += 1
         
         self.message_user(
             request,
             f'{count} pago(s) aprobado(s) exitosamente.'
         )
-    approve_payments.short_description = 'Aprobar pagos seleccionados'
+    approve_payments.short_description = '✅ Aprobar pagos seleccionados'
     
     def reject_payments(self, request, queryset):
         """Acción masiva para rechazar pagos"""
@@ -354,7 +434,64 @@ class PaymentAdmin(admin.ModelAdmin):
             request,
             f'{count} pago(s) rechazado(s).'
         )
-    reject_payments.short_description = 'Rechazar pagos seleccionados'
+    reject_payments.short_description = '❌ Rechazar pagos seleccionados'
+    
+    def process_refunds(self, request, queryset):
+        """Acción para procesar refunds"""
+        refund_util = PaymentRefundUtil()
+        successful_refunds = 0
+        failed_refunds = []
+        
+        for payment in queryset.filter(payment_method='payphone', status='completed'):
+            success, message = refund_util.process_refund(payment)
+            
+            if success:
+                # Actualizar estado
+                payment.status = 'refunded'
+                payment.notes = f'Refund procesado por {request.user.username} el {timezone.now().strftime("%d/%m/%Y %H:%M")}'
+                payment.save()
+                
+                # Notificar al cliente
+                Notification.objects.create(
+                    user=payment.booking.customer,
+                    notification_type='payment_received',
+                    title='💰 Reembolso Procesado',
+                    message=f'Tu reembolso de ${payment.amount} ha sido procesado.',
+                    booking=payment.booking,
+                    action_url=f'/bookings/{payment.booking.id}/'
+                )
+                
+                # Log
+                AuditLog.objects.create(
+                    user=request.user,
+                    action='Refund de pago procesado',
+                    metadata={
+                        'payment_id': payment.id,
+                        'booking_id': str(payment.booking.id),
+                        'amount': str(payment.amount)
+                    }
+                )
+                
+                successful_refunds += 1
+            else:
+                failed_refunds.append(f'Payment {payment.id}: {message}')
+        
+        if successful_refunds > 0:
+            self.message_user(
+                request,
+                f'✅ {successful_refunds} refund(s) procesado(s) exitosamente.',
+                django_messages.SUCCESS
+            )
+        
+        if failed_refunds:
+            error_msg = '\n'.join(failed_refunds)
+            self.message_user(
+                request,
+                f'❌ Errores en {len(failed_refunds)} refund(s):\n{error_msg}',
+                django_messages.ERROR
+            )
+    
+    process_refunds.short_description = '💰 Procesar refund(s)'
     
     def has_delete_permission(self, request, obj=None):
         """Prevenir eliminación accidental de pagos"""

@@ -9,7 +9,9 @@ from django.db.models import Q, Avg, Count, Sum, F
 from datetime import timedelta, datetime
 from django.contrib.auth.models import User
 from django.http import JsonResponse
+from django.views.decorators.csrf import csrf_exempt
 
+import json
 import requests
 import logging
 
@@ -2745,67 +2747,64 @@ def api_upload_image(request):
 # PAYMENT VIEWS
 # ============================================================================
 
+@csrf_exempt
 def payphone_callback(request):
     """
     Endpoint para recibir el resultado del pago (Webhook/Callback de PayPhone).
-    Valida la transacción con PayPhone y procesa el pago si es aprobado.
+    Versión mejorada que maneja correctamente las respuestas POST de PayPhone.
     """
-    # PayPhone envía los parámetros en la URL de redirección
-    transaction_id = request.GET.get('id') or request.POST.get('id')
-    client_transaction_id = request.GET.get('clientTransactionId') or request.POST.get('clientTransactionId')
+    logger.info('=== PAYPHONE CALLBACK RECIBIDO ===')
+    logger.info(f'Método: {request.method}')
+    logger.info(f'POST data: {request.POST}')
+    logger.info(f'GET data: {request.GET}')
+    
+    # PayPhone envía los parámetros en POST
+    if request.method == 'POST':
+        transaction_id = request.POST.get('id')
+        client_transaction_id = request.POST.get('clientTransactionId')
+    else:
+        # Fallback a GET si viene por URL
+        transaction_id = request.GET.get('id')
+        client_transaction_id = request.GET.get('clientTransactionId')
+    
+    logger.info(f'transaction_id: {transaction_id}')
+    logger.info(f'client_transaction_id: {client_transaction_id}')
     
     if not transaction_id or not client_transaction_id:
+        logger.error('Missing required parameters (id or clientTransactionId)')
         return JsonResponse({
-            'status': 'error', 
-            'message': 'Missing required parameters (id or clientTransactionId)'
+            'status': 'error',
+            'message': 'Missing required parameters'
         }, status=400)
-
+    
+    # Obtener la reserva
     try:
         booking = Booking.objects.get(id=client_transaction_id)
+        logger.info(f'✅ Booking encontrado: {booking.id}')
     except Booking.DoesNotExist:
+        logger.error(f'❌ Booking no encontrado: {client_transaction_id}')
         return JsonResponse({
-            'status': 'error', 
+            'status': 'error',
             'message': 'Booking not found'
         }, status=404)
-
-    # Preparar headers para la llamada de confirmación a PayPhone
-    headers = {
-        'Authorization': f'Bearer {settings.PAYPHONE_API_TOKEN}',
-        'Content-Type': 'application/json'
-    }
-
-    # Llamada POST a PayPhone para confirmar el estado de la transacción
-    try:
-        response = requests.post(
-            settings.PAYPHONE_URL_CONFIRM_PAYPHONE,
-            headers=headers,
-            json={
-                'id': int(transaction_id),
-                'clientTxId': client_transaction_id
-            },
-            timeout=10
-        )
-        response.raise_for_status()
-        transaction_data = response.json()
-        
-        logger.info(f"PayPhone response: {transaction_data}")
-        
-    except requests.exceptions.RequestException as e:
-        logger.error(f"Error al confirmar transacción PayPhone: {e}")
-        return JsonResponse({
-            'status': 'error', 
-            'message': 'Failed to check transaction status'
-        }, status=500)
-
-    # Obtener el estado de la transacción
-    transaction_status = transaction_data.get('transactionStatus')
     
-    if transaction_status == 'Approved':
-        # Procesar el pago aprobado
+    # Confirmar la transacción con PayPhone
+    logger.info('Enviando confirmación a PayPhone...')
+    success, success_transaction, payload = confirm_payphone_transaction(
+        transaction_id,
+        client_transaction_id
+    )
+    
+    logger.info(f'Respuesta PayPhone - success_request: {success}, success_transaction: {success_transaction}')
+    logger.info(f'Payload: {payload}')
+    
+    # Procesar según resultado
+    if success and success_transaction:
+        logger.info('✅ Transacción APROBADA')
         with transaction.atomic():
-            # Verificar que el booking no haya sido pagado ya
+            # Verificar que no esté pagado ya
             if booking.payment_status != 'paid':
-                # Crear el registro de pago
+                # Crear registro de pago
                 payment = Payment.objects.create(
                     booking=booking,
                     amount=booking.total_cost,
@@ -2814,29 +2813,34 @@ def payphone_callback(request):
                     transaction_id=transaction_id
                 )
                 
-                # Actualizar el estado de pago del booking
+                # Actualizar booking
                 booking.payment_status = 'paid'
                 booking.save()
                 
-                # Enviar notificaciones por email de forma asíncrona
-                send_payment_confirmed_to_customer_task.delay(
-                    booking_id=str(booking.id),
-                    customer_email=booking.customer.email,
-                    customer_name=booking.customer.get_full_name() or booking.customer.username,
-                    amount=str(booking.total_cost),
-                    provider_name=booking.provider.get_full_name() or booking.provider.username
-                )
+                # Notificaciones asincrónicas
+                try:
+                    send_payment_confirmed_to_customer_task.delay(
+                        booking_id=str(booking.id),
+                        customer_email=booking.customer.email,
+                        customer_name=booking.customer.get_full_name() or booking.customer.username,
+                        amount=str(booking.total_cost),
+                        provider_name=booking.provider.get_full_name() or booking.provider.username
+                    )
+                except Exception as e:
+                    logger.warning(f'Error enviando email a cliente: {e}')
                 
-                send_payment_received_to_provider_task.delay(
-                    booking_id=str(booking.id),
-                    provider_email=booking.provider.email,
-                    provider_name=booking.provider.get_full_name() or booking.provider.username,
-                    amount=str(booking.total_cost),
-                    customer_name=booking.customer.get_full_name() or booking.customer.username
-                )
+                try:
+                    send_payment_received_to_provider_task.delay(
+                        booking_id=str(booking.id),
+                        provider_email=booking.provider.email,
+                        provider_name=booking.provider.get_full_name() or booking.provider.username,
+                        amount=str(booking.total_cost),
+                        customer_name=booking.customer.get_full_name() or booking.customer.username
+                    )
+                except Exception as e:
+                    logger.warning(f'Error enviando email a proveedor: {e}')
                 
-                # Crear notificaciones en la base de datos
-                # Notificación para el cliente
+                # Notificaciones en base de datos
                 Notification.objects.create(
                     user=booking.customer,
                     notification_type='payment_verified',
@@ -2846,7 +2850,6 @@ def payphone_callback(request):
                     action_url=f'/bookings/{booking.id}/'
                 )
                 
-                # Notificación para el proveedor
                 Notification.objects.create(
                     user=booking.provider,
                     notification_type='booking_paid',
@@ -2856,43 +2859,115 @@ def payphone_callback(request):
                     action_url=f'/bookings/{booking.id}/'
                 )
                 
-                logger.info(f"✅ Pago PayPhone procesado exitosamente para booking {booking.id}")
-            else:
-                logger.warning(f"⚠️ Booking {booking.id} ya estaba marcado como pagado")
-                payment = Payment.objects.filter(booking=booking).first()
+                logger.info(f'✅ Pago procesado exitosamente para booking {booking.id}')
                 
-        if request.method == 'GET':
-            messages.success(request, '✅ Pago con PayPhone aprobado. Tu reserva ha sido confirmada.')
-            return redirect('payment_confirmation', payment_id=payment.id)
-
+                # Log de auditoría
+                AuditLog.objects.create(
+                    user=booking.customer,
+                    action='Pago PayPhone confirmado',
+                    metadata={
+                        'booking_id': str(booking.id),
+                        'transaction_id': transaction_id,
+                        'amount': str(booking.total_cost)
+                    }
+                )
+                
+                return JsonResponse({
+                    'status': 'success',
+                    'message': 'Payment approved and processed',
+                    'booking_id': str(booking.id)
+                })
+            else:
+                logger.warning(f'⚠️ Booking {booking.id} ya estaba marcado como pagado')
+                return JsonResponse({
+                    'status': 'success',
+                    'message': 'Payment already processed'
+                })
+    
+    elif success and not success_transaction:
+        logger.error('❌ Transacción RECHAZADA por PayPhone')
+        
+        # Registrar intento fallido
+        try:
+            Payment.objects.create(
+                booking=booking,
+                amount=booking.total_cost,
+                payment_method='payphone',
+                status='failed',
+                transaction_id=transaction_id,
+                notes=f"Rechazada por PayPhone: {payload.get('message', 'Error desconocido')}"
+            )
+        except:
+            pass
+        
+        Notification.objects.create(
+            user=booking.customer,
+            notification_type='payment_received',
+            title='❌ Pago Rechazado',
+            message=f'Tu pago de ${booking.total_cost} fue rechazado. Por favor intenta nuevamente.',
+            booking=booking,
+            action_url=f'/bookings/{booking.id}/'
+        )
+        
         return JsonResponse({
-            'status': 'success', 
-            'message': 'Payment approved and processed'
+            'status': 'rejected',
+            'message': f"Payment rejected: {payload.get('message', 'Unknown error')}"
         })
     
-    elif transaction_status in ['Rejected', 'Failed', 'Cancelled']:
-        # Pago rechazado o fallido
-        if request.method == 'GET':
-            messages.error(request, '❌ El pago fue rechazado por PayPhone o el banco. Por favor, intenta nuevamente.')
-            return redirect('payment_process', booking_id=booking.id)
-            
-        return JsonResponse({
-            'status': 'rejected', 
-            'message': 'Payment rejected or failed'
-        })
-
     else:
-        # Estado pendiente u otro
-        logger.info(f"Transacción PayPhone en estado: {transaction_status}")
-        
-        if request.method == 'GET':
-            messages.info(request, 'El pago está siendo procesado. Te notificaremos cuando se complete.')
-            return redirect('payment_process', booking_id=booking.id)
-            
+        logger.error('❌ Error comunicándose con PayPhone')
         return JsonResponse({
-            'status': 'pending', 
-            'message': f'Transaction status: {transaction_status}'
-        }, status=200)
+            'status': 'error',
+            'message': 'Failed to confirm transaction with PayPhone'
+        }, status=500)
+
+def confirm_payphone_transaction(transaction_id, client_transaction_id):
+    """
+    Confirma una transacción con PayPhone
+    Retorna: (success_request, success_transaction, payload)
+    """
+    try:
+        headers = {
+            'Authorization': f'Bearer {settings.PAYPHONE_API_TOKEN}',
+            'Content-Type': 'application/json'
+        }
+        
+        payload = {
+            'id': int(transaction_id),
+            'clientTxId': client_transaction_id
+        }
+        
+        logger.info(f'Enviando confirmación a {settings.PAYPHONE_URL_CONFIRM_PAYPHONE}')
+        logger.info(f'Headers: {headers}')
+        logger.info(f'Payload: {payload}')
+        
+        response = requests.post(
+            settings.PAYPHONE_URL_CONFIRM_PAYPHONE,
+            headers=headers,
+            json=payload,
+            timeout=10
+        )
+        
+        logger.info(f'Status Code: {response.status_code}')
+        logger.info(f'Response Text: {response.text}')
+        
+        response.raise_for_status()
+        
+        data = response.json()
+        logger.info(f'Parsed Response: {data}')
+        
+        # Verificar el estado de la transacción
+        success_request = response.status_code == 200
+        
+        # PayPhone retorna transactionStatus con valores como "Approved", "Rejected", etc
+        transaction_status = data.get('transactionStatus') or data.get('status')
+        success_transaction = transaction_status == 'Approved'
+        
+        return success_request, success_transaction, data
+        
+    except requests.exceptions.RequestException as e:
+        logger.error(f'Error en confirm_payphone_transaction: {e}')
+        return False, False, {'error': str(e)}
 
 # ============================================================================
 # WITHDRAWS VIEWS
