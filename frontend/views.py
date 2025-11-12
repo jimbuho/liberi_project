@@ -11,7 +11,6 @@ from django.contrib.auth.models import User
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 
-import json
 import requests
 import logging
 
@@ -2750,89 +2749,123 @@ def api_upload_image(request):
 @csrf_exempt
 def payphone_callback(request):
     """
-    Callback de PayPhone - Debe redirigir al usuario, no devolver JSON
+    Callback de PayPhone - Redirige al usuario después del pago
     """
     transaction_id = request.GET.get('id')
     client_transaction_id = request.GET.get('clientTransactionId')
     
+    logger.info(f"PayPhone callback - ID: {transaction_id}, ClientTxId: {client_transaction_id}")
+    
+    # Validar parámetros
     if not transaction_id or not client_transaction_id:
+        logger.error("Faltan parámetros en callback")
         messages.error(request, 'Error: Faltan parámetros de pago')
         return redirect('home')
 
+    # Buscar booking
     try:
         booking = Booking.objects.get(id=client_transaction_id)
+        logger.info(f"Booking encontrado: {booking.id}")
     except Booking.DoesNotExist:
+        logger.error(f"Booking no encontrado: {client_transaction_id}")
         messages.error(request, 'Reserva no encontrada')
         return redirect('home')
 
-    # Confirmar transacción con PayPhone
+    # Confirmar con PayPhone
     headers = {
         'Authorization': f'Bearer {settings.PAYPHONE_API_TOKEN}',
         'Content-Type': 'application/json'
     }
+    
+    confirm_url = getattr(
+        settings, 
+        'PAYPHONE_URL_CONFIRM_PAYPHONE',
+        'https://pay.payphonetodoesposible.com/api/button/V2/Confirm'
+    )
 
     try:
         response = requests.post(
-            getattr(settings, 'PAYPHONE_URL_CONFIRM_PAYPHONE', 
-                   'https://pay.payphonetodoesposible.com/api/button/V2/Confirm'),
+            confirm_url,
             headers=headers,
             json={
                 'id': int(transaction_id),
-                'clientTxId': client_transaction_id
+                'clientTxId': str(client_transaction_id)
             },
             timeout=15
         )
+        
+        logger.info(f"PayPhone status: {response.status_code}")
+        logger.info(f"PayPhone response: {response.text}")
+        
         response.raise_for_status()
         transaction_data = response.json()
         
-    except Exception as e:
+    except requests.exceptions.RequestException as e:
         logger.error(f"Error confirmando PayPhone: {e}")
-        messages.error(request, 'Error al verificar el pago. Contacta soporte.')
+        logger.error(f"Response: {getattr(e.response, 'text', 'No response')}")
+        messages.error(request, 'Error al verificar el pago. Contacta a soporte.')
         return redirect('booking_detail', booking_id=booking.id)
 
-    # Verificar estado
-    transaction_status = transaction_data.get('transactionStatus')
+    # Procesar según estado
+    transaction_status = transaction_data.get('transactionStatus', 'Unknown')
+    logger.info(f"Transaction status: {transaction_status}")
     
     if transaction_status == 'Approved':
-        with transaction.atomic():
-            if booking.payment_status != 'paid':
-                # Crear pago
-                Payment.objects.create(
-                    booking=booking,
-                    amount=booking.total_cost,
-                    payment_method='payphone',
-                    status='completed',
-                    transaction_id=transaction_id
-                )
-                
-                booking.payment_status = 'paid'
-                booking.save()
-                
-                # Notificaciones
-                Notification.objects.create(
-                    recipient=booking.customer,
-                    message=f'Tu pago de ${booking.total_cost} ha sido confirmado',
-                    notification_type='payment'
-                )
-                
-                Notification.objects.create(
-                    recipient=booking.provider.user,
-                    message=f'Recibiste un pago de ${booking.total_cost}',
-                    notification_type='payment'
-                )
-                
-                # Enviar emails
-                try:
-                    from core.tasks import send_payment_confirmed_to_customer_task, send_payment_received_to_provider_task
-                    send_payment_confirmed_to_customer_task.delay(booking.id)
-                    send_payment_received_to_provider_task.delay(booking.id)
-                except Exception as e:
-                    logger.error(f"Error enviando emails: {e}")
-        
-        messages.success(request, '¡Pago confirmado! Tu reserva está lista.')
+        try:
+            with transaction.atomic():
+                # Verificar si ya está pagado
+                if booking.payment_status != 'paid':
+                    # Crear registro de pago
+                    payment = Payment.objects.create(
+                        booking=booking,
+                        amount=booking.total_cost,
+                        payment_method='payphone',
+                        status='completed',
+                        transaction_id=transaction_id
+                    )
+                    logger.info(f"Pago creado: {payment.id}")
+                    
+                    # Actualizar booking
+                    booking.payment_status = 'paid'
+                    booking.save()
+                    logger.info(f"Booking actualizado a paid: {booking.id}")
+                    
+                    # Crear notificaciones
+                    Notification.objects.create(
+                        recipient=booking.customer,
+                        message=f'Tu pago de ${booking.total_cost} ha sido confirmado',
+                        notification_type='payment'
+                    )
+                    
+                    Notification.objects.create(
+                        recipient=booking.provider.user,
+                        message=f'Recibiste un pago de ${booking.total_cost} por tu servicio',
+                        notification_type='payment'
+                    )
+                    logger.info("Notificaciones creadas")
+                    
+                    # Enviar emails (opcional - con try/except para que no rompa si falla)
+                    try:
+                        send_payment_confirmed_to_customer_task.delay(booking.id)
+                        send_payment_received_to_provider_task.delay(booking.id)
+                        logger.info("Emails encolados")
+                    except Exception as email_error:
+                        logger.warning(f"No se pudieron enviar emails: {email_error}")
+                    
+                    messages.success(request, '¡Pago confirmado exitosamente! Tu reserva está activa.')
+                else:
+                    logger.info(f"Booking ya estaba pagado: {booking.id}")
+                    messages.info(request, 'Este pago ya había sido procesado anteriormente.')
+                    
+        except Exception as e:
+            logger.error(f"Error procesando pago aprobado: {e}", exc_info=True)
+            messages.error(request, 'Error al procesar el pago. Contacta a soporte.')
+            return redirect('booking_detail', booking_id=booking.id)
+            
         return redirect('booking_detail', booking_id=booking.id)
     
     else:
+        logger.warning(f"Pago no aprobado. Estado: {transaction_status}")
         messages.warning(request, f'El pago no fue aprobado. Estado: {transaction_status}')
         return redirect('booking_detail', booking_id=booking.id)
 
