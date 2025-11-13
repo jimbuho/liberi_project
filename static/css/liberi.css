@@ -593,3 +593,150 @@ footer h5 {
         font-size: 1rem;
     }
 }
+
+/* Payment Methods Section */
+/* Payment Methods Section */
+.payment-methods-section {
+    background: white;
+    border-top: 1px solid #f0f0f0;
+}
+
+.payment-methods-section .section-title {
+    color: #2c3e50;
+    font-weight: 700;
+    margin-bottom: 1rem;
+}
+
+/* Payment Methods Grid */
+.payment-methods-grid {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 40px;
+}
+
+.payment-method-item {
+    flex: 0 1 auto;
+    min-width: 200px;
+    padding: 20px;
+    transition: all 0.3s ease;
+}
+
+.payment-method-item:hover {
+    transform: translateY(-5px);
+}
+
+.payment-method-icon {
+    background: linear-gradient(135deg, #5DADE2 0%, #48C9B0 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    transition: transform 0.3s ease;
+}
+
+.payment-method-item:hover .payment-method-icon {
+    transform: scale(1.1);
+}
+
+.payment-method-item h5 {
+    color: #2c3e50;
+    font-weight: 600;
+    margin: 1rem 0 0.5rem;
+}
+
+/* Payment Logo Styles */
+.payment-logo-small {
+    width: 50px;
+    height: 32px;
+    border-radius: 4px;
+    transition: transform 0.3s ease, box-shadow 0.3s ease, filter 0.3s ease;
+    cursor: pointer;
+}
+
+.payment-logo-small:hover {
+    transform: scale(1.15);
+    box-shadow: 0 4px 12px rgba(93, 173, 226, 0.3);
+    filter: brightness(1.05);
+}
+
+/* Divider Line */
+.payment-methods-grid > div[style*="width: 1px"] {
+    background: #e0e0e0;
+    min-height: 80px;
+}
+
+/* Alert Styles */
+.alert-info {
+    background-color: #e7f3ff;
+    border-color: #5DADE2;
+    color: #0c5483;
+}
+
+.alert-info strong {
+    color: #1a5276;
+}
+
+.alert-info i {
+    color: #5DADE2;
+}
+
+.alert-info .d-flex {
+    align-items: flex-start;
+}
+
+/* Responsive Mobile */
+@media (max-width: 992px) {
+    .payment-methods-grid {
+        gap: 30px;
+    }
+    
+    .payment-methods-grid > div[style*="width: 1px"] {
+        display: none;
+    }
+}
+
+@media (max-width: 768px) {
+    .payment-method-item {
+        min-width: 150px;
+        padding: 15px;
+    }
+    
+    .payment-logo-small {
+        width: 45px;
+        height: 28px;
+    }
+    
+    .payment-method-item h5 {
+        font-size: 1rem;
+    }
+    
+    .payment-method-item p {
+        font-size: 0.85rem;
+    }
+}
+
+@media (max-width: 576px) {
+    .payment-methods-grid {
+        gap: 20px;
+        flex-direction: column;
+    }
+    
+    .payment-method-item {
+        min-width: 100%;
+    }
+    
+    .payment-logo-small {
+        width: 40px;
+        height: 25px;
+    }
+    
+    .alert-info {
+        font-size: 0.9rem;
+    }
+    
+    .alert-info i {
+        font-size: 1.2rem;
+        margin-right: 0.75rem !important;
+    }
+}

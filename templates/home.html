@@ -1,6 +1,6 @@
 {% extends 'base.html' %}
 
-{% block title %}Liberi - Servicios a Domicilio de Calidad{% endblock %}
+{% block title %}Liberi - Servicios Verificados y de Confianza{% endblock %}
 
 {% block content %}
 <!-- Hero Section -->
@@ -9,7 +9,7 @@
         <div class="hero-content">
             <h1 class="hero-title">Servicios a Domicilio</h1>
             <p class="hero-subtitle">
-                Belleza y limpieza profesional donde y cuando lo necesites
+                Servicios verificados y de confianza, dónde y cuándo los necesites
             </p>
             <div class="hero-buttons">
                 <a href="{% url 'services_list' %}" class="btn-hero btn-hero-primary">
@@ -121,12 +121,12 @@
     </div>
 </section>
 
-<!-- How It Works Section -->
+<!-- How It Works Section - MEJORADO CON 4 PASOS -->
 <section class="how-it-works-section py-5 bg-light">
     <div class="container">
         <h2 class="section-title">¿Cómo Funciona?</h2>
         <div class="row mt-5">
-            <div class="col-md-4 text-center mb-4">
+            <div class="col-md-3 text-center mb-4">
                 <div class="step-icon">
                     <i class="fas fa-search fa-3x text-primary mb-3"></i>
                 </div>
@@ -135,7 +135,7 @@
                     Encuentra el servicio que necesitas entre nuestra amplia oferta de profesionales verificados
                 </p>
             </div>
-            <div class="col-md-4 text-center mb-4">
+            <div class="col-md-3 text-center mb-4">
                 <div class="step-icon">
                     <i class="fas fa-calendar-check fa-3x text-primary mb-3"></i>
                 </div>
@@ -144,14 +144,98 @@
                     Selecciona fecha y hora que mejor te convenga y confirma tu reserva
                 </p>
             </div>
-            <div class="col-md-4 text-center mb-4">
+            <div class="col-md-3 text-center mb-4">
+                <div class="step-icon">
+                    <i class="fas fa-credit-card fa-3x text-primary mb-3"></i>
+                </div>
+                <h4>3. Paga</h4>
+                <p class="text-muted">
+                    Realiza el pago de forma segura con tarjeta o transferencia bancaria
+                </p>
+            </div>
+            <div class="col-md-3 text-center mb-4">
                 <div class="step-icon">
                     <i class="fas fa-home fa-3x text-primary mb-3"></i>
                 </div>
-                <h4>3. Disfruta</h4>
+                <h4>4. Disfruta</h4>
                 <p class="text-muted">
-                    Recibe el servicio en la comodidad de tu hogar con total garantía de calidad
+                    Recibe el servicio en tu hogar con total garantía de calidad
                 </p>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Payment Methods Section - NUEVA SECCIÓN -->
+<section class="payment-methods-section py-5">
+    <div class="container">
+        <h2 class="section-title">Métodos de Pago Seguros</h2>
+        <p class="text-center text-muted mb-5">Aceptamos múltiples formas de pago para tu comodidad</p>
+        
+        <div class="row justify-content-center">
+            <div class="col-md-10">
+                <div class="d-flex justify-content-around align-items-center flex-wrap gap-5 payment-methods-grid">
+                    <!-- Tarjetas de Crédito -->
+                    <div class="text-center payment-method-item">
+                        <div class="payment-method-icon mb-3">
+                            <i class="fas fa-credit-card fa-3x text-primary"></i>
+                        </div>
+                        <h5 class="mb-3">Tarjetas de Crédito</h5>
+                        <div class="d-flex gap-2 justify-content-center mb-3 flex-wrap">
+                            <!-- Visa -->
+                            <svg class="payment-logo-small" viewBox="0 0 48 32" xmlns="http://www.w3.org/2000/svg" title="Visa">
+                                <rect width="48" height="32" rx="4" fill="#1A1F71"/>
+                                <text x="24" y="20" text-anchor="middle" font-family="Arial, sans-serif" font-size="10" font-weight="bold" fill="white">VISA</text>
+                            </svg>
+                            
+                            <!-- Mastercard -->
+                            <svg class="payment-logo-small" viewBox="0 0 48 32" xmlns="http://www.w3.org/2000/svg" title="Mastercard">
+                                <rect width="48" height="32" rx="4" fill="white" stroke="#CCCCCC"/>
+                                <circle cx="18" cy="16" r="8" fill="#EB001B"/>
+                                <circle cx="30" cy="16" r="8" fill="#F79E1B"/>
+                                <circle cx="24" cy="16" r="5" fill="none" stroke="#FF5F00" stroke-width="1"/>
+                            </svg>
+                            
+                            <!-- American Express -->
+                            <svg class="payment-logo-small" viewBox="0 0 48 32" xmlns="http://www.w3.org/2000/svg" title="American Express">
+                                <rect width="48" height="32" rx="4" fill="#006FCF"/>
+                                <text x="24" y="20" text-anchor="middle" font-family="Arial, sans-serif" font-size="8" font-weight="bold" fill="white">AMEX</text>
+                            </svg>
+                            
+                            <!-- Diners Club -->
+                            <svg class="payment-logo-small" viewBox="0 0 48 32" xmlns="http://www.w3.org/2000/svg" title="Diners Club">
+                                <rect width="48" height="32" rx="4" fill="white" stroke="#CCCCCC"/>
+                                <circle cx="16" cy="16" r="7" fill="#0079BE"/>
+                                <circle cx="32" cy="16" r="7" fill="#E31937"/>
+                            </svg>
+                        </div>
+                        <p class="text-muted small">Vía PayPhone</p>
+                    </div>
+                    
+                    <div style="width: 1px; height: 80px; background: #e0e0e0;"></div>
+                    
+                    <!-- Transferencia Bancaria -->
+                    <div class="text-center payment-method-item">
+                        <div class="payment-method-icon mb-3">
+                            <i class="fas fa-university fa-3x text-primary"></i>
+                        </div>
+                        <h5 class="mb-3">Transferencia Bancaria</h5>
+                        <p class="text-muted small">Acceso directo desde tu banco</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="row mt-5">
+            <div class="col-12">
+                <div class="alert alert-info alert-dismissible fade show border-0 shadow-sm" role="alert">
+                    <div class="d-flex align-items-center">
+                        <i class="fas fa-lock me-3" style="font-size: 1.5rem;"></i>
+                        <div>
+                            <strong>100% Seguro:</strong> Tus datos de pago están protegidos con tecnología de encriptación de nivel bancario. Nunca compartimos ni almacenamos tu información sensible.
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
