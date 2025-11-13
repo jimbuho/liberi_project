@@ -6,6 +6,7 @@ from django.utils import timezone
 from django.conf import settings
 from django.core.mail import send_mail
 from django.db.models import Q, Avg, Count, Sum, F
+from decimal import Decimal
 from datetime import timedelta, datetime
 from django.contrib.auth.models import User
 from django.http import JsonResponse
@@ -196,7 +197,7 @@ def service_detail(request, service_code):
             if zone_cost:
                 travel_cost = zone_cost.travel_cost
             else:
-                travel_cost = SystemConfig.get_config('default_travel_cost', 2.50)
+                travel_cost = Decimal(SystemConfig.get_config('default_travel_cost', 2.50))
         else:
             zone_not_covered = True
     else:
@@ -227,7 +228,7 @@ def service_detail(request, service_code):
         valid_locations = [loc for loc in user_locations if loc.zone_id in provider_zone_ids]
     
     # Calcular costo total
-    total_cost = service.base_price + travel_cost
+    total_cost = service.base_price + Decimal(str(travel_cost))
     
     context = {
         'service': service,
@@ -1197,10 +1198,10 @@ def booking_create(request):
     service_list = [{
         'service_id': service.id,
         'name': service.name,
-        'price': float(service.base_price)
+        'price': Decimal(service.base_price)
     }]
     
-    sub_total_cost = float(service.base_price)
+    sub_total_cost = Decimal(service.base_price)
 
     total_cost = sub_total_cost
     
@@ -1211,15 +1212,15 @@ def booking_create(request):
     ).first()
     
     if zone_cost:
-        travel_cost = float(zone_cost.travel_cost)
+        travel_cost = Decimal(zone_cost.travel_cost)
     else:
         # Usar configuración por defecto
-        travel_cost = float(SystemConfig.get_config('default_travel_cost', 2.50))
+        travel_cost = Decimal(SystemConfig.get_config('default_travel_cost', 2.50))
     
     total_cost += travel_cost
     
-    service = settings.TAXES_ENDUSER_SERVICE_COMMISSION
-    tax = sub_total_cost * settings.TAXES_IVA +  service * settings.TAXES_IVA
+    service = Decimal(settings.TAXES_ENDUSER_SERVICE_COMMISSION)
+    tax = sub_total_cost * Decimal(settings.TAXES_IVA) +  service * Decimal(settings.TAXES_IVA)
 
     total_cost += tax
     
