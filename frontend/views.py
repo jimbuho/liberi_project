@@ -2835,16 +2835,23 @@ def payphone_callback(request):
                     logger.info(f"Booking actualizado a paid: {booking.id}")
                     
                     # Crear notificaciones
+                    # ✅ CORRECTO (Lo que debe ser)
                     Notification.objects.create(
-                        recipient=booking.customer,
+                        user=booking.customer,  # ← Cambiar recipient por user
+                        notification_type='payment',
+                        title='💳 Pago Confirmado',  # ← Agregar title
                         message=f'Tu pago de ${booking.total_cost} ha sido confirmado',
-                        notification_type='payment'
+                        booking=booking,  # ← Agregar referencia a la reserva
+                        action_url=f'/bookings/{booking.id}/'  # ← Agregar URL
                     )
                     
                     Notification.objects.create(
-                        recipient=booking.provider.user,
+                        user=booking.provider,  # ← booking.provider YA es un User
+                        notification_type='payment',
+                        title='💰 Pago Recibido',
                         message=f'Recibiste un pago de ${booking.total_cost} por tu servicio',
-                        notification_type='payment'
+                        booking=booking,
+                        action_url=f'/bookings/{booking.id}/'
                     )
                     logger.info("Notificaciones creadas")
                     
