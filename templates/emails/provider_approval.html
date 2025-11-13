@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Perfil Aprobado - Liberi</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+            border-radius: 10px 10px 0 0;
+        }
+        .header h1 {
+            margin: 0;
+            font-size: 24px;
+        }
+        .content {
+            background: #fff;
+            padding: 30px;
+            border: 1px solid #e0e0e0;
+            border-top: none;
+        }
+        .success-icon {
+            font-size: 48px;
+            text-align: center;
+            margin: 20px 0;
+        }
+        .step-card {
+            background: #f8f9fa;
+            border-left: 4px solid #667eea;
+            padding: 15px;
+            margin: 15px 0;
+            border-radius: 5px;
+        }
+        .step-card h3 {
+            margin: 0 0 10px 0;
+            color: #667eea;
+            font-size: 18px;
+        }
+        .step-card p {
+            margin: 0 0 10px 0;
+            color: #666;
+        }
+        .btn {
+            display: inline-block;
+            padding: 10px 20px;
+            background: #667eea;
+            color: white;
+            text-decoration: none;
+            border-radius: 5px;
+            margin-top: 10px;
+        }
+        .btn:hover {
+            background: #764ba2;
+        }
+        .footer {
+            background: #f8f9fa;
+            padding: 20px;
+            text-align: center;
+            color: #666;
+            border-radius: 0 0 10px 10px;
+            font-size: 14px;
+        }
+        .highlight {
+            background: #fff3cd;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 20px 0;
+            border-left: 4px solid #ffc107;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🎉 ¡Felicitaciones!</h1>
+    </div>
+    
+    <div class="content">
+        <div class="success-icon">
+            ✅
+        </div>
+        
+        <h2 style="text-align: center; color: #667eea;">Tu perfil ha sido aprobado</h2>
+        
+        <p>Hola <strong>{{ provider_name }}</strong>,</p>
+        
+        <p>¡Excelentes noticias! Tu perfil de proveedor para <strong>{{ business_name }}</strong> en la categoría de <strong>{{ category }}</strong> ha sido aprobado exitosamente.</p>
+        
+        <p>Ahora puedes empezar a recibir solicitudes de clientes en Liberi. 🚀</p>
+        
+        <div class="highlight">
+            <strong>⚡ Próximos pasos importantes:</strong>
+            <p style="margin-top: 10px; margin-bottom: 5px;">Para empezar a recibir clientes, es esencial que completes tu configuración:</p>
+        </div>
+        
+        <div class="step-card">
+            <h3>📍 Paso 1: Configurar Zonas de Cobertura</h3>
+            <p>Define las zonas geográficas donde ofreces tus servicios. Los clientes solo te verán si están en una de tus zonas.</p>
+            <a href="{{ coverage_url }}" class="btn">Configurar Cobertura</a>
+        </div>
+        
+        <div class="step-card">
+            <h3>💰 Paso 2: Establecer Costos de Movilización</h3>
+            <p>Configura el costo de traslado para cada zona. Esto se sumará automáticamente al precio de tus servicios.</p>
+            <a href="{{ zone_costs_url }}" class="btn">Configurar Costos</a>
+        </div>
+        
+        <div class="step-card">
+            <h3>🕐 Paso 3: Definir Horarios de Atención</h3>
+            <p>Establece los días y horas en que estás disponible. Los clientes solo podrán reservar en estos horarios.</p>
+            <a href="{{ schedule_url }}" class="btn">Configurar Horarios</a>
+        </div>
+        
+        <div style="text-align: center; margin-top: 30px;">
+            <a href="{{ dashboard_url }}" class="btn" style="font-size: 16px; padding: 12px 30px;">
+                Ir a Mi Dashboard
+            </a>
+        </div>
+        
+        <p style="margin-top: 30px; color: #666; font-size: 14px;">
+            <strong>💡 Consejo:</strong> Un perfil completo con cobertura, costos y horarios bien definidos 
+            te ayudará a recibir más solicitudes de clientes.
+        </p>
+    </div>
+    
+    <div class="footer">
+        <p style="margin: 0;"><strong>¡Bienvenido a la familia Liberi!</strong></p>
+        <p style="margin: 10px 0 0 0;">Si tienes alguna pregunta, contáctanos en soporte@liberi.ec</p>
+        <p style="margin: 10px 0 0 0;">
+            <a href="{{ dashboard_url }}" style="color: #667eea;">Visitar Liberi</a>
+        </p>
+    </div>
+</body>
+</html>

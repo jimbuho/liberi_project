@@ -6,7 +6,7 @@ from django.conf import settings
 from django.core.validators import RegexValidator
 from django.utils.text import slugify
 from .custom_fields import SmartImageField, SmartFileField
-from .validators import validate_image_size_2mb
+from .validators import validate_image_size_2mb, validate_ecuador_phone
 
 import secrets
 import uuid
@@ -20,7 +20,16 @@ class Profile(models.Model):
     ]
     
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='profile', verbose_name='Usuario')
-    phone = models.CharField('Teléfono', max_length=20, blank=True)
+    phone = models.CharField(
+        'Teléfono Celular', 
+        max_length=13, 
+        unique=True,
+        validators=[validate_ecuador_phone],
+        error_messages={
+            'unique': 'Ya existe una cuenta registrada con este número de teléfono.'
+        },
+        help_text='Número celular de Ecuador (09XXXXXXXX)'
+    )
     role = models.CharField('Rol', max_length=10, choices=ROLE_CHOICES, default='customer')
     verified = models.BooleanField('Verificado', default=False)
     created_at = models.DateTimeField('Fecha de creación', auto_now_add=True)

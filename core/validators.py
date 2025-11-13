@@ -7,6 +7,7 @@ NO usar lambdas - Django no puede serializarlas.
 
 from django.core.exceptions import ValidationError
 
+import re
 
 def validate_image_size_5mb(image):
     """Valida que la imagen no exceda 5MB"""
@@ -158,3 +159,21 @@ def create_image_dimensions_validator(max_width, max_height):
     
     validator.__name__ = f'validate_dimensions_{max_width}x{max_height}'
     return validator
+
+def validate_ecuador_phone(value):
+    """
+    Valida que el número de teléfono celular sea válido en Ecuador
+    Formato: 09XXXXXXXX (10 dígitos)
+    """
+    if not value:
+        return
+    
+    # Remover espacios y guiones
+    cleaned = re.sub(r'[\s\-()]', '', value)
+    
+    # Validar celular (09 + 8 dígitos)
+    if not re.match(r'^09\d{8}$', cleaned):
+        raise ValidationError(
+            'Ingrese un número celular válido de Ecuador. '
+            'Formato: 09XXXXXXXX (10 dígitos)'
+        )

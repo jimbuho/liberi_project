@@ -386,6 +386,7 @@ def provider_profile_edit(request):
             
             # Actualizar perfil
             request.user.profile.phone = phone
+            request.user.profile.full_clean()
             request.user.profile.save()
             
             # Actualizar perfil de proveedor
@@ -502,21 +503,24 @@ def register_view(request):
             messages.error(request, 'El email ya está registrado')
             return render(request, 'auth/register.html')
         
-        # Crear usuario
-        user = User.objects.create_user(
-            username=username,
-            email=email,
-            password=password,
-            first_name=first_name,
-            last_name=last_name
-        )
+        try:
+            # Crear usuario
+            user = User.objects.create_user(
+                username=username,
+                email=email,
+                password=password,
+                first_name=first_name,
+                last_name=last_name
+            )
+            
+            # Crear perfil
+            profile = Profile(user=user, phone=phone, role='customer')
+            profile.full_clean()  # Ejecuta las validaciones
+            profile.save()
+        except Exception as e:
+            messages.error(request, f'Error al crear usuario: {str(e)}')
+            return render(request, 'auth/register.html')
         
-        # Crear perfil
-        Profile.objects.create(
-            user=user,
-            phone=phone,
-            role='customer'
-        )
 
         try:
             for doc_type in ['terms_user', 'privacy_user']:
@@ -568,6 +572,7 @@ def register_provider_view(request):
         return redirect('dashboard')
     
     if request.method == 'POST':
+        print('GUARDANDO...')
         username = request.POST.get('username')
         email = request.POST.get('email')
         password = request.POST.get('password')
@@ -618,11 +623,10 @@ def register_provider_view(request):
                 user_id=user.id
             )
             
-            Profile.objects.create(
-                user=user,
-                phone=phone,
-                role='provider'
-            )
+            # Crear perfil
+            profile = Profile(user=user, phone=phone, role='provider')
+            profile.full_clean()  # Ejecuta las validaciones
+            profile.save()
             
             ProviderProfile.objects.create(
                 user=user,
@@ -689,7 +693,8 @@ def register_provider_view(request):
                 user.delete()
             except:
                 pass
-            messages.error(request, f'Error al subir la foto: {str(e)}')
+            print(f'Error al crear perfil: {str(e)}')
+            messages.error(request, f'Error al crear perfil: {str(e)}')
             return render(request, 'auth/register_provider.html', {'categories': categories})
 
     context = {
@@ -1113,10 +1118,6 @@ def booking_detail(request, booking_id):
     }
     return render(request, 'bookings/detail.html', context)
 
-
-SERVICE_COST = 1
-IVA = 0.15
-
 @login_required
 def booking_create(request):
     """Crear una nueva reserva con validaciones mejoradas por zona"""
@@ -1217,8 +1218,8 @@ def booking_create(request):
     
     total_cost += travel_cost
     
-    service = SERVICE_COST
-    tax = sub_total_cost * IVA +  service * IVA
+    service = settings.TAXES_ENDUSER_SERVICE_COMMISSION
+    tax = sub_total_cost * settings.TAXES_IVA +  service * settings.TAXES_IVA
 
     total_cost += tax
     

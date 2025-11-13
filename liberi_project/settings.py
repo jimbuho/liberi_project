@@ -240,7 +240,6 @@ PAYPHONE_CALLBACK_URL = os.getenv('PAYPHONE_CALLBACK_URL', '')
 PAYPHONE_API_URL = os.getenv('PAYPHONE_API_URL', '')
 PAYPHONE_STORE_ID = os.getenv('PAYPHONE_STORE_ID', '')
 PAYPHONE_URL_CONFIRM_PAYPHONE = os.getenv('PAYPHONE_URL_CONFIRM_PAYPHONE', '')
-SITE_URL = os.getenv('SITE_URL', '')
 
 WHATSAPP_PHONE_NUMBER = os.getenv('WHATSAPP_PHONE_NUMBER', '')
 WHATSAPP_TOKEN = os.getenv('WHATSAPP_TOKEN', '')
@@ -254,11 +253,6 @@ LOGOUT_REDIRECT_URL = '/'
 
 STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
 
-# Agregar al final
-LIBERI_WITHDRAWAL_COMMISSION_PERCENT = float(os.getenv('LIBERI_WITHDRAWAL_COMMISSION_PERCENT', '4.0'))
-LIBERI_WITHDRAWAL_WEEKLY_LIMIT = float(os.getenv('LIBERI_WITHDRAWAL_WEEKLY_LIMIT', '500.0'))
-LIBERI_WITHDRAWAL_MAX_PER_DAY = int(os.getenv('LIBERI_WITHDRAWAL_MAX_PER_DAY', '1'))
-
 # ============================================
 # EMAIL CONFIGURATION - BREVO
 # ============================================
@@ -267,12 +261,12 @@ EMAIL_HOST = os.getenv('EMAIL_HOST', 'smtp-relay.brevo.com')
 EMAIL_PORT = os.getenv('EMAIL_PORT', 587)
 EMAIL_USE_TLS = True
 EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER', '')
-EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD', '')
+EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD', '')  
 DEFAULT_FROM_EMAIL =  os.getenv('DEFAULT_FROM_EMAIL', 'noreply@liberi.app')
 EMAIL_VERIFICATION_EXPIRE_HOURS = 24
 
 BASE_URL = os.getenv('BASE_URL', 'http://localhost:8000')
-
+SITE_URL = BASE_URL
 
 # ============================================
 # TAREAS SEGUNDO PLANO - CELERY
@@ -300,3 +294,11 @@ CELERY_BEAT_SCHEDULE = {
         'schedule': 1800.0,  # cada 30 minutos
     },
 }
+
+# Agregar al final
+LIBERI_WITHDRAWAL_COMMISSION_PERCENT = float(os.getenv('LIBERI_WITHDRAWAL_COMMISSION_PERCENT', '10'))
+LIBERI_WITHDRAWAL_WEEKLY_LIMIT = float(os.getenv('LIBERI_WITHDRAWAL_WEEKLY_LIMIT', '500.0'))
+LIBERI_WITHDRAWAL_MAX_PER_DAY = int(os.getenv('LIBERI_WITHDRAWAL_MAX_PER_DAY', '1'))
+
+TAXES_IVA = os.getenv('TAXES_IVA', 0.15)
+TAXES_ENDUSER_SERVICE_COMMISSION = os.getenv('TAXES_SERVICE_COMMISSION', 1)

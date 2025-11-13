@@ -1,0 +1,41 @@
+¡Felicitaciones {{ provider_name }}!
+
+Tu perfil de proveedor ha sido aprobado exitosamente en {{ site_name }}.
+
+Tu perfil para {{ business_name }} en la categoría de {{ category }} ha sido aprobado.
+
+Ahora puedes empezar a recibir solicitudes de clientes. 🚀
+
+========================================
+⚡ PRÓXIMOS PASOS IMPORTANTES
+========================================
+
+Para empezar a recibir clientes, es esencial que completes tu configuración:
+
+📍 PASO 1: CONFIGURAR ZONAS DE COBERTURA
+Define las zonas geográficas donde ofreces tus servicios. Los clientes solo te verán si están en una de tus zonas.
+{{ coverage_url }}
+
+💰 PASO 2: ESTABLECER COSTOS DE MOVILIZACIÓN
+Configura el costo de traslado para cada zona. Esto se sumará automáticamente al precio de tus servicios.
+{{ zone_costs_url }}
+
+🕐 PASO 3: DEFINIR HORARIOS DE ATENCIÓN
+Establece los días y horas en que estás disponible. Los clientes solo podrán reservar en estos horarios.
+{{ schedule_url }}
+
+========================================
+
+💡 CONSEJO: Un perfil completo con cobertura, costos y horarios bien definidos te ayudará a recibir más solicitudes de clientes.
+
+Accede a tu panel: {{ dashboard_url }}
+
+¿Tienes alguna pregunta? Estamos aquí para ayudarte.
+Escríbenos a: soporte@liberi.ec
+
+¡Bienvenido a la familia Liberi!
+
+---
+{{ site_name }}
+Tu plataforma de confianza para servicios profesionales
+© 2025 {{ site_name }}. Todos los derechos reservados.
