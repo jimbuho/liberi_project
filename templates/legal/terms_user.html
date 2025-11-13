@@ -1,0 +1,45 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block title %}Términos y Condiciones — Usuario | Liberi{% endblock %}
+
+{% block content %}
+<div class="container my-5">
+  <div class="card shadow-sm">
+    <div class="card-body">
+      <h1 class="mb-3">Términos y Condiciones de Uso — Usuario</h1>
+      <p class="text-muted">Última actualización: <strong>2025-11-12</strong></p>
+
+      <h4>1. Aceptación</h4>
+      <p>El acceso y uso del sitio y servicios de <strong>Liberi</strong> implica la aceptación expresa y sin reservas de estos Términos. Si no está de acuerdo, no utilice la plataforma.</p>
+
+      <h4>2. Objeto</h4>
+      <p>Liberi es una plataforma tecnológica que facilita la conexión entre usuarios y proveedores de servicios a domicilio (belleza, limpieza y otros) para la búsqueda, reserva y pago de servicios.</p>
+
+      <h4>3. Uso permitido</h4>
+      <ul>
+        <li>Usar la plataforma conforme a la ley y a su finalidad.</li>
+        <li>No intentar vulnerar, replicar, modificar o realizar ingeniería inversa del software.</li>
+        <li>No revender servicios ni utilizar la plataforma para fines ilícitos.</li>
+      </ul>
+
+      <h4>4. Registro y veracidad</h4>
+      <p>El usuario garantiza que la información proporcionada es veraz. Si se detecta información falsa o fraudulenta, Liberi se reserva suspender o eliminar la cuenta.</p>
+
+      <h4>5. Responsabilidad</h4>
+      <p>Liberi actúa como intermediario tecnológico. No es responsable directo por la ejecución del servicio contratado entre usuario y proveedor. Las reclamaciones por prestación del servicio deben dirigirse al proveedor y, cuando corresponda, a Liberi para mediar.</p>
+
+      <h4>6. Propiedad intelectual</h4>
+      <p>Todos los derechos del software, marca y contenidos pertenecen a Liberi. Queda prohibida su copia, redistribución o explotación no autorizada.</p>
+
+      <h4>7. Incumplimiento y sanciones</h4>
+      <p>El incumplimiento de estos términos puede derivar en suspensión, bloqueo o eliminación de la cuenta, y en la eventual denuncia ante autoridades competentes.</p>
+
+      <h4>8. Cambios</h4>
+      <p>Liberi podrá modificar estos términos. Las versiones se publicarán en la plataforma y los usuarios serán notificados cuando sea relevante.</p>
+
+      <hr>
+      <p class="small text-muted">Para información sobre tratamiento de datos personales, consulte la <a href="{% url 'legal:privacy_user' %}">Política de Privacidad — Usuario</a>.</p>
+    </div>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,46 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block title %}Política de Privacidad — Usuario | Liberi{% endblock %}
+
+{% block content %}
+<div class="container my-5">
+  <div class="card shadow-sm">
+    <div class="card-body">
+      <h1 class="mb-3">Política de Privacidad — Usuario</h1>
+      <p class="text-muted">Última actualización: <strong>2025-11-12</strong></p>
+
+      <h4>1. Responsable del Tratamiento</h4>
+      <p><strong>Liberi</strong> (RUC / identificación, dirección) es responsable del tratamiento de los datos personales recopilados en esta plataforma.</p>
+
+      <h4>2. Datos recolectados</h4>
+      <ul>
+        <li>Identificación: nombres, email, teléfono.</li>
+        <li>Datos de localización y direcciones de servicio.</li>
+        <li>Datos de transacciones: historial de reservas, pagos y facturación.</li>
+        <li>Datos técnicos: IP, user-agent, registros de acceso.</li>
+      </ul>
+
+      <h4>3. Finalidades</h4>
+      <p>Los datos se usan para: crear cuentas, gestionar reservas y pagos, verificar identidad, prevenir fraude, comunicación transaccional y cumplimiento legal.</p>
+
+      <h4>4. Base legal</h4>
+      <p>El tratamiento se realiza con el consentimiento del titular y cuando sea necesario para la ejecución de un contrato o cumplimiento de obligaciones legales, conforme a la Ley Orgánica de Protección de Datos Personales del Ecuador.</p>
+
+      <h4>5. Derechos del titular</h4>
+      <p>Los usuarios pueden ejercer derechos de acceso, rectificación, supresión, oposición y portabilidad enviando solicitud a <strong>soporte@liberi.ec</strong>. Las solicitudes serán tramitadas según la normativa y plazos legales.</p>
+
+      <h4>6. Seguridad</h4>
+      <p>Liberi aplica medidas técnicas y organizativas alineadas con ISO/IEC 27701 e ISO/IEC 27001: cifrado en tránsito y reposo, control de accesos, registros de auditoría y pruebas de seguridad.</p>
+
+      <h4>7. Transferencias y almacenamiento</h4>
+      <p>Los datos pueden almacenarse en servicios de terceros (p. ej. Supabase / AWS). Liberi garantizará cláusulas contractuales para asegurar un nivel de protección equivalente.</p>
+
+      <h4>8. Conservación</h4>
+      <p>Los datos se conservarán mientras la cuenta esté activa y durante los plazos legales requeridos para obligaciones fiscales o resolución de disputas.</p>
+
+      <hr>
+      <p class="small text-muted">Para términos y condiciones generales consulte: <a href="{% url 'legal:terms_user' %}">Términos y Condiciones — Usuario</a>.</p>
+    </div>
+  </div>
+</div>
+{% endblock %}

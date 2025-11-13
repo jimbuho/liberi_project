@@ -1,0 +1,42 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block title %}Términos y Contrato — Proveedor | Liberi{% endblock %}
+
+{% block content %}
+<div class="container my-5">
+  <div class="card shadow-sm">
+    <div class="card-body">
+      <h1 class="mb-3">Términos de Uso y Contrato — Proveedor</h1>
+      <p class="text-muted">Última actualización: <strong>2025-11-12</strong></p>
+
+      <h4>1. Aceptación y Contrato</h4>
+      <p>Para ofrecer servicios en Liberi, el proveedor debe aceptar estos términos y suscribir un contrato con Liberi (digital o físico). El contrato obliga al proveedor a brindar información veraz y prestar servicios lícitos.</p>
+
+      <h4>2. Declaraciones del Proveedor</h4>
+      <ul>
+        <li>El proveedor declara su identidad, acreditaciones y experiencia reales y verificables.</li>
+        <li>No ofrecerá servicios relacionados con actividades ilícitas (sicariato, pornografía infantil, trata, estafas, etc.).</li>
+      </ul>
+
+      <h4>3. Obligaciones</h4>
+      <ul>
+        <li>Cumplir con las reservas confirmadas.</li>
+        <li>Cumplir la normativa local y sanitaria aplicable al servicio.</li>
+        <li>Tratar la información de clientes conforme a la ley de protección de datos.</li>
+      </ul>
+
+      <h4>4. Documentación y verificación</h4>
+      <p>Liberi podrá requerir copia de cédula, certificaciones, RUC, cuenta bancaria y certificados sanitarios. La falta de verificación puede impedir la publicación del perfil.</p>
+
+      <h4>5. Sanciones</h4>
+      <p>Incumplimientos pueden derivar en suspensión, eliminación, retención de pagos y notificación a autoridades. Liberi podrá retener fondos cuando existan indicios de fraude o ilegalidad hasta la resolución del caso.</p>
+
+      <h4>6. Propiedad Intelectual y Restricciones Técnicas</h4>
+      <p>Queda prohibido usar scripts, bots, scraping o duplicación de información. El proveedor no adquiere derechos sobre la plataforma ni sus datos.</p>
+
+      <hr>
+      <p class="small text-muted">Para tratamiento de datos del proveedor, consulte: <a href="{% url 'legal:privacy_provider' %}">Política de Privacidad — Proveedor</a>.</p>
+    </div>
+  </div>
+</div>
+{% endblock %}
