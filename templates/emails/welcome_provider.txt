@@ -1,0 +1,18 @@
+¡Bienvenido a {{ site_name }}, {{ user_name }}!
+
+Tu email ha sido verificado exitosamente.
+
+PRÓXIMOS PASOS:
+1. Completa tu verificación de identidad
+2. Crea tu primer servicio
+3. Configura tu horario
+4. Define tus zonas de cobertura
+5. Espera la aprobación (1-2 días hábiles)
+
+Accede a tu panel: {{ dashboard_url }}
+
+Consejo: Los proveedores con perfiles completos reciben hasta 3 veces más reservas.
+
+---
+{{ site_name }}
+Crece tu negocio con nosotros

@@ -1,8 +1,10 @@
 from celery import shared_task
+from django.core.mail import EmailMultiAlternatives
 from django.core.mail import send_mail
 from django.template.loader import render_to_string
 from django.conf import settings
 from django.utils import timezone
+from django.contrib.auth.models import User
 import logging
 
 logger = logging.getLogger(__name__)
@@ -11,86 +13,110 @@ logger = logging.getLogger(__name__)
 # EMAIL DE VERIFICACIÓN
 # ============================================
 
-@shared_task
-def send_verification_email_task(user_email, token, user_name):
-    """Envía email de verificación de forma asincrónica"""
-    verification_url = f"{settings.BASE_URL}/verify-email/{token}/"
-    
-    html_message = render_to_string('auth/emails/verification_email.html', {
-        'user_name': user_name,
-        'verification_url': verification_url,
-    })
-    
-    text_message = f"""
-Hola {user_name},
-
-Para completar tu registro, verifica tu correo electrónico usando este enlace:
-{verification_url}
-
-Este enlace expira en 24 horas.
-
-Si no creaste una cuenta en Liberi, ignora este email.
-
-Saludos,
-El Equipo de Liberi
+@shared_task(bind=True, max_retries=3)
+def send_verification_email_task(self, user_id, user_email, verification_url, user_name):
     """
+    Tarea asíncrona para enviar email de verificación
     
+    Args:
+        user_id: ID del usuario
+        user_email: Email del destinatario
+        verification_url: URL completa de verificación
+        user_name: Nombre completo del usuario
+    """
     try:
-        send_mail(
-            subject='Verifica tu correo electrónico - Liberi',
-            message=text_message,
+        logger.info(f"📧 Iniciando envío de email de verificación a {user_email}")
+        
+        # Renderizar templates
+        html_content = render_to_string('emails/verification_email.html', {
+            'user_name': user_name,
+            'verification_url': verification_url,
+            'site_name': 'Liberi',
+            'support_email': settings.DEFAULT_FROM_EMAIL
+        })
+        
+        text_content = render_to_string('emails/verification_email.txt', {
+            'user_name': user_name,
+            'verification_url': verification_url,
+            'site_name': 'Liberi'
+        })
+        
+        # Crear email
+        subject = '✓ Verifica tu email - Liberi'
+        email_message = EmailMultiAlternatives(
+            subject=subject,
+            body=text_content,
             from_email=settings.DEFAULT_FROM_EMAIL,
-            recipient_list=[user_email],
-            html_message=html_message,
-            fail_silently=False,
+            to=[user_email]
         )
-        logger.info(f"✅ Email de verificación enviado a {user_email}")
+        email_message.attach_alternative(html_content, "text/html")
+        
+        # Enviar
+        email_message.send(fail_silently=False)
+        
+        logger.info(f"✅ Email de verificación enviado exitosamente a {user_email}")
+        return {'success': True, 'email': user_email}
+        
     except Exception as e:
-        logger.error(f"❌ Error enviando email de verificación a {user_email}: {e}")
-        raise
+        logger.error(f"❌ Error enviando email de verificación a {user_email}: {e}", exc_info=True)
+        # Retry automático con backoff exponencial
+        raise self.retry(exc=e, countdown=60 * (self.request.retries + 1))
 
 
 # ============================================
 # EMAIL DE BIENVENIDA
 # ============================================
 
-@shared_task
-def send_welcome_email_task(user_email, user_name, is_provider=False):
-    """Envía email de bienvenida después de verificar correo"""
-    login_url = f"{settings.BASE_URL}/login/"
-    
-    html_message = render_to_string('auth/emails/welcome_email.html', {
-        'user_name': user_name,
-        'login_url': login_url,
-        'is_provider': is_provider,
-    })
-    
-    text_message = f"""
-Hola {user_name},
-
-¡Bienvenido a Liberi! Tu correo ha sido verificado exitosamente.
-
-Ya puedes acceder a tu cuenta e iniciar sesión en: {login_url}
-
-¡Gracias por confiar en Liberi!
-
----
-El Equipo de Liberi
+@shared_task(bind=True, max_retries=3)
+def send_welcome_email_task(self, user_id, user_email, user_name, is_provider=False):
     """
+    Tarea asíncrona para enviar email de bienvenida
     
+    Args:
+        user_id: ID del usuario
+        user_email: Email del destinatario
+        user_name: Nombre completo del usuario
+        is_provider: True si es proveedor, False si es cliente
+    """
     try:
-        send_mail(
-            subject='¡Bienvenido a Liberi!',
-            message=text_message,
+        logger.info(f"📧 Iniciando envío de email de bienvenida a {user_email} (provider={is_provider})")
+        
+        # Determinar template según rol
+        template = 'emails/welcome_provider.html' if is_provider else 'emails/welcome_customer.html'
+        text_template = 'emails/welcome_provider.txt' if is_provider else 'emails/welcome_customer.txt'
+        
+        # Contexto
+        context = {
+            'user_name': user_name,
+            'site_name': 'Liberi',
+            'site_url': settings.BASE_URL,
+            'login_url': f"{settings.BASE_URL}/login/",
+            'dashboard_url': f"{settings.BASE_URL}/dashboard/",
+            'is_provider': is_provider
+        }
+        
+        # Renderizar
+        html_content = render_to_string(template, context)
+        text_content = render_to_string(text_template, context)
+        
+        # Enviar
+        subject = '🎉 ¡Bienvenido a Liberi!' if not is_provider else '🎉 ¡Bienvenido a Liberi - Panel de Proveedor!'
+        email_message = EmailMultiAlternatives(
+            subject=subject,
+            body=text_content,
             from_email=settings.DEFAULT_FROM_EMAIL,
-            recipient_list=[user_email],
-            html_message=html_message,
-            fail_silently=False,
+            to=[user_email]
         )
-        logger.info(f"✅ Email de bienvenida enviado a {user_email}")
+        email_message.attach_alternative(html_content, "text/html")
+        email_message.send(fail_silently=False)
+        
+        logger.info(f"✅ Email de bienvenida enviado exitosamente a {user_email}")
+        return {'success': True, 'email': user_email}
+        
     except Exception as e:
-        logger.error(f"❌ Error enviando email de bienvenida a {user_email}: {e}")
-        raise
+        logger.error(f"❌ Error enviando email de bienvenida a {user_email}: {e}", exc_info=True)
+        # Retry automático con backoff exponencial
+        raise self.retry(exc=e, countdown=60 * (self.request.retries + 1))
 
 
 # ============================================

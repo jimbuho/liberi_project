@@ -873,6 +873,33 @@ def email_verification_pending(request):
     }
     return render(request, 'auth/email_verification_pending.html', context)
 
+# Agregar esta vista a frontend/views.py
+
+@login_required
+def resend_verification_view(request):
+    """Reenvía el email de verificación"""
+    if request.method == 'POST':
+        # Verificar que no esté ya verificado
+        if request.user.profile.verified:
+            messages.info(request, 'Tu email ya está verificado')
+            return redirect('dashboard')
+        
+        # Reenviar email
+        from core.email_verification import resend_verification_email
+        success, message = resend_verification_email(request.user)
+        
+        if success:
+            messages.success(
+                request,
+                '✓ Email de verificación reenviado. Revisa tu bandeja de entrada.'
+            )
+        else:
+            messages.error(request, f'Error al reenviar: {message}')
+        
+        return redirect('email_verification_pending_view')
+    
+    return redirect('email_verification_pending_view')
+
 @login_required
 def logout_view(request):
     """Logout"""

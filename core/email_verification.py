@@ -1,93 +1,92 @@
 # core/email_verification.py
-from django.core.mail import send_mail
-from django.conf import settings
+from django.core.mail import EmailMultiAlternatives
 from django.template.loader import render_to_string
-from .models import EmailVerificationToken
+from django.conf import settings
+from django.utils import timezone
+from core.models import EmailVerificationToken, AuditLog
 import logging
 
 logger = logging.getLogger(__name__)
 
 def send_verification_email(user, email):
     """
-    Envía un email de verificación - ASINCRÓNICO con Celery
+    Envía email de verificación de forma asíncrona usando Celery
+    Returns: (success: bool, message: str)
     """
     try:
-        # Crear token ANTES de encolar la tarea
-        token_obj = EmailVerificationToken.create_for_user(user, email)
-        token = token_obj.token
+        # Crear token
+        verification_token = EmailVerificationToken.create_for_user(user, email)
         
-        print(f"\n=== INICIANDO ENVÍO DE EMAIL DE VERIFICACIÓN ===")
-        print(f"Usuario: {user.username}")
-        print(f"Email: {email}")
-        print(f"Token creado: {token}")
-        print(f"Token valid: {token_obj.is_valid()}")
+        # Construir URL de verificación
+        verification_url = f"{settings.BASE_URL}/verify-email/{verification_token.token}/"
         
-        # Intenta enviar con Celery si está disponible
-        try:
-            from core.tasks import send_verification_email_task
-            send_verification_email_task.delay(
-                user_email=email,
-                token=token,
-                user_name=user.first_name or user.username
-            )
-            print("✅ Tarea enviada a Celery")
-        except Exception as celery_error:
-            # Si Celery falla, intenta envío sincrónico como fallback
-            logger.warning(f"Celery no disponible, intentando envío sincrónico: {celery_error}")
-            _send_email_sync(email, token, user.first_name or user.username)
+        # Log
+        logger.info(f"Token de verificación creado para {user.username}: {verification_token.token}")
+        logger.info(f"URL de verificación: {verification_url}")
         
-        return True, "Email de verificación enviado exitosamente"
+        # Encolar tarea Celery - CORREGIDO: usar los nombres correctos de parámetros
+        from core.tasks import send_verification_email_task
+        send_verification_email_task.delay(
+            user_id=user.id,
+            user_email=email,  # ← CAMBIAR de 'email' a 'user_email'
+            verification_url=verification_url,
+            user_name=user.get_full_name() or user.username
+        )
+        
+        # Log de auditoría
+        AuditLog.objects.create(
+            user=user,
+            action='Email de verificación enviado',
+            metadata={
+                'email': email,
+                'token_created': True
+            }
+        )
+        
+        return True, "Email de verificación enviado"
         
     except Exception as e:
-        logger.error(f"❌ Error al enviar email: {e}")
-        print(f"❌ ERROR: {e}")
-        return False, f"Error al enviar email: {str(e)}"
-
-
-def _send_email_sync(email, token, user_name):
-    """Envío sincrónico como fallback"""
-    verification_url = f"{settings.BASE_URL}/verify-email/{token}/"
-    
-    print(f"📧 URL de verificación: {verification_url}")
-    
-    html_message = render_to_string('auth/emails/verification_email.html', {
-        'user_name': user_name,
-        'verification_url': verification_url,
-    })
-    
-    text_message = f"""
-Hola {user_name},
-
-Para completar tu registro, verifica tu correo electrónico usando este enlace:
-{verification_url}
-
-Este enlace expira en 24 horas.
-
-Si no creaste una cuenta en Liberi, ignora este email.
-
-Saludos,
-El Equipo de Liberi
-    """
-    
-    send_mail(
-        subject='Verifica tu correo electrónico - Liberi',
-        message=text_message,
-        from_email=settings.DEFAULT_FROM_EMAIL,
-        recipient_list=[email],
-        html_message=html_message,
-        fail_silently=False,
-    )
-    print("✅ Email enviado sincronamente")
+        logger.error(f"Error enviando email de verificación a {email}: {str(e)}", exc_info=True)
+        return False, str(e)
 
 
 def send_welcome_email(user, is_provider=False):
-    """Envía email de bienvenida - ASINCRÓNICO"""
+    """
+    Envía email de bienvenida después de verificar email
+    """
     try:
         from core.tasks import send_welcome_email_task
         send_welcome_email_task.delay(
-            user_email=user.email,
-            user_name=user.first_name or user.username,
+            user_id=user.id,
+            user_email=user.email,  # ← CAMBIAR de 'email' a 'user_email'
+            user_name=user.get_full_name() or user.username,
             is_provider=is_provider
         )
+        
+        logger.info(f"Email de bienvenida encolado para {user.email}")
+        return True
+        
     except Exception as e:
-        logger.error(f"❌ Error al enviar email de bienvenida: {e}")
+        logger.error(f"Error enviando email de bienvenida: {e}")
+        return False
+
+
+def resend_verification_email(user):
+    """
+    Reenvía el email de verificación
+    Returns: (success: bool, message: str)
+    """
+    try:
+        # Verificar que no esté ya verificado
+        if user.profile.verified:
+            return False, "El email ya está verificado"
+        
+        # Eliminar tokens antiguos
+        EmailVerificationToken.objects.filter(user=user).delete()
+        
+        # Enviar nuevo email
+        return send_verification_email(user, user.email)
+        
+    except Exception as e:
+        logger.error(f"Error reenviando email de verificación: {e}")
+        return False, str(e)

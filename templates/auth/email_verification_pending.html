@@ -1,227 +1,52 @@
+<!-- templates/auth/email_verification_pending.html -->
 {% extends 'base.html' %}
 
-{% block title %}Verifica tu Correo - Liberi{% endblock %}
-
-{% block extra_css %}
-<style>
-    .verification-container {
-        max-width: 600px;
-        margin: 5rem auto;
-        padding: 0 1rem;
-    }
-    
-    .verification-card {
-        background: white;
-        border-radius: 15px;
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-        overflow: hidden;
-    }
-    
-    .verification-header {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        color: white;
-        padding: 3rem 2rem;
-        text-align: center;
-    }
-    
-    .verification-header h1 {
-        margin: 0;
-        font-size: 2rem;
-    }
-    
-    .verification-icon {
-        font-size: 4rem;
-        margin-bottom: 1rem;
-    }
-    
-    .verification-body {
-        padding: 2rem;
-    }
-    
-    .email-display {
-        background: #f9f9f9;
-        border-left: 4px solid #667eea;
-        padding: 1.5rem;
-        border-radius: 5px;
-        margin: 1.5rem 0;
-        text-align: center;
-    }
-    
-    .email-display strong {
-        color: #667eea;
-        font-size: 1.1rem;
-    }
-    
-    .steps {
-        background: #f9f9f9;
-        padding: 1.5rem;
-        border-radius: 8px;
-        margin: 1.5rem 0;
-    }
-    
-    .steps h5 {
-        margin-top: 0;
-        color: #333;
-    }
-    
-    .steps ol {
-        margin: 0;
-        padding-left: 1.5rem;
-    }
-    
-    .steps li {
-        margin: 0.8rem 0;
-        color: #555;
-    }
-    
-    .steps strong {
-        color: #667eea;
-    }
-    
-    .warning-box {
-        background: #fff3cd;
-        border: 1px solid #ffc107;
-        border-radius: 8px;
-        padding: 1.5rem;
-        margin: 1.5rem 0;
-        color: #856404;
-    }
-    
-    .warning-box h6 {
-        margin-top: 0;
-        color: #856404;
-        font-weight: bold;
-    }
-    
-    .warning-box ul {
-        margin: 1rem 0;
-        padding-left: 1.5rem;
-    }
-    
-    .warning-box li {
-        margin: 0.5rem 0;
-    }
-    
-    .help-box {
-        background: #e7f3ff;
-        border: 1px solid #b3d9ff;
-        border-radius: 8px;
-        padding: 1.5rem;
-        margin: 1.5rem 0;
-    }
-    
-    .help-box h6 {
-        margin-top: 0;
-        color: #004085;
-    }
-    
-    .help-box p {
-        margin: 0.5rem 0;
-        color: #004085;
-        font-size: 0.95rem;
-    }
-    
-    .btn-group {
-        display: grid;
-        gap: 1rem;
-        margin-top: 2rem;
-    }
-    
-    .btn-group a {
-        padding: 0.75rem 1.5rem;
-        text-align: center;
-        border-radius: 8px;
-        text-decoration: none;
-        font-weight: 500;
-        transition: all 0.3s;
-    }
-    
-    .status-message {
-        background: #e8f5e9;
-        border-left: 4px solid #28a745;
-        padding: 1rem;
-        border-radius: 4px;
-        color: #2e7d32;
-        margin-top: 2rem;
-        font-size: 0.9rem;
-    }
-</style>
-{% endblock %}
+{% block title %}Verifica tu Email - Liberi{% endblock %}
 
 {% block content %}
-<div class="verification-container">
-    <div class="verification-card">
-        <!-- Header -->
-        <div class="verification-header">
-            <div class="verification-icon">✉️</div>
-            <h1>Verifica tu Correo Electrónico</h1>
-        </div>
-        
-        <!-- Body -->
-        <div class="verification-body">
-            <!-- Email Display -->
-            <div class="email-display">
-                <p style="margin: 0; color: #666; font-size: 0.9rem;">Te hemos enviado un email a:</p>
-                <strong style="display: block; margin-top: 0.5rem;">{{ user_email }}</strong>
-            </div>
-            
-            <!-- Steps -->
-            <div class="steps">
-                <h5><i class="fas fa-tasks me-2"></i>¿Qué hacer ahora?</h5>
-                <ol>
-                    <li>
-                        <strong>Revisa tu bandeja de entrada</strong> en el email 
+<div class="container">
+    <div class="row justify-content-center mt-5">
+        <div class="col-md-6">
+            <div class="card shadow-sm">
+                <div class="card-body text-center p-5">
+                    <div class="mb-4">
+                        <i class="bi bi-envelope-check" style="font-size: 64px; color: #667eea;"></i>
+                    </div>
+                    
+                    <h2 class="card-title mb-3">Verifica tu Email</h2>
+                    
+                    <p class="text-muted mb-4">
+                        Te hemos enviado un email de verificación a:<br>
                         <strong>{{ user_email }}</strong>
-                    </li>
-                    <li>
-                        <strong>Busca un email</strong> de 
-                        <strong>"noreply@liberi.com"</strong>
-                    </li>
-                    <li>
-                        <strong>Haz click</strong> en el botón 
-                        <strong>"Verificar Mi Correo"</strong>
-                    </li>
-                    <li>
-                        <strong>¡Listo!</strong> Ya podrás usar tu cuenta
-                    </li>
-                </ol>
-            </div>
-            
-            <!-- Warning -->
-            <div class="warning-box">
-                <h6><i class="fas fa-exclamation-triangle me-2"></i>Importante</h6>
-                <ul>
-                    <li>El email de verificación expira en <strong>24 horas</strong></li>
-                    <li>Revisa también la carpeta de <strong>SPAM o Correo No Deseado</strong></li>
-                    <li>Si no recibes nada, verifica que escribiste bien tu email</li>
-                    <li>No cierres esta página hasta verificar</li>
-                </ul>
-            </div>
-            
-            <!-- Help -->
-            <div class="help-box">
-                <h6><i class="fas fa-question-circle me-2"></i>¿No recibiste el email?</h6>
-                <p>
-                    A veces nuestros emails pueden ir a la carpeta de <strong>SPAM</strong>. 
-                    Por favor revísala primero.
-                </p>
-                <p>
-                    Si aún así no lo encuentras, <a href="mailto:soporte@liberi.com">contacta a soporte</a>.
-                </p>
-            </div>
-            
-            <!-- Buttons -->
-            <div class="btn-group">
-                <a href="{% url 'home' %}" class="btn btn-outline-primary">
-                    <i class="fas fa-home me-2"></i>Volver al Inicio
-                </a>
-            </div>
-            
-            <!-- Status -->
-            <div class="status-message">
-                <i class="fas fa-info-circle me-2"></i>
-                Tu cuenta está siendo creada. Una vez verifiques tu correo, 
-                podrás iniciar sesión inmediatamente.
+                    </p>
+                    
+                    <div class="alert alert-info">
+                        <i class="bi bi-info-circle"></i>
+                        Revisa tu bandeja de entrada y haz clic en el enlace de verificación para activar tu cuenta.
+                    </div>
+                    
+                    <div class="alert alert-warning">
+                        <i class="bi bi-clock"></i>
+                        <strong>El enlace expira en 24 horas.</strong>
+                    </div>
+                    
+                    <hr class="my-4">
+                    
+                    <p class="text-muted mb-3">¿No recibiste el email?</p>
+                    
+                    <form method="post" action="{% url 'resend_verification' %}">
+                        {% csrf_token %}
+                        <button type="submit" class="btn btn-outline-primary">
+                            <i class="bi bi-arrow-repeat"></i> Reenviar Email
+                        </button>
+                    </form>
+                    
+                    <p class="text-muted small mt-4">
+                        Verifica también tu carpeta de spam o correo no deseado.
+                    </p>
+                    
+                    <a href="{% url 'logout' %}" class="btn btn-link btn-sm">Cerrar Sesión</a>
+                </div>
             </div>
         </div>
     </div>

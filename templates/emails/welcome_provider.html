@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>¡Bienvenido a Liberi - Panel de Proveedor!</title>
+    <style>
+        /* Usar los mismos estilos base del welcome_customer.html */
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background-color: #f5f5f5;
+        }
+        .container {
+            max-width: 600px;
+            margin: 40px auto;
+            background-color: #ffffff;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        .header {
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+            padding: 40px 30px;
+            text-align: center;
+        }
+        .header h1 {
+            color: #ffffff;
+            margin: 0;
+            font-size: 28px;
+            font-weight: 600;
+        }
+        .content {
+            padding: 40px 30px;
+        }
+        .content h2 {
+            color: #333333;
+            margin-top: 0;
+            font-size: 22px;
+        }
+        .content p {
+            color: #666666;
+            line-height: 1.6;
+            margin: 15px 0;
+        }
+        .next-steps {
+            margin: 30px 0;
+            padding: 20px;
+            background-color: #f0fdf4;
+            border-radius: 8px;
+            border-left: 4px solid #10b981;
+        }
+        .next-steps h3 {
+            margin: 0 0 15px 0;
+            color: #065f46;
+            font-size: 18px;
+        }
+        .next-steps ol {
+            margin: 0;
+            padding-left: 20px;
+        }
+        .next-steps li {
+            margin: 10px 0;
+            color: #047857;
+        }
+        .button-container {
+            text-align: center;
+            margin: 35px 0;
+        }
+        .button {
+            display: inline-block;
+            padding: 16px 40px;
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+            color: #ffffff !important;
+            text-decoration: none;
+            border-radius: 6px;
+            font-weight: 600;
+            font-size: 16px;
+            transition: transform 0.2s;
+        }
+        .button:hover {
+            transform: translateY(-2px);
+        }
+        .footer {
+            background-color: #f9f9f9;
+            padding: 25px 30px;
+            text-align: center;
+            border-top: 1px solid #eeeeee;
+        }
+        .footer p {
+            color: #999999;
+            font-size: 13px;
+            margin: 5px 0;
+        }
+        .icon {
+            font-size: 48px;
+            margin-bottom: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="icon">🚀</div>
+            <h1>{{ site_name }} - Panel de Proveedor</h1>
+        </div>
+        
+        <div class="content">
+            <h2>¡Bienvenido, {{ user_name }}!</h2>
+            
+            <p>Tu email ha sido verificado exitosamente. ¡Estás un paso más cerca de empezar a ofrecer tus servicios!</p>
+            
+            <div class="next-steps">
+                <h3>📋 Próximos Pasos:</h3>
+                <ol>
+                    <li><strong>Completa tu verificación de identidad</strong> - Sube tus documentos para que podamos validar tu cuenta</li>
+                    <li><strong>Crea tu primer servicio</strong> - Define qué ofreces, precios y duración</li>
+                    <li><strong>Configura tu horario</strong> - Establece cuándo estás disponible</li>
+                    <li><strong>Define tus zonas de cobertura</strong> - Selecciona dónde puedes prestar servicios</li>
+                    <li><strong>Espera la aprobación</strong> - Nuestro equipo revisará tu perfil (1-2 días hábiles)</li>
+                </ol>
+            </div>
+            
+            <p>Una vez aprobado, empezarás a recibir solicitudes de clientes y podrás comenzar a trabajar.</p>
+            
+            <div class="button-container">
+                <a href="{{ dashboard_url }}" class="button">
+                    Completar mi Perfil
+                </a>
+            </div>
+            
+            <p style="margin-top: 30px; padding: 15px; background-color: #fef3c7; border-radius: 6px; border-left: 4px solid #f59e0b; font-size: 14px;">
+                <strong>💡 Consejo:</strong> Los proveedores con perfiles completos, fotos profesionales y buenas reseñas reciben hasta 3 veces más reservas.
+            </p>
+        </div>
+        
+        <div class="footer">
+            <p><strong>{{ site_name }}</strong></p>
+            <p>Crece tu negocio con nosotros</p>
+            <p style="margin-top: 15px; color: #cccccc;">© 2025 {{ site_name }}. Todos los derechos reservados.</p>
+        </div>
+    </div>
+</body>
+</html>

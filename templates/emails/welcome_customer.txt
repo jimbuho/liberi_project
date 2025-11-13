@@ -1,0 +1,17 @@
+¡Bienvenido a {{ site_name }}, {{ user_name }}!
+
+Tu email ha sido verificado exitosamente. Ya puedes empezar a disfrutar de todos nuestros servicios.
+
+Con {{ site_name }} puedes:
+✓ Encontrar servicios de belleza y limpieza cerca de ti
+✓ Reservar en el horario que más te convenga
+✓ Pagar de forma segura
+✓ Calificar tu experiencia
+
+Accede a tu panel: {{ dashboard_url }}
+
+¿Tienes preguntas? Estamos aquí para ayudarte.
+
+---
+{{ site_name }}
+Tu plataforma de confianza para servicios profesionales

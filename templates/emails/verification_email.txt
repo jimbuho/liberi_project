@@ -1,0 +1,15 @@
+Hola {{ user_name }},
+
+¡Bienvenido a {{ site_name }}!
+
+Para completar tu registro, verifica tu email haciendo clic en el siguiente enlace:
+
+{{ verification_url }}
+
+Este enlace expirará en 24 horas por seguridad.
+
+Si no creaste esta cuenta, ignora este email.
+
+---
+{{ site_name }}
+¿Necesitas ayuda? Contáctanos

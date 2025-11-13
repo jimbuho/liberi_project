@@ -16,7 +16,8 @@ urlpatterns = [
 
     # urls.py
     path('verify-email/<str:token>/', views.verify_email_view, name='verify_email'),
-    path('verify-email/pending/', views.email_verification_pending, name='email_verification_pending_view'),
+    path('email-verification-pending/', views.email_verification_pending, name='email_verification_pending_view'),
+    path('resend-verification/', views.resend_verification_view, name='resend_verification'),
     
     # Dashboard
     path('dashboard/', views.dashboard, name='dashboard'),
