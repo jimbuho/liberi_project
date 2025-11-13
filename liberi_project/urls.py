@@ -8,7 +8,8 @@ urlpatterns = [
     path('api/', include('core.urls')),
     path('api/payments/', include('payments.urls')),
     path('api/messaging/', include('messaging.urls')),
-    path('', include('frontend.urls')),  # ← AGREGAR ESTA LÍNEA
+    path('', include('frontend.urls')),
+    path('legal/', include('legal.urls')),
 ]
 
 if settings.DEBUG:

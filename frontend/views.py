@@ -26,6 +26,9 @@ from core.models import (
     EmailVerificationToken
 )
 
+from legal.models import LegalDocument, LegalAcceptance
+from legal.views import get_client_ip, get_user_agent
+
 from core.image_upload import (
     upload_profile_photo, replace_image, 
     upload_service_image, upload_payment_proof,
@@ -479,12 +482,18 @@ def register_view(request):
         first_name = request.POST.get('first_name')
         last_name = request.POST.get('last_name')
         phone = request.POST.get('phone')
-        
+        terms_accepted = request.POST.get('terms_accepted')
+
         # Validaciones
         if password != password_confirm:
             messages.error(request, 'Las contraseñas no coinciden')
             return render(request, 'auth/register.html')
         
+        # NUEVA VALIDACIÓN
+        if not terms_accepted:
+            messages.error(request, 'Debes aceptar los Términos de Uso y Política de Privacidad')
+            return render(request, 'auth/register.html')
+
         if User.objects.filter(username=username).exists():
             messages.error(request, 'El nombre de usuario ya está en uso')
             return render(request, 'auth/register.html')
@@ -508,6 +517,28 @@ def register_view(request):
             phone=phone,
             role='customer'
         )
+
+        try:
+            for doc_type in ['terms_user', 'privacy_user']:
+                try:
+                    document = LegalDocument.objects.get(
+                        document_type=doc_type,
+                        is_active=True,
+                        status='published'
+                    )
+                    
+                    LegalAcceptance.objects.get_or_create(
+                        user=user,
+                        document=document,
+                        defaults={
+                            'ip_address': get_client_ip(request),
+                            'user_agent': get_user_agent(request),
+                        }
+                    )
+                except LegalDocument.DoesNotExist:
+                    pass
+        except Exception as e:
+            logger.warning(f"Error registrando aceptación legal: {e}")
         
         # 🔥 ENVIAR EMAIL EN SEGUNDO PLANO (NO BLOQUEA)
         from core.email_verification import send_verification_email
@@ -549,9 +580,15 @@ def register_provider_view(request):
         description = request.POST.get('description')
         business_name = request.POST.get('business_name')
         profile_photo = request.FILES.get('profile_photo')
+        terms_accepted = request.POST.get('terms_accepted')
         
         if password != password_confirm:
             messages.error(request, 'Las contraseñas no coinciden')
+            return render(request, 'auth/register_provider.html', {'categories': categories})
+
+        # NUEVA VALIDACIÓN
+        if terms_accepted is None or not terms_accepted:
+            messages.error(request, 'Debes aceptar los Términos de Uso y Política de Privacidad')
             return render(request, 'auth/register_provider.html', {'categories': categories})
         
         if User.objects.filter(username=username).exists():
@@ -596,6 +633,28 @@ def register_provider_view(request):
                 status='created',
                 registration_step=1
             )
+
+            try:
+                for doc_type in ['terms_user', 'privacy_user']:
+                    try:
+                        document = LegalDocument.objects.get(
+                            document_type=doc_type,
+                            is_active=True,
+                            status='published'
+                        )
+                        
+                        LegalAcceptance.objects.get_or_create(
+                            user=user,
+                            document=document,
+                            defaults={
+                                'ip_address': get_client_ip(request),
+                                'user_agent': get_user_agent(request),
+                            }
+                        )
+                    except LegalDocument.DoesNotExist:
+                        pass
+            except Exception as e:
+                logger.warning(f"Error registrando aceptación legal: {e}")
             
             success, message = send_verification_email(user, email)
             

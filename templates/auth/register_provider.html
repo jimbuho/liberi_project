@@ -103,11 +103,19 @@
                             <strong>Nota:</strong> Las zonas de cobertura y costos de traslado podrás configurarlos después de crear tu primer servicio.
                         </div>
 
-                        <div class="mb-3 form-check">
-                            <input type="checkbox" class="form-check-input" id="terms" required>
-                            <label class="form-check-label" for="terms">
-                                Acepto los <a href="#" target="_blank">términos y condiciones</a> 
-                                y autorizo la verificación de mi información
+                        <div class="form-check mb-3">
+                            <input type="checkbox" class="form-check-input" id="terms_check" 
+                                name="terms_accepted" value="true" required>
+                            <label class="form-check-label" for="terms_check">
+                                Acepto los 
+                                <a href="{% url 'legal:terms_provider' %}" target="_blank" class="text-decoration-none">
+                                    Términos de Uso
+                                </a>
+                                y la 
+                                <a href="{% url 'legal:privacy_provider' %}" target="_blank" class="text-decoration-none">
+                                    Política de Privacidad
+                                </a>
+                                para Proveedores
                             </label>
                         </div>
 

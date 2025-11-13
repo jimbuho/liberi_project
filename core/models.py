@@ -34,6 +34,34 @@ class Profile(models.Model):
     def __str__(self):
         return f"{self.user.username} - {self.get_role_display()}"
 
+    def has_accepted_legal_documents(self):
+        """Verifica si ha aceptado documentos legales según su rol"""
+        from legal.models import LegalDocument, LegalAcceptance
+        
+        if self.role == 'provider':
+            required_docs = ['terms_provider', 'privacy_provider']
+        else:
+            required_docs = ['terms_user', 'privacy_user']
+        
+        for doc_type in required_docs:
+            try:
+                document = LegalDocument.objects.get(
+                    document_type=doc_type,
+                    is_active=True,
+                    status='published'
+                )
+                
+                if not LegalAcceptance.objects.filter(
+                    user=self.user,
+                    document=document
+                ).exists():
+                    return False
+                    
+            except LegalDocument.DoesNotExist:
+                continue
+        
+        return True
+
 
 class Category(models.Model):
     name = models.CharField('Nombre', max_length=100)

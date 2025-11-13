@@ -64,6 +64,7 @@ INSTALLED_APPS = [
     'payments',
     'messaging',
     'frontend',
+    'legal',
 
     # Celery y Beat
     'django_celery_beat',
@@ -78,6 +79,7 @@ MIDDLEWARE = [
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
+    'legal.middleware.LegalAcceptanceMiddleware',
     'core.middleware.PayPhoneReferrerPolicyMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
