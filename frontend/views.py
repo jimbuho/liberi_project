@@ -1275,54 +1275,77 @@ def booking_reject(request, booking_id):
 
 @login_required
 def booking_complete(request, booking_id):
-    """Completar una reserva CON VALIDACIONES"""
     if request.method != 'POST':
         return redirect('bookings_list')
     
     booking = get_object_or_404(Booking, id=booking_id)
     
-    # Verificar que sea el proveedor
-    if booking.provider != request.user:
+    is_provider = booking.provider == request.user
+    is_customer = booking.customer == request.user
+    
+    if not (is_provider or is_customer):
         messages.error(request, 'No tienes permiso para esta acción')
         return redirect('bookings_list')
     
-    # VALIDACIÓN 1: Debe estar aceptada
     if booking.status != 'accepted':
         messages.error(request, 'Solo puedes completar reservas aceptadas')
         return redirect('booking_detail', booking_id=booking.id)
     
-    # VALIDACIÓN 2: Debe estar pagada
     if booking.payment_status != 'paid':
         messages.error(request, 'No puedes completar una reserva que no ha sido pagada')
         return redirect('booking_detail', booking_id=booking.id)
     
-    # VALIDACIÓN 3: La fecha/hora debe haber pasado o estar cerca
     now = timezone.now()
     scheduled = booking.scheduled_time
-    time_diff = (now - scheduled).total_seconds() / 60  # diferencia en minutos
+    time_diff = (now - scheduled).total_seconds() / 60
     
-    # Permitir completar 30 minutos antes de la hora programada
     if time_diff < -30:
         hours_left = abs(time_diff) / 60
-        messages.error(
-            request, 
-            f'No puedes completar esta reserva aún. '
-            f'Faltan {hours_left:.1f} horas para la hora programada.'
-        )
+        messages.error(request, f'No puedes completar esta reserva aún. Faltan {hours_left:.1f} horas para la hora programada.')
         return redirect('booking_detail', booking_id=booking.id)
     
-    # TODO OK - Completar
-    booking.status = 'completed'
+    if is_provider:
+        booking.provider_completed_at = timezone.now()
+        messages.info(request, '✅ Marcada como completada por tu parte. Esperando confirmación del cliente.')
+    elif is_customer:
+        booking.customer_completed_at = timezone.now()
+        messages.info(request, '✅ Marcada como completada por tu parte. Esperando confirmación del proveedor.')
+    
+    if booking.provider_completed_at and booking.customer_completed_at:
+        booking.status = 'completed'
+        messages.success(request, '✅ ¡Reserva completada exitosamente! Ambas partes han confirmado. El dinero ahora estará disponible para retirar.')
+        
+        Notification.objects.create(
+            user=booking.customer,
+            notification_type='booking_completed',
+            title='✅ Reserva Completada',
+            message=f'La reserva con {booking.provider.get_full_name()} ha sido completada por ambas partes.',
+            booking=booking,
+            action_url=f'/bookings/{booking.id}/'
+        )
+        
+        Notification.objects.create(
+            user=booking.provider,
+            notification_type='booking_completed',
+            title='✅ Reserva Completada',
+            message=f'La reserva con {booking.customer.get_full_name()} ha sido completada por ambas partes.',
+            booking=booking,
+            action_url=f'/bookings/{booking.id}/'
+        )
+    
     booking.save()
     
-    # Log
     AuditLog.objects.create(
         user=request.user,
-        action='Reserva completada',
-        metadata={'booking_id': str(booking.id)}
+        action='Reserva marcada como completada',
+        metadata={
+            'booking_id': str(booking.id),
+            'completed_by': 'provider' if is_provider else 'customer',
+            'provider_confirmed': booking.provider_completed_at is not None,
+            'customer_confirmed': booking.customer_completed_at is not None,
+        }
     )
     
-    messages.success(request, 'Reserva marcada como completada. ¡Buen trabajo!')
     return redirect('booking_detail', booking_id=booking.id)
 
 
@@ -2941,22 +2964,20 @@ def calculate_withdrawal(requested_amount, commission_percent):
     return commission_amount, amount_payable
 
 def get_active_balance(provider):
-    """Calcula el saldo activo (no pagado) del proveedor, restando retiros pendientes"""
-    # Dinero ganado (completado y pagado)
     qs = Booking.objects.filter(
         provider=provider, 
-        status__in=['completed','accepted'], 
-        payment_status='paid'
+        status='completed',
+        payment_status='paid',
+        provider_completed_at__isnull=False,
+        customer_completed_at__isnull=False,
     )
     earned = qs.aggregate(total=Sum(F('sub_total_cost') + F('travel_cost')))['total'] or Decimal('0.00')
     
-    # Restar retiros completados
     completed_withdrawals = WithdrawalRequest.objects.filter(
         provider=provider,
         status='completed'
     ).aggregate(total=Sum('amount_payable'))['total'] or Decimal('0.00')
     
-    # Restar retiros pendientes
     pending_withdrawals = WithdrawalRequest.objects.filter(
         provider=provider,
         status='pending'

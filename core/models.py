@@ -236,6 +236,18 @@ class Booking(models.Model):
     payment_status = models.CharField('Estado de pago', max_length=20, 
                                      choices=PAYMENT_STATUS_CHOICES, default='pending')
     payment_method = models.CharField('Método de pago', max_length=50, blank=True)
+    provider_completed_at = models.DateTimeField(
+        'Completado por Proveedor',
+        null=True,
+        blank=True,
+        help_text='Timestamp cuando el proveedor marca como completado'
+    )
+    customer_completed_at = models.DateTimeField(
+        'Completado por Cliente',
+        null=True,
+        blank=True,
+        help_text='Timestamp cuando el cliente marca como completado'
+    )
     scheduled_time = models.DateTimeField('Hora programada')
     notes = models.TextField('Notas', blank=True)
     created_at = models.DateTimeField('Fecha de creación', auto_now_add=True)
