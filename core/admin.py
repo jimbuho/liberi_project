@@ -124,8 +124,46 @@ class ProviderProfileAdmin(admin.ModelAdmin):
     rating.short_description = 'Calificación'
     
     def approve_providers(self, request, queryset):
-        updated = queryset.update(status='approved')
-        self.message_user(request, f'{updated} proveedor(es) aprobado(s).')
+        """Aprueba proveedores y envía email de bienvenida"""
+        count = 0
+        for provider_profile in queryset.filter(status__in=['pending', 'created']):
+            # Actualizar status
+            provider_profile.status = 'approved'
+            provider_profile.save()
+            
+            # Crear notificación en el centro de notificaciones
+            Notification.objects.create(
+                user=provider_profile.user,
+                notification_type='booking_accepted',
+                title='🎉 ¡Perfil Aprobado!',
+                message='Tu perfil de proveedor ha sido aprobado. Configura tu cobertura, costos y horarios para empezar a recibir clientes.',
+                action_url='/dashboard/'
+            )
+            
+            # Enviar email de bienvenida (asincrónico)
+            try:
+                from core.tasks import send_provider_approval_email_task
+                send_provider_approval_email_task.delay(provider_profile_id=provider_profile.pk)
+            except Exception as e:
+                logger.error(f"Error enviando email de aprobación: {e}")
+            
+            # Log de auditoría
+            AuditLog.objects.create(
+                user=request.user,
+                action='Proveedor aprobado',
+                metadata={
+                    'provider_id': provider_profile.user.id,
+                    'provider_username': provider_profile.user.username,
+                    'category': provider_profile.category.name
+                }
+            )
+            
+            count += 1
+        
+        self.message_user(
+            request,
+            f'✅ {count} proveedor(es) aprobado(s). Se han enviado emails de bienvenida.'
+        )
     approve_providers.short_description = 'Aprobar proveedores'
     
     def reject_providers(self, request, queryset):

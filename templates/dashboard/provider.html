@@ -201,6 +201,81 @@
                                 toma entre 24-48 horas hábiles. Te notificaremos por email cuando tu perfil sea aprobado.
                             </p>
                         </div>
+                    {% elif provider_profile.status == 'approved' %}
+                        <!-- NUEVO: Alertas de configuración pendiente para proveedores aprobados -->
+                        {% if not provider_profile.coverage_zones.exists or not provider_profile.schedules.exists %}
+                            <div class="alert alert-success alert-dismissible fade show" role="alert">
+                                <h5 class="alert-heading">
+                                    <i class="fas fa-check-circle"></i> ¡Perfil Aprobado! - Completa tu Configuración
+                                </h5>
+                                <p class="mb-3">
+                                    ¡Felicitaciones! Tu perfil ha sido aprobado. Para empezar a recibir clientes, 
+                                    necesitas completar tu configuración:
+                                </p>
+                                
+                                <div class="row">
+                                    <div class="col-md-4 mb-2">
+                                        <div class="card border-{% if provider_profile.coverage_zones.exists %}success{% else %}warning{% endif %} h-100">
+                                            <div class="card-body text-center">
+                                                {% if provider_profile.coverage_zones.exists %}
+                                                    <i class="fas fa-check-circle text-success fa-2x mb-2"></i>
+                                                    <h6 class="text-success">✓ Cobertura configurada</h6>
+                                                {% else %}
+                                                    <i class="fas fa-map-marked-alt text-warning fa-2x mb-2"></i>
+                                                    <h6>1. Configurar Cobertura</h6>
+                                                    <p class="small mb-2">Define las zonas donde ofreces servicios</p>
+                                                    <a href="{% url 'provider_coverage_manage' %}" class="btn btn-sm btn-warning">
+                                                        <i class="fas fa-arrow-right"></i> Configurar
+                                                    </a>
+                                                {% endif %}
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="col-md-4 mb-2">
+                                        <div class="card border-{% if provider_profile.zone_costs.exists %}success{% else %}warning{% endif %} h-100">
+                                            <div class="card-body text-center">
+                                                {% if provider_profile.zone_costs.exists %}
+                                                    <i class="fas fa-check-circle text-success fa-2x mb-2"></i>
+                                                    <h6 class="text-success">✓ Costos configurados</h6>
+                                                {% else %}
+                                                    <i class="fas fa-dollar-sign text-warning fa-2x mb-2"></i>
+                                                    <h6>2. Costos de Movilización</h6>
+                                                    <p class="small mb-2">Establece precios por zona</p>
+                                                    <a href="{% url 'provider_zone_costs_manage' %}" class="btn btn-sm btn-warning">
+                                                        <i class="fas fa-arrow-right"></i> Configurar
+                                                    </a>
+                                                {% endif %}
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="col-md-4 mb-2">
+                                        <div class="card border-{% if provider_profile.schedules.exists %}success{% else %}warning{% endif %} h-100">
+                                            <div class="card-body text-center">
+                                                {% if provider_profile.schedules.exists %}
+                                                    <i class="fas fa-check-circle text-success fa-2x mb-2"></i>
+                                                    <h6 class="text-success">✓ Horarios configurados</h6>
+                                                {% else %}
+                                                    <i class="fas fa-clock text-warning fa-2x mb-2"></i>
+                                                    <h6>3. Horarios de Atención</h6>
+                                                    <p class="small mb-2">Define tu disponibilidad</p>
+                                                    <a href="{% url 'provider_schedule_manage' %}" class="btn btn-sm btn-warning">
+                                                        <i class="fas fa-arrow-right"></i> Configurar
+                                                    </a>
+                                                {% endif %}
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <p class="mt-3 mb-0 text-muted small">
+                                    <i class="fas fa-info-circle"></i> 
+                                    <strong>Importante:</strong> Sin completar estos pasos, los clientes no podrán encontrarte ni reservar tus servicios.
+                                </p>
+                                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                            </div>
+                        {% endif %}
                     {% elif provider_profile.status == 'rejected' %}
                         <!-- Rechazado -->
                         <div class="alert alert-danger" role="alert">

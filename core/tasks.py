@@ -641,3 +641,57 @@ El Equipo de Liberi
     except Exception as e:
         logger.error(f"❌ Error enviando email de pago recibido: {e}")
         raise
+
+@shared_task
+def send_provider_approval_email_task(provider_profile_id):
+    """
+    Envía email de bienvenida cuando un proveedor es aprobado
+    """
+    from core.models import ProviderProfile
+    from django.core.mail import EmailMultiAlternatives
+    from django.template.loader import render_to_string
+    from django.conf import settings
+    
+    try:
+        provider_profile = ProviderProfile.objects.select_related('user').get(pk=provider_profile_id)
+        provider = provider_profile.user
+        
+        # Contexto para el template
+        context = {
+            'provider_name': provider.get_full_name() or provider.username,
+            'business_name': provider_profile.business_name or 'tu negocio',
+            'category': provider_profile.category.name,
+            'site_name': 'Liberi',
+            'dashboard_url': f"{settings.SITE_URL}/dashboard/",
+            'coverage_url': f"{settings.SITE_URL}/provider/coverage/",
+            'zone_costs_url': f"{settings.SITE_URL}/provider/zone-costs/",
+            'schedule_url': f"{settings.SITE_URL}/provider/schedule/",
+        }
+        
+        # Subject
+        subject = f'¡Felicitaciones! Tu perfil de proveedor ha sido aprobado - Liberi'
+        
+        # Renderizar templates HTML y texto plano
+        html_content = render_to_string('emails/provider_approval.html', context)
+        text_content = render_to_string('emails/provider_approval.txt', context)
+        
+        # Crear email
+        email = EmailMultiAlternatives(
+            subject=subject,
+            body=text_content,
+            from_email=settings.DEFAULT_FROM_EMAIL,
+            to=[provider.email]
+        )
+        
+        email.attach_alternative(html_content, "text/html")
+        email.send()
+        
+        logger.info(f'✅ Email de aprobación enviado a {provider.email}')
+        return True
+        
+    except ProviderProfile.DoesNotExist:
+        logger.error(f'❌ ProviderProfile {provider_profile_id} no existe')
+        return False
+    except Exception as e:
+        logger.error(f'❌ Error enviando email de aprobación del proveedor: {e}')
+        return False
