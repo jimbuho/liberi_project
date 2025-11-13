@@ -26,6 +26,10 @@ class SmartImageFieldFile(models.fields.files.ImageFieldFile):
     el comportamiento de la propiedad 'url'.
     """
     
+    def _is_url(self):
+        """Verifica si name es una URL completa"""
+        return self.name and (self.name.startswith('http://') or self.name.startswith('https://'))
+    
     def _get_smart_url(self):
         """
         Retorna la URL apropiada basándose en el entorno.
@@ -37,6 +41,10 @@ class SmartImageFieldFile(models.fields.files.ImageFieldFile):
             return ''
         
         try:
+            # Si el name ya es una URL completa, retornarla directamente
+            if self._is_url():
+                return self.name
+            
             # Si el campo tiene force_full_url activado, siempre retornar URL completa
             if hasattr(self.field, 'force_full_url') and self.field.force_full_url:
                 return self.storage.url(self.name)
@@ -50,15 +58,25 @@ class SmartImageFieldFile(models.fields.files.ImageFieldFile):
             
         except Exception as e:
             logger.error(f"Error al generar URL para {self.name}: {str(e)}")
-            # Fallback seguro: retornar el comportamiento por defecto
             return self.storage.url(self.name)
     
     @property
     def url(self):
-        """
-        Sobrescribe la propiedad url para usar nuestra lógica inteligente
-        """
+        """Sobrescribe la propiedad url para usar nuestra lógica inteligente"""
         return self._get_smart_url()
+    
+    @property
+    def size(self):
+        """Evita que Django intente acceder al archivo si es una URL"""
+        if self._is_url():
+            return 0  # O podrías hacer una petición HEAD para obtener el tamaño real
+        return super().size
+    
+    def _require_file(self):
+        """Sobrescribe para evitar validación de archivo cuando es URL"""
+        if self._is_url():
+            return
+        super()._require_file()
 
 
 class SmartImageField(models.ImageField):
@@ -145,7 +163,7 @@ class SmartImageField(models.ImageField):
         Mantiene la compatibilidad completa con el admin.
         """
         return super().formfield(**kwargs)
-
+    
 
 class SmartFileField(models.FileField):
     """
