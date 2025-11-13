@@ -70,7 +70,7 @@ class Command(BaseCommand):
                     <p>El tratamiento se realiza con el consentimiento del titular y cuando sea necesario para la ejecución de un contrato o cumplimiento de obligaciones legales, conforme a la Ley Orgánica de Protección de Datos Personales del Ecuador.</p>
 
                     <h4>5. Derechos del titular</h4>
-                    <p>Los usuarios pueden ejercer derechos de acceso, rectificación, supresión, oposición y portabilidad enviando solicitud a soporte@liberi.ec. Las solicitudes serán tramitadas según la normativa y plazos legales.</p>
+                    <p>Los usuarios pueden ejercer derechos de acceso, rectificación, supresión, oposición y portabilidad enviando solicitud a soporte@liberi.app. Las solicitudes serán tramitadas según la normativa y plazos legales.</p>
 
                     <h4>6. Seguridad</h4>
                     <p>Liberi aplica medidas técnicas y organizativas alineadas con ISO/IEC 27701 e ISO/IEC 27001: cifrado en tránsito y reposo, control de accesos, registros de auditoría y pruebas de seguridad.</p>

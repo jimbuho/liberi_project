@@ -65,6 +65,7 @@ INSTALLED_APPS = [
     'messaging',
     'frontend',
     'legal',
+    'whatsapp_notifications',
 
     # Celery y Beat
     'django_celery_beat',
@@ -286,3 +287,17 @@ CELERY_TIMEZONE = 'America/Guayaquil'
 CELERY_TASK_TIME_LIMIT = 30 * 60  # 30 minutos máximo
 CELERY_TASK_SOFT_TIME_LIMIT = 25 * 60  # 25 minutos soft limit
 CELERY_BEAT_SCHEDULE = {}
+
+# ============================================
+# WHATSAPP CLOUD API CONFIGURATION
+# ============================================
+WHATSAPP_TEST_MODE = os.getenv('WHATSAPP_TEST_MODE', default=True)
+WHATSAPP_ACCESS_TOKEN = os.getenv('WHATSAPP_ACCESS_TOKEN', '')
+WHATSAPP_PHONE_NUMBER_ID = os.getenv('WHATSAPP_PHONE_NUMBER_ID', '')
+
+CELERY_BEAT_SCHEDULE = {
+    'send-service-reminders': {
+        'task': 'whatsapp_notifications.tasks.send_service_reminders',
+        'schedule': 1800.0,  # cada 30 minutos
+    },
+}
