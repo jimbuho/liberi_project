@@ -41,7 +41,7 @@ from core.email_verification import send_verification_email, send_welcome_email
 
 from decimal import Decimal, ROUND_HALF_UP
 
-logger = logging.getLogger(__name__)x
+logger = logging.getLogger(__name__)
 
 categories = Category.objects.all()
 
@@ -2863,7 +2863,7 @@ def payphone_callback(request):
                     
         except Exception as e:
             logger.error(f"Error procesando pago aprobado: {e}", exc_info=True)
-            messages.error(request, 'Error al procesar el pago. Contacta a soporte: {e}')
+            messages.error(request, f"Error al procesar el pago. Contacta a soporte: {e}")
             return redirect('booking_detail', booking_id=booking.id)
             
         return redirect('booking_detail', booking_id=booking.id)
