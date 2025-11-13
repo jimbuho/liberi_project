@@ -54,27 +54,25 @@
                     <h5 class="mb-0"><i class="fas fa-filter"></i> Filtros</h5>
                 </div>
                 <div class="card-body">
-                    <form method="get" id="filterForm">
+                    <form method="get" id="filterForm" class="no-loader">
                         <!-- Categoría -->
                         <div class="mb-3">
                             <label class="form-label fw-bold">Categoría</label>
                             {% for category in categories %}
                             <div class="form-check">
-                                <input class="form-check-input" type="radio" 
-                                       name="category" value="{{ category.id }}" 
-                                       id="cat{{ category.id }}"
-                                       {% if request.GET.category == category.id|stringformat:"s" %}checked{% endif %}
-                                       onchange="this.form.submit()">
+                                <input class="form-check-input category-filter" type="radio" 
+                                    name="category" value="{{ category.id }}" 
+                                    id="cat{{ category.id }}"
+                                    {% if request.GET.category == category.id|stringformat:"s" %}checked{% endif %}>
                                 <label class="form-check-label" for="cat{{ category.id }}">
                                     {{ category.icon }} {{ category.name }}
                                 </label>
                             </div>
                             {% endfor %}
                             <div class="form-check">
-                                <input class="form-check-input" type="radio" 
-                                       name="category" value="" id="catAll"
-                                       {% if not request.GET.category %}checked{% endif %}
-                                       onchange="this.form.submit()">
+                                <input class="form-check-input category-filter" type="radio" 
+                                    name="category" value="" id="catAll"
+                                    {% if not request.GET.category %}checked{% endif %}>
                                 <label class="form-check-label" for="catAll">
                                     Todas las categorías
                                 </label>
@@ -89,13 +87,13 @@
                             <div class="row">
                                 <div class="col-6">
                                     <input type="number" class="form-control form-control-sm" 
-                                           name="min_price" placeholder="Min" 
-                                           value="{{ request.GET.min_price }}">
+                                        name="min_price" placeholder="Min" 
+                                        value="{{ request.GET.min_price }}">
                                 </div>
                                 <div class="col-6">
                                     <input type="number" class="form-control form-control-sm" 
-                                           name="max_price" placeholder="Max"
-                                           value="{{ request.GET.max_price }}">
+                                        name="max_price" placeholder="Max"
+                                        value="{{ request.GET.max_price }}">
                                 </div>
                             </div>
                         </div>
@@ -104,8 +102,8 @@
                         <div class="mb-3">
                             <label class="form-label fw-bold">Buscar</label>
                             <input type="text" class="form-control" name="search" 
-                                   placeholder="Nombre del servicio..."
-                                   value="{{ request.GET.search }}">
+                                placeholder="Nombre del servicio..."
+                                value="{{ request.GET.search }}">
                         </div>
 
                         <!-- Mantener zona actual en filtros -->
@@ -113,7 +111,7 @@
                         <input type="hidden" name="zone" value="{{ current_zone.id }}">
                         {% endif %}
 
-                        <button type="submit" class="btn btn-primary w-100">
+                        <button type="submit" class="btn btn-primary w-100" id="submitBtn">
                             <i class="fas fa-search"></i> Buscar
                         </button>
                         <a href="{% url 'services_list' %}" class="btn btn-outline-secondary w-100 mt-2">
@@ -314,5 +312,17 @@ function detectLocation() {
         }
     );
 }
+
+document.querySelectorAll('.category-filter').forEach(radio => {
+    radio.addEventListener('change', function() {
+        const loader = document.getElementById('globalLoader');
+        loader.classList.add('active');
+        
+        // Pequeño delay para asegurar que el formulario se envíe
+        setTimeout(() => {
+            document.getElementById('filterForm').submit();
+        }, 300);
+    });
+});
 </script>
 {% endblock %}

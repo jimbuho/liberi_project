@@ -2964,12 +2964,16 @@ def calculate_withdrawal(requested_amount, commission_percent):
     return commission_amount, amount_payable
 
 def get_active_balance(provider):
+    """Calcula saldo activo solo de servicios COMPLETADOS por ambas partes"""
+    from decimal import Decimal
+    
+    # Solo contar servicios completados POR AMBAS PARTES
     qs = Booking.objects.filter(
         provider=provider, 
         status='completed',
         payment_status='paid',
-        provider_completed_at__isnull=False,
-        customer_completed_at__isnull=False,
+        provider_completed_at__isnull=False,  # ← Proveedor confirmó
+        customer_completed_at__isnull=False,  # ← Cliente confirmó
     )
     earned = qs.aggregate(total=Sum(F('sub_total_cost') + F('travel_cost')))['total'] or Decimal('0.00')
     

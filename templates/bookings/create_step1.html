@@ -35,10 +35,10 @@
                     </div>
 
                     <!-- Selector de Fecha -->
-                    <form method="get" id="dateForm">
+                    <form method="get" id="dateForm" class="no-loader">
                         <div class="mb-4">
                             <label class="form-label"><strong>Paso 1: Elige el día</strong></label>
-                            <select class="form-select form-select-lg" name="date" onchange="this.form.submit()">
+                            <select class="form-select form-select-lg" id="dateSelect" name="date">
                                 <option value="">Selecciona una fecha...</option>
                                 {% for date in available_dates %}
                                 <option value="{{ date|date:'Y-m-d' }}" 
@@ -204,6 +204,18 @@
 </div>
 
 <script>
+// Activar loader cuando se selecciona fecha
+document.getElementById('dateSelect').addEventListener('change', function() {
+    if (this.value) {
+        const loader = document.getElementById('globalLoader');
+        loader.classList.add('active');
+        
+        setTimeout(() => {
+            document.getElementById('dateForm').submit();
+        }, 300);
+    }
+});
+
 let selectedTime = null;
 
 function selectTimeSlot(button, time) {
