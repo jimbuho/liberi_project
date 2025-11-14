@@ -25,7 +25,6 @@ from core.models import (
     WithdrawalRequest, ProviderBankAccount, Bank,
     EmailVerificationToken
 )
-
 from legal.models import LegalDocument, LegalAcceptance
 from legal.views import get_client_ip, get_user_agent
 
@@ -46,8 +45,9 @@ from decimal import Decimal, ROUND_HALF_UP
 
 logger = logging.getLogger(__name__)
 
-categories = Category.objects.all()
-
+def get_active_categories():
+    """Obtiene todas las categorías ordenadas por nombre"""
+    return Category.objects.all().order_by('name')
 
 # ============================================================================
 # HOME & PUBLIC VIEWS
@@ -61,7 +61,7 @@ def home(request):
         provider__provider_profile__status='approved').order_by('-created_at')[:8]
     
     context = {
-        'categories': categories,
+        'categories': get_active_categories(),
         'featured_services': featured_services,
     }
     return render(request, 'home.html', context)
@@ -127,7 +127,7 @@ def services_list(request):
     ).distinct()
     
     # Agregar rating promedio y costo de movilización por zona
-    from core.models import ProviderZoneCost, SystemConfig
+    
     
     for service in services:
         # Rating
@@ -156,7 +156,7 @@ def services_list(request):
     
     context = {
         'services': services,
-        'categories': categories,
+        'categories': get_active_categories(),
         'zones': zones,
         'current_zone': current_zone,
         'selected_category': Category.objects.filter(id=category_id).first() if category_id else None,
@@ -167,7 +167,6 @@ def services_list(request):
 
 def service_detail(request, service_code):
     """Detalle de un servicio con validación de zona"""
-    from core.models import ProviderZoneCost, SystemConfig
     
     service = get_object_or_404(Service, service_code=service_code)
     
@@ -278,7 +277,7 @@ def providers_list(request):
     
     context = {
         'providers': providers,
-        'categories': categories,
+        'categories': get_active_categories(),
     }
     return render(request, 'providers/list.html', context)
 
@@ -355,7 +354,7 @@ def provider_profile_edit(request):
                 messages.error(request, 'Este email ya está en uso por otro usuario')
                 return render(request, 'providers/profile_edit.html', {
                     'provider_profile': provider_profile,
-                    'categories': categories,
+                    'categories': get_active_categories(),
                 })
         
         # Validar foto si se subió una nueva
@@ -366,7 +365,7 @@ def provider_profile_edit(request):
                 messages.error(request, 'La foto debe ser JPG o PNG')
                 return render(request, 'providers/profile_edit.html', {
                     'provider_profile': provider_profile,
-                    'categories': categories,
+                    'categories': get_active_categories(),
                 })
             
             # Validar tamaño (5MB)
@@ -374,7 +373,7 @@ def provider_profile_edit(request):
                 messages.error(request, 'La foto no puede superar los 5MB')
                 return render(request, 'providers/profile_edit.html', {
                     'provider_profile': provider_profile,
-                    'categories': categories,
+                    'categories': get_active_categories(),
                 })
         
         try:
@@ -423,12 +422,12 @@ def provider_profile_edit(request):
             messages.error(request, f'Error al actualizar perfil: {str(e)}')
             return render(request, 'providers/profile_edit.html', {
                 'provider_profile': provider_profile,
-                'categories': categories,
+                'categories': get_active_categories(),
             })
     
     context = {
         'provider_profile': provider_profile,
-        'categories': categories,
+        'categories': get_active_categories(),
     }
     return render(request, 'providers/profile_edit.html', context)
 
@@ -451,21 +450,14 @@ def login_view(request):
         if user is not None:
             # 🔥 VERIFICAR QUE EL EMAIL ESTÉ VERIFICADO
             if not user.profile.verified:
-                messages.error(
-                    request, 
-                    '❌ Tu email aún no ha sido verificado. '
-                    'Por favor, revisa tu bandeja de entrada y haz click en el enlace de verificación.'
-                )
+                messages.error(request, 'Credenciales inválidas o cuenta no verificada.')
                 return render(request, 'auth/login.html')
             
             login(request, user)
             messages.success(request, f'¡Bienvenido, {user.first_name or user.username}!')
-            
-            # Redirigir a next o dashboard
-            next_url = request.GET.get('next', 'dashboard')
-            return redirect(next_url)
+            return redirect(request.GET.get('next', 'dashboard'))
         else:
-            messages.error(request, 'Usuario o contraseña incorrectos')
+            messages.error(request, 'Credenciales inválidas.')
     
     return render(request, 'auth/login.html')
 
@@ -572,7 +564,6 @@ def register_provider_view(request):
         return redirect('dashboard')
     
     if request.method == 'POST':
-        print('GUARDANDO...')
         username = request.POST.get('username')
         email = request.POST.get('email')
         password = request.POST.get('password')
@@ -589,24 +580,24 @@ def register_provider_view(request):
         
         if password != password_confirm:
             messages.error(request, 'Las contraseñas no coinciden')
-            return render(request, 'auth/register_provider.html', {'categories': categories})
+            return render(request, 'auth/register_provider.html', {'categories': get_active_categories()})
 
         # NUEVA VALIDACIÓN
         if terms_accepted is None or not terms_accepted:
             messages.error(request, 'Debes aceptar los Términos de Uso y Política de Privacidad')
-            return render(request, 'auth/register_provider.html', {'categories': categories})
+            return render(request, 'auth/register_provider.html', {'categories': get_active_categories()})
         
         if User.objects.filter(username=username).exists():
             messages.error(request, 'El nombre de usuario ya está en uso')
-            return render(request, 'auth/register_provider.html', {'categories': categories})
+            return render(request, 'auth/register_provider.html', {'categories': get_active_categories()})
         
         if User.objects.filter(email=email).exists():
             messages.error(request, 'El email ya está registrado')
-            return render(request, 'auth/register_provider.html', {'categories': categories})
+            return render(request, 'auth/register_provider.html', {'categories': get_active_categories()})
         
         if not profile_photo:
             messages.error(request, 'La foto de perfil es obligatoria')
-            return render(request, 'auth/register_provider.html', {'categories': categories})
+            return render(request, 'auth/register_provider.html', {'categories': get_active_categories()})
 
         try:
             user = User.objects.create_user(
@@ -682,11 +673,11 @@ def register_provider_view(request):
             else:
                 user.delete()
                 messages.error(request, f'Error al enviar email: {message}')
-                return render(request, 'auth/register_provider.html', {'categories': categories})
+                return render(request, 'auth/register_provider.html', {'categories': get_active_categories()})
 
         except ValueError as e:
             messages.error(request, str(e))
-            return render(request, 'auth/register_provider.html', {'categories': categories})
+            return render(request, 'auth/register_provider.html', {'categories': get_active_categories()})
         except Exception as e:
             try:
                 user = User.objects.get(username=username)
@@ -695,10 +686,10 @@ def register_provider_view(request):
                 pass
             print(f'Error al crear perfil: {str(e)}')
             messages.error(request, f'Error al crear perfil: {str(e)}')
-            return render(request, 'auth/register_provider.html', {'categories': categories})
+            return render(request, 'auth/register_provider.html', {'categories': get_active_categories()})
 
     context = {
-        'categories': categories,
+        'categories': get_active_categories(),
     }
     return render(request, 'auth/register_provider.html', context)
 
@@ -811,8 +802,7 @@ def provider_register_step2(request):
 
 def verify_email_view(request, token):
     """Verifica el email del usuario usando el token"""
-    print(f"\n=== VERIFICANDO EMAIL ===")
-    print(f"Token recibido: {token}")
+    logger.info(f"Verificando email con token: {token}")
     
     try:
         verification_token = EmailVerificationToken.objects.get(token=token)
@@ -961,7 +951,7 @@ def dashboard_customer(request):
         'pending_reviews': pending_reviews,
         'locations': locations,
         'total_locations': total_locations,
-        'categories': categories,
+        'categories': get_active_categories(),
     }
     return render(request, 'dashboard/customer.html', context)
 
@@ -1118,10 +1108,13 @@ def booking_detail(request, booking_id):
     }
     return render(request, 'bookings/detail.html', context)
 
+def decimal_to_json(value):
+    """Convierte Decimal a string para JSON"""
+    return str(value) if isinstance(value, Decimal) else value
+
 @login_required
 def booking_create(request):
     """Crear una nueva reserva con validaciones mejoradas por zona"""
-    from core.models import ProviderZoneCost, SystemConfig
     
     if request.method != 'POST':
         return redirect('services_list')
@@ -1197,7 +1190,7 @@ def booking_create(request):
     service_list = [{
         'service_id': service.id,
         'name': service.name,
-        'price': Decimal(service.base_price)
+        'price': decimal_to_json(service.base_price)
     }]
     
     sub_total_cost = Decimal(service.base_price)
@@ -1205,7 +1198,7 @@ def booking_create(request):
     total_cost = sub_total_cost
     
     # Agregar costo de traslado según zona específica
-    zone_cost = ProviderZoneCost.objects.filter(
+    zone_cost = ProviderZoneCost.objects.filter(    
         provider=provider,
         zone=location.zone
     ).first()
@@ -1392,47 +1385,49 @@ def booking_complete(request, booking_id):
         messages.error(request, f'No puedes completar esta reserva aún. Faltan {hours_left:.1f} horas para la hora programada.')
         return redirect('booking_detail', booking_id=booking.id)
     
-    if is_provider:
-        booking.provider_completed_at = timezone.now()
-        messages.info(request, '✅ Marcada como completada por tu parte. Esperando confirmación del cliente.')
-    elif is_customer:
-        booking.customer_completed_at = timezone.now()
-        messages.info(request, '✅ Marcada como completada por tu parte. Esperando confirmación del proveedor.')
-    
-    if booking.provider_completed_at and booking.customer_completed_at:
-        booking.status = 'completed'
-        messages.success(request, '✅ ¡Reserva completada exitosamente! Ambas partes han confirmado. El dinero ahora estará disponible para retirar.')
+
+    with transaction.atomic():
+        if is_provider:
+            booking.provider_completed_at = timezone.now()
+            messages.info(request, '✅ Marcada como completada por tu parte. Esperando confirmación del cliente.')
+        elif is_customer:
+            booking.customer_completed_at = timezone.now()
+            messages.info(request, '✅ Marcada como completada por tu parte. Esperando confirmación del proveedor.')
         
-        Notification.objects.create(
-            user=booking.customer,
-            notification_type='booking_completed',
-            title='✅ Reserva Completada',
-            message=f'La reserva con {booking.provider.get_full_name()} ha sido completada por ambas partes.',
-            booking=booking,
-            action_url=f'/bookings/{booking.id}/'
-        )
+        if booking.provider_completed_at and booking.customer_completed_at:
+            booking.status = 'completed'
+            messages.success(request, '✅ ¡Reserva completada exitosamente! Ambas partes han confirmado. El dinero ahora estará disponible para retirar.')
+            
+            Notification.objects.create(
+                user=booking.customer,
+                notification_type='booking_completed',
+                title='✅ Reserva Completada',
+                message=f'La reserva con {booking.provider.get_full_name()} ha sido completada por ambas partes.',
+                booking=booking,
+                action_url=f'/bookings/{booking.id}/'
+            )
+            
+            Notification.objects.create(
+                user=booking.provider,
+                notification_type='booking_completed',
+                title='✅ Reserva Completada',
+                message=f'La reserva con {booking.customer.get_full_name()} ha sido completada por ambas partes.',
+                booking=booking,
+                action_url=f'/bookings/{booking.id}/'
+            )
         
-        Notification.objects.create(
-            user=booking.provider,
-            notification_type='booking_completed',
-            title='✅ Reserva Completada',
-            message=f'La reserva con {booking.customer.get_full_name()} ha sido completada por ambas partes.',
-            booking=booking,
-            action_url=f'/bookings/{booking.id}/'
+        booking.save()
+        
+        AuditLog.objects.create(
+            user=request.user,
+            action='Reserva marcada como completada',
+            metadata={
+                'booking_id': str(booking.id),
+                'completed_by': 'provider' if is_provider else 'customer',
+                'provider_confirmed': booking.provider_completed_at is not None,
+                'customer_confirmed': booking.customer_completed_at is not None,
+            }
         )
-    
-    booking.save()
-    
-    AuditLog.objects.create(
-        user=request.user,
-        action='Reserva marcada como completada',
-        metadata={
-            'booking_id': str(booking.id),
-            'completed_by': 'provider' if is_provider else 'customer',
-            'provider_confirmed': booking.provider_completed_at is not None,
-            'customer_confirmed': booking.customer_completed_at is not None,
-        }
-    )
     
     return redirect('booking_detail', booking_id=booking.id)
 
