@@ -77,30 +77,107 @@
                 <div class="card-body">
                     {% if recent_bookings %}
                         {% for booking in recent_bookings %}
-                        <div class="d-flex justify-content-between align-items-center mb-3 pb-3 {% if not forloop.last %}border-bottom{% endif %}">
-                            <div>
-                                <h6 class="mb-1">
-                                    {% for service in booking.service_list %}
-                                        {{ service.name }}{% if not forloop.last %}, {% endif %}
-                                    {% endfor %}
-                                </h6>
-                                <p class="text-muted mb-1">
-                                    <i class="fas fa-user-tie"></i> {{ booking.provider.get_full_name }}
-                                </p>
-                                <small class="text-muted">
-                                    <i class="far fa-calendar"></i> {{ booking.scheduled_time|date:"d/m/Y H:i" }}
-                                </small>
-                            </div>
-                            <div class="text-end">
-                                <span class="badge bg-{% if booking.status == 'pending' %}warning{% elif booking.status == 'accepted' %}info{% elif booking.status == 'completed' %}success{% else %}secondary{% endif %} mb-2">
-                                    {{ booking.get_status_display }}
-                                </span>
-                                <div>
-                                    <strong class="text-primary">${{ booking.total_cost }}</strong>
+                        <div class="card mb-3 {% if booking.is_past and booking.status != 'completed' %}border-warning{% elif booking.is_past %}bg-light{% endif %}">
+                            <div class="card-body">
+                                <div class="row">
+                                    <div class="col-md-8">
+                                        <div class="d-flex justify-content-between align-items-start mb-2">
+                                            <div>
+                                                <h6 class="mb-1">
+                                                    Reserva #{{ booking.id|slice:":8" }}
+                                                </h6>
+                                                <p class="text-muted mb-2">
+                                                    <i class="fas fa-calendar"></i> 
+                                                    {{ booking.scheduled_time|date:"d/m/Y H:i" }}
+                                                </p>
+                                                
+                                                <!-- Contador de tiempo -->
+                                                {% if not booking.is_past and booking.status == 'accepted' and booking.payment_status == 'paid' %}
+                                                    {% if booking.hours_until <= 24 %}
+                                                        <div class="alert alert-warning py-1 px-2 mb-2">
+                                                            <i class="fas fa-clock"></i> 
+                                                            <strong>¡Faltan {{ booking.hours_until }} hora{{ booking.hours_until|pluralize }} para tu cita!</strong>
+                                                        </div>
+                                                    {% elif booking.days_until <= 7 %}
+                                                        <div class="alert alert-info py-1 px-2 mb-2">
+                                                            <i class="fas fa-calendar-day"></i> 
+                                                            <strong>Faltan {{ booking.days_until }} día{{ booking.days_until|pluralize }} para tu cita</strong>
+                                                        </div>
+                                                    {% endif %}
+                                                {% elif booking.is_past and booking.status != 'completed' %}
+                                                    <div class="alert alert-danger py-1 px-2 mb-2">
+                                                        <i class="fas fa-exclamation-triangle"></i> 
+                                                        <strong>¡Atención! Esta reserva pasó y no está completada</strong>
+                                                    </div>
+                                                {% endif %}
+                                            </div>
+                                            <div class="text-end">
+                                                <span class="badge bg-{% if booking.status == 'pending' %}warning{% elif booking.status == 'accepted' %}info{% elif booking.status == 'completed' %}success{% elif booking.status == 'cancelled' %}danger{% else %}secondary{% endif %} fs-6">
+                                                    {{ booking.get_status_display }}
+                                                </span>
+                                                {% if booking.payment_status == 'paid' %}
+                                                <span class="badge bg-success fs-6 mt-1 d-block">
+                                                    <i class="fas fa-check-circle"></i> Pagado
+                                                </span>
+                                                {% endif %}
+                                            </div>
+                                        </div>
+
+                                        <p class="mb-1">
+                                            <strong>Proveedor:</strong> 
+                                            {% if booking.provider.provider_profile.business_name %}
+                                                <strong>{{ booking.provider.provider_profile.business_name }}</strong>
+                                                <br><small>{{ booking.provider.get_full_name }}</small>
+                                            {% else %}
+                                                {{ booking.provider.get_full_name }}
+                                            {% endif %}
+                                        </p>
+                                        <p class="mb-1">
+                                            <strong>Teléfono:</strong> {{ booking.provider_phone }}
+                                        </p>
+
+                                        <p class="mb-1">
+                                            <strong>Servicios:</strong>
+                                            {% for service in booking.service_list %}
+                                                {{ service.name }}{% if not forloop.last %}, {% endif %}
+                                            {% endfor %}
+                                        </p>
+
+                                        {% if booking.location %}
+                                        <p class="mb-1">
+                                            <strong>Ubicación:</strong> {{ booking.location.address|truncatewords:10 }}
+                                        </p>
+                                        {% endif %}
+                                    </div>
+
+                                    <div class="col-md-4 text-end">
+                                        <h5 class="text-primary mb-3">${{ booking.total_cost }}</h5>
+                                        
+                                        <div class="mb-2">
+                                            <span class="badge bg-{% if booking.payment_status == 'paid' %}success{% elif booking.payment_status == 'pending' %}warning{% else %}secondary{% endif %}">
+                                                <i class="fas fa-credit-card"></i> {{ booking.get_payment_status_display }}
+                                            </span>
+                                        </div>
+
+                                        <div class="d-grid gap-2">
+                                            <a href="{% url 'booking_detail' booking.id %}" class="btn btn-outline-primary btn-sm">
+                                                <i class="fas fa-eye"></i> Ver Detalles
+                                            </a>
+
+                                            {% if booking.status == 'completed' and not booking.review %}
+                                                <a href="{% url 'review_create' booking.id %}" class="btn btn-warning btn-sm">
+                                                    <i class="fas fa-star"></i> Dejar Reseña
+                                                </a>
+                                            {% endif %}
+
+                                            {% if booking.payment_status == 'pending' and booking.status == 'accepted' %}
+                                                <a href="{% url 'payment_process' booking.id %}" class="btn btn-primary btn-sm">
+                                                    <i class="fas fa-credit-card"></i> Pagar Ahora
+                                                </a>
+                                            {% endif %}
+                                        </div>
+                                    </div>
                                 </div>
-                                <a href="{% url 'booking_detail' booking.id %}" class="btn btn-sm btn-outline-primary mt-2">
-                                    Ver <i class="fas fa-arrow-right"></i>
-                                </a>
                             </div>
                         </div>
                         {% endfor %}
