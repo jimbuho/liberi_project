@@ -6,7 +6,6 @@ from django.utils import timezone
 from django.conf import settings
 from django.core.mail import send_mail
 from django.db.models import Q, Avg, Count, Sum, F
-from decimal import Decimal
 from datetime import timedelta, datetime
 from django.contrib.auth.models import User
 from django.http import JsonResponse
@@ -1220,7 +1219,8 @@ def booking_create(request):
     total_cost += travel_cost
     
     service = Decimal(settings.TAXES_ENDUSER_SERVICE_COMMISSION)
-    tax = sub_total_cost * Decimal(settings.TAXES_IVA) +  service * Decimal(settings.TAXES_IVA)
+    iva = Decimal(settings.TAXES_IVA)
+    tax = sub_total_cost * iva +  service * iva
 
     total_cost += tax
     
@@ -2102,7 +2102,6 @@ def provider_zone_cost_update(request):
     travel_cost = request.POST.get('travel_cost')
     
     try:
-        from decimal import Decimal
         zone = get_object_or_404(Zone, id=zone_id)
         cost = Decimal(travel_cost)
         
@@ -2207,8 +2206,6 @@ def detect_user_location(request):
     
     # Aquí podrías implementar lógica para determinar la zona según coordenadas
     # Por simplicidad, buscaremos si el usuario tiene una ubicación cercana guardada
-    
-    from decimal import Decimal
     user_locations = Location.objects.filter(
         customer=request.user
     ).select_related('zone')
@@ -3053,7 +3050,6 @@ def calculate_withdrawal(requested_amount, commission_percent):
 
 def get_active_balance(provider):
     """Calcula saldo activo solo de servicios COMPLETADOS por ambas partes"""
-    from decimal import Decimal
     
     # Solo contar servicios completados POR AMBAS PARTES
     qs = Booking.objects.filter(
