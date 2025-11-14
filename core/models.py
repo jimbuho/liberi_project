@@ -307,6 +307,27 @@ class Booking(models.Model):
     def __str__(self):
         return f"Reserva {str(self.id)[:8]} - {self.get_status_display()}"
 
+    @property
+    def is_past(self):
+        """Verifica si la reserva ya pasó"""
+        return self.scheduled_time < timezone.now()
+    
+    @property
+    def days_until(self):
+        """Calcula días hasta la cita"""
+        if self.is_past:
+            return 0
+        delta = self.scheduled_time - timezone.now()
+        return delta.days
+    
+    @property
+    def hours_until(self):
+        """Calcula horas hasta la cita"""
+        if self.is_past:
+            return 0
+        delta = self.scheduled_time - timezone.now()
+        return int(delta.total_seconds() / 3600)
+
 
 class Review(models.Model):
     booking = models.OneToOneField(Booking, on_delete=models.CASCADE, related_name='review',

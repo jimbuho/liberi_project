@@ -45,20 +45,31 @@
     <div class="row">
         {% for provider_profile in providers %}
         <div class="col-md-6 col-lg-4 mb-4">
-            <div class="card h-100">
+            <div class="card h-100 shadow-sm hover-lift">
                 <div class="card-body">
                     <div class="d-flex align-items-start mb-3">
                         <div class="flex-shrink-0">
-                            <div class="bg-primary text-white rounded-circle d-flex align-items-center justify-content-center"
-                                 style="width: 60px; height: 60px; font-size: 24px;">
-                                <i class="fas fa-user"></i>
-                            </div>
+                            {% if provider_profile.profile_photo %}
+                                <img src="{{ provider_profile.profile_photo.url }}" 
+                                     alt="{{ provider_profile.get_display_name }}"
+                                     class="rounded-circle"
+                                     style="width: 70px; height: 70px; object-fit: cover; border: 3px solid #667eea;">
+                            {% else %}
+                                <div class="bg-primary text-white rounded-circle d-flex align-items-center justify-content-center"
+                                     style="width: 70px; height: 70px; font-size: 28px; border: 3px solid #667eea;">
+                                    <i class="fas fa-user"></i>
+                                </div>
+                            {% endif %}
                         </div>
                         <div class="flex-grow-1 ms-3">
                             <h5 class="card-title mb-1">
-                                {{ provider_profile.user.get_full_name }}
+                                {% if provider_profile.business_name %}
+                                    {{ provider_profile.business_name }}
+                                {% else %}
+                                    {{ provider_profile.user.get_full_name }}
+                                {% endif %}
                             </h5>
-                            <p class="text-muted mb-0">
+                            <p class="text-muted mb-1">
                                 <small>
                                     {{ provider_profile.category.icon }} 
                                     {{ provider_profile.category.name }}
@@ -71,6 +82,33 @@
                             {% endif %}
                         </div>
                     </div>
+
+                    <!-- Rating con estrellas -->
+                    {% if provider_profile.rating_avg %}
+                    <div class="rating mb-2">
+                        <div class="d-flex align-items-center">
+                            <div class="me-2">
+                                {% for i in "12345" %}
+                                    {% if forloop.counter <= provider_profile.rating_avg %}
+                                        <i class="fas fa-star text-warning"></i>
+                                    {% else %}
+                                        <i class="far fa-star text-warning"></i>
+                                    {% endif %}
+                                {% endfor %}
+                            </div>
+                            <span class="text-muted">
+                                <strong>{{ provider_profile.rating_avg }}</strong>
+                                ({{ provider_profile.total_reviews }} reseña{{ provider_profile.total_reviews|pluralize }})
+                            </span>
+                        </div>
+                    </div>
+                    {% else %}
+                    <div class="rating mb-2">
+                        <div class="text-muted">
+                            <i class="far fa-star"></i> Sin reseñas aún
+                        </div>
+                    </div>
+                    {% endif %}
 
                     <p class="card-text">{{ provider_profile.description|truncatewords:20 }}</p>
 
@@ -86,23 +124,8 @@
                         </small>
                     </div>
 
-                    {% if provider_profile.rating_avg %}
-                    <div class="rating mb-3">
-                        {% for i in "12345" %}
-                            {% if forloop.counter <= provider_profile.rating_avg %}
-                                <i class="fas fa-star"></i>
-                            {% else %}
-                                <i class="far fa-star"></i>
-                            {% endif %}
-                        {% endfor %}
-                        <small class="text-muted">
-                            ({{ provider_profile.total_reviews }} reseñas)
-                        </small>
-                    </div>
-                    {% endif %}
-
                     <a href="{% url 'provider_profile' provider_profile.slug %}" 
-                       class="btn btn-primary w-100">
+                       class="btn btn-primary w-100 mt-2">
                         Ver Perfil <i class="fas fa-arrow-right"></i>
                     </a>
                 </div>
@@ -118,4 +141,15 @@
     </div>
     {% endif %}
 </div>
+
+<style>
+    .hover-lift {
+        transition: transform 0.3s ease, box-shadow 0.3s ease;
+    }
+    
+    .hover-lift:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 10px 25px rgba(0,0,0,0.15) !important;
+    }
+</style>
 {% endblock %}

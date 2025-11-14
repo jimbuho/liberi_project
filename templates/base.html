@@ -16,7 +16,7 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
     <!-- Custom CSS -->
-    <link rel="stylesheet" href="{% static 'css/liberi.css' %}?v=3">
+    <link rel="stylesheet" href="{% static 'css/liberi.css' %}?v=3.1">
 
     <style>
         /* Loader Global */
@@ -161,15 +161,15 @@
         <div class="container">
             <a class="navbar-brand d-flex align-items-center" href="{% url 'home' %}">
                 <img src="{% static 'images/logo-liberi.png' %}" alt="Liberi" style="height: 40px;">
-            </a>
+            </a>    
             <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
                 <span class="navbar-toggler-icon"></span>
             </button>
             <div class="collapse navbar-collapse" id="navbarNav">
-                <ul class="navbar-nav me-auto">
+                <ul class="navbar-nav ms-auto">
                     <li class="nav-item">
                         <a class="nav-link" href="{% url 'services_list' %}">
-                            <i class="fas fa-th-list"></i> Servicios
+                            <i class="fas fa-th"></i> Servicios
                         </a>
                     </li>
                     <li class="nav-item">
@@ -177,64 +177,48 @@
                             <i class="fas fa-users"></i> Proveedores
                         </a>
                     </li>
-                </ul>
-                <ul class="navbar-nav">
                     {% if user.is_authenticated %}
-                        <!-- NOTIFICACIONES -->
-                        <li class="nav-item dropdown">
-                            <a class="nav-link position-relative" href="#" id="notificationsDropdown" 
-                               role="button" data-bs-toggle="dropdown" aria-expanded="false">
-                                <i class="fas fa-bell"></i>
-                                <span class="badge bg-danger rounded-pill position-absolute top-0 start-100 translate-middle" 
-                                      id="notificationCount" style="display: none;">0</span>
-                            </a>
-                            <ul class="dropdown-menu dropdown-menu-end" style="width: 360px; max-height: 480px; overflow-y: auto;"
-                                aria-labelledby="notificationsDropdown" id="notificationsContainer">
-                                <li class="dropdown-header d-flex justify-content-between align-items-center">
-                                    <span><strong>Notificaciones</strong></span>
-                                    <button class="btn btn-sm btn-link text-primary p-0" id="markAllRead" style="display: none;">
-                                        Marcar todas como leídas
-                                    </button>
-                                </li>
-                                <li><hr class="dropdown-divider"></li>
-                                <li id="notificationsList">
-                                    <div class="text-center py-4">
-                                        <i class="fas fa-spinner fa-spin fa-2x text-muted"></i>
-                                        <p class="text-muted mt-2">Cargando...</p>
-                                    </div>
-                                </li>
-                            </ul>
-                        </li>
-                        
-                        <li class="nav-item">
-                            <a class="nav-link" href="{% url 'dashboard' %}">
-                                <i class="fas fa-tachometer-alt"></i> Dashboard
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link" href="{% url 'bookings_list' %}">
-                                <i class="fas fa-calendar-check"></i> Mis Reservas
-                            </a>
-                        </li>
-                        <li class="nav-item dropdown">
-                            <a class="nav-link dropdown-toggle" href="#" id="navbarDropdown" role="button" data-bs-toggle="dropdown">
-                                <i class="fas fa-user"></i> {{ user.username }}
-                            </a>
-                            <ul class="dropdown-menu dropdown-menu-end">
-                                <li><a class="dropdown-item" href="{% url 'logout' %}">Cerrar Sesión</a></li>
-                            </ul>
-                        </li>
+                    <li class="nav-item">
+                        <a class="nav-link position-relative" href="#">
+                            <i class="fas fa-bell"></i>
+                            {% if unread_notifications_count > 0 %}
+                            <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">
+                                {{ unread_notifications_count }}
+                            </span>
+                            {% endif %}
+                        </a>
+                    </li>
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle" href="#" id="userDropdown" role="button" 
+                        data-bs-toggle="dropdown" aria-expanded="false">
+                            <i class="fas fa-user"></i> {{ user.first_name|default:user.username }}
+                        </a>
+                        <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="userDropdown">
+                            <li>
+                                <a class="dropdown-item" href="{% url 'dashboard' %}">
+                                    <i class="fas fa-tachometer-alt"></i> Dashboard
+                                </a>
+                            </li>
+                            <li>
+                                <a class="dropdown-item" href="{% url 'bookings_list' %}">
+                                    <i class="fas fa-calendar-check"></i> Mis Reservas
+                                </a>
+                            </li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li>
+                                <a class="dropdown-item" href="{% url 'logout' %}">
+                                    <i class="fas fa-sign-out-alt"></i> Cerrar Sesión
+                                </a>
+                            </li>
+                        </ul>
+                    </li>
                     {% else %}
-                        <li class="nav-item">
-                            <a class="nav-link" href="{% url 'login' %}">
-                                <i class="fas fa-sign-in-alt"></i> Iniciar Sesión
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link" href="{% url 'register' %}">
-                                <i class="fas fa-user-plus"></i> Registrarse
-                            </a>
-                        </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{% url 'login' %}">Iniciar Sesión</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="btn btn-primary" href="{% url 'register' %}">Registrarse</a>
+                    </li>
                     {% endif %}
                 </ul>
             </div>
@@ -328,34 +312,35 @@
             
             // MOSTRAR LOADER EN:
             
-            // 1. Todos los botones con clase btn (Bootstrap)
-            if (target.classList.contains('btn')) {
-                // Si es un enlace con clase btn
-                if (target.tagName === 'A') {
-                    loader.classList.add('active');
-                    return;
-                }
-                // Si es un botón type="submit"
-                if (target.tagName === 'BUTTON' && target.type === 'submit') {
-                    loader.classList.add('active');
-                    return;
-                }
-            }
-            
-            // 2. Enlaces con clases específicas de acción
-            if (target.classList.contains('btn-hero') || 
-                target.classList.contains('btn-book') || 
-                target.classList.contains('btn-category') ||
-                target.classList.contains('btn-category-compact') ||
-                target.classList.contains('btn-search')) {
+            // 1. Enlaces con clase btn (navegación a otra página)
+            if (target.tagName === 'A' && target.classList.contains('btn')) {
                 loader.classList.add('active');
                 return;
             }
             
-            // 3. Botones de submit sin clase btn
-            if (target.tagName === 'BUTTON' && target.type === 'submit') {
+            // 2. Enlaces con clases específicas de acción
+            if (target.tagName === 'A' && (
+                target.classList.contains('btn-hero') || 
+                target.classList.contains('btn-book') || 
+                target.classList.contains('btn-category') ||
+                target.classList.contains('btn-category-compact') ||
+                target.classList.contains('btn-search'))) {
                 loader.classList.add('active');
+                return;
             }
+            
+            // 3. Botones que NO son type="submit" con clases específicas
+            // (para acciones AJAX u otras que no sean submit de formulario)
+            if (target.tagName === 'BUTTON' && target.type !== 'submit' && 
+                (target.classList.contains('ajax-action') || 
+                target.classList.contains('load-action'))) {
+                loader.classList.add('active');
+                return;
+            }
+            
+            // NOTA: Los botones type="submit" NO muestran loader aquí
+            // El loader se mostrará cuando el evento 'submit' se dispare (arriba)
+            // Esto garantiza que solo se muestre si la validación es exitosa
         });
 
         // Ocultar loader cuando la página se carga completamente
@@ -368,7 +353,7 @@
             loader.classList.remove('active');
         });
 
-        // Ocultar loader después de 10 segundos como fallback
+        // Ocultar loader después de 8 segundos como fallback
         let loaderTimeout;
         const observer = new MutationObserver(function(mutations) {
             mutations.forEach(function(mutation) {
@@ -376,7 +361,7 @@
                     clearTimeout(loaderTimeout);
                     loaderTimeout = setTimeout(function() {
                         loader.classList.remove('active');
-                    }, 10000);
+                    }, 8000);
                 }
             });
         });

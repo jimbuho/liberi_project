@@ -87,8 +87,8 @@
                     </div>
                     <div class="service-body">
                         <div class="service-provider">
-                            <i class="fas fa-user-circle"></i>
-                            <span>{{ service.provider.get_full_name|default:service.provider.username }}</span>
+                            <i class="fas fa-building"></i>
+                            <span>{{ service.provider.provider_profile.business_name }}</span>
                         </div>
                         <h3 class="service-title">{{ service.name }}</h3>
                         <p class="service-description">
@@ -117,6 +117,37 @@
                     </p>
                 </div>
             {% endif %}
+        </div>
+    </div>
+</section>
+
+<!-- Entrepreneurship CTA Section -->
+<section class="entrepreneurship-section py-5" style="background: linear-gradient(135deg, #48C9B0 0%, #45B7AA 100%);">
+    <div class="container">
+        <div class="row align-items-center">
+            <div class="col-lg-8 text-white">
+                <div class="d-flex align-items-center mb-3">
+                    <i class="fas fa-rocket fa-2x me-3"></i>
+                    <h2 class="mb-0">¿Tienes un Oficio? Gana Dinero Haciendo lo que Sabes</h2>
+                </div>
+                <p class="lead mb-3">
+                    No necesitas una oficina ni un local. Transforma tu talento en un negocio rentable.
+                </p>
+                <p class="mb-0">
+                    <i class="fas fa-check-circle me-2"></i> Trabaja con tu propio horario
+                    <i class="fas fa-check-circle ms-3 me-2"></i> Genera ingresos desde el primer día
+                    <i class="fas fa-check-circle ms-3 me-2"></i> Sin costos de alquiler ni inversión inicial
+                </p>
+            </div>
+            <div class="col-lg-4 text-center text-lg-end mt-4 mt-lg-0">
+                <a href="{% url 'register_provider' %}" class="btn btn-light btn-lg px-5 py-3 shadow">
+                    <i class="fas fa-user-plus me-2"></i>
+                    Impulsa tu Emprendimiento
+                </a>
+                <p class="text-white mt-3 mb-0">
+                    <small><i class="fas fa-shield-alt me-1"></i> Registro 100% gratuito</small>
+                </p>
+            </div>
         </div>
     </div>
 </section>
