@@ -203,7 +203,7 @@
                         </div>
                     {% elif provider_profile.status == 'approved' %}
                         <!-- NUEVO: Alertas de configuración pendiente para proveedores aprobados -->
-                        {% if not provider_profile.coverage_zones.exists or not provider_profile.schedules.exists %}
+                        {% if not provider_profile.coverage_zones.exists or not user.schedules.exists %}
                             <div class="alert alert-success alert-dismissible fade show" role="alert">
                                 <h5 class="alert-heading">
                                     <i class="fas fa-check-circle"></i> ¡Perfil Aprobado! - Completa tu Configuración
@@ -216,6 +216,7 @@
                                 <div class="row">
                                     <div class="col-md-4 mb-2">
                                         <div class="card border-{% if provider_profile.coverage_zones.exists %}success{% else %}warning{% endif %} h-100">
+                                            <!--                        ↑ ESTE ESTÁ CORRECTO (es ManyToMany directo) -->
                                             <div class="card-body text-center">
                                                 {% if provider_profile.coverage_zones.exists %}
                                                     <i class="fas fa-check-circle text-success fa-2x mb-2"></i>
@@ -233,9 +234,12 @@
                                     </div>
                                     
                                     <div class="col-md-4 mb-2">
-                                        <div class="card border-{% if provider_profile.zone_costs.exists %}success{% else %}warning{% endif %} h-100">
+                                        <!-- ✅ CORREGIDO: user.zone_costs -->
+                                        <div class="card border-{% if user.zone_costs.exists %}success{% else %}warning{% endif %} h-100">
+                                            <!--                        ^^^^ CORREGIDO -->
                                             <div class="card-body text-center">
-                                                {% if provider_profile.zone_costs.exists %}
+                                                {% if user.zone_costs.exists %}
+                                                    <!--   ^^^^ CORREGIDO -->
                                                     <i class="fas fa-check-circle text-success fa-2x mb-2"></i>
                                                     <h6 class="text-success">✓ Costos configurados</h6>
                                                 {% else %}
@@ -251,9 +255,12 @@
                                     </div>
                                     
                                     <div class="col-md-4 mb-2">
-                                        <div class="card border-{% if provider_profile.schedules.exists %}success{% else %}warning{% endif %} h-100">
+                                        <!-- ✅ CORREGIDO: user.schedules -->
+                                        <div class="card border-{% if user.schedules.exists %}success{% else %}warning{% endif %} h-100">
+                                            <!--                        ^^^^ CORREGIDO -->
                                             <div class="card-body text-center">
-                                                {% if provider_profile.schedules.exists %}
+                                                {% if user.schedules.exists %}
+                                                    <!--   ^^^^ CORREGIDO -->
                                                     <i class="fas fa-check-circle text-success fa-2x mb-2"></i>
                                                     <h6 class="text-success">✓ Horarios configurados</h6>
                                                 {% else %}
