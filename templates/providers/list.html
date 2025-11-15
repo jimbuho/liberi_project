@@ -8,6 +8,53 @@
         <i class="fas fa-users"></i> Proveedores Verificados
     </h2>
 
+    <!-- CTA para Proveedores Potenciales -->
+    <div class="card border-0 mb-4 shadow-sm" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); overflow: hidden;">
+        <div class="card-body p-4 text-white position-relative">
+            <div class="row align-items-center">
+                <div class="col-lg-8">
+                    <div class="d-flex align-items-start">
+                        <div class="me-3" style="font-size: 2.5rem; opacity: 0.9;">
+                            <i class="fas fa-rocket"></i>
+                        </div>
+                        <div>
+                            <h4 class="mb-2 fw-bold">¿Eres Profesional? Únete a Nuestra Red de Proveedores</h4>
+                            <p class="mb-3 opacity-90">
+                                Conecta con miles de clientes potenciales, gestiona tus reservas y haz crecer tu negocio.
+                            </p>
+                            <div class="d-flex flex-wrap gap-3 mb-2">
+                                <span class="badge bg-white text-primary px-3 py-2">
+                                    <i class="fas fa-check me-1"></i> Registro Gratuito
+                                </span>
+                                <span class="badge bg-white text-primary px-3 py-2">
+                                    <i class="fas fa-calendar-check me-1"></i> Sin Comisiones Ocultas
+                                </span>
+                                <span class="badge bg-white text-primary px-3 py-2">
+                                    <i class="fas fa-clock me-1"></i> Trabaja a tu Ritmo
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-lg-4 text-center text-lg-end mt-3 mt-lg-0">
+                    <a href="{% url 'register_provider' %}" class="btn btn-light btn-lg shadow-sm px-4">
+                        <i class="fas fa-user-plus me-2"></i>
+                        <strong>Regístrate como Proveedor</strong>
+                    </a>
+                    <p class="mt-2 mb-0 small opacity-75">
+                        <i class="fas fa-users me-1"></i> 
+                        Únete a {{ providers.count }}+ profesionales verificados
+                    </p>
+                </div>
+            </div>
+            
+            <!-- Patrón decorativo de fondo -->
+            <div class="position-absolute" style="right: -50px; bottom: -50px; opacity: 0.1; font-size: 200px;">
+                <i class="fas fa-handshake"></i>
+            </div>
+        </div>
+    </div>
+
     <!-- Filters -->
     <div class="card mb-4">
         <div class="card-body">
@@ -138,6 +185,16 @@
         <i class="fas fa-info-circle fa-3x mb-3"></i>
         <h4>No se encontraron proveedores</h4>
         <p>Intenta ajustar los filtros de búsqueda</p>
+        
+        <!-- También mostrar CTA cuando no hay resultados -->
+        <hr class="my-4">
+        <div class="p-3 bg-light rounded">
+            <h5>¿Eres profesional y quieres aparecer aquí?</h5>
+            <p class="mb-3">Regístrate como proveedor y conecta con clientes que necesitan tus servicios</p>
+            <a href="{% url 'register_provider' %}" class="btn btn-primary">
+                <i class="fas fa-user-plus me-2"></i> Registrarme como Proveedor
+            </a>
+        </div>
     </div>
     {% endif %}
 </div>
