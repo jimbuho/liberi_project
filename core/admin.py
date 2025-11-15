@@ -3,6 +3,7 @@ from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 from django.contrib.auth.models import User
 from django.utils.html import format_html
 from django.urls import reverse
+from django.utils.safestring import mark_safe
 from django.utils import timezone
 from django.urls import path
 from django.shortcuts import redirect
@@ -88,12 +89,20 @@ class CategoryAdmin(admin.ModelAdmin):
 
 @admin.register(ProviderProfile)
 class ProviderProfileAdmin(admin.ModelAdmin):
-    list_display = ['user', 'category', 'status', 'is_active', 'avg_travel_cost', 'rating', 'created_at']
+    list_display = [
+        'user', 
+        'category', 
+        'contact_info',
+        'documents_preview',
+        'coverage_info',
+        'status_badge', 
+        'quick_actions',
+        'created_at'
+    ]
     list_filter = ['status', 'is_active', 'category', 'created_at']
-    search_fields = ['user__username', 'user__email', 'description']
+    search_fields = ['user__username', 'user__email', 'user__first_name', 'user__last_name', 'description']
     readonly_fields = ['created_at', 'updated_at']
     filter_horizontal = ['coverage_zones']
-    actions = ['approve_providers', 'reject_providers', 'activate_providers', 'deactivate_providers']
     
     fieldsets = (
         ('Información Básica', {
@@ -115,6 +124,164 @@ class ProviderProfileAdmin(admin.ModelAdmin):
         }),
     )
     
+    class Media:
+        css = {
+            'all': ('admin/css/provider_review.css',)
+        }
+        js = ('admin/js/provider_review.js',)
+    
+    def contact_info(self, obj):
+        """Información de contacto del proveedor"""
+        user = obj.user
+        phone = user.profile.phone if hasattr(user, 'profile') else 'N/A'
+        return format_html(
+            '<strong>{}</strong><br>'
+            '<small>📧 {}</small><br>'
+            '<small>📱 {}</small>',
+            user.get_full_name() or user.username,
+            user.email,
+            phone
+        )
+    contact_info.short_description = 'Contacto'
+    
+    def documents_preview(self, obj):
+        """Vista previa de documentos con imágenes thumbnail"""
+        docs_html = []
+        
+        # Contrato firmado
+        if obj.signed_contract_url:
+            docs_html.append(
+                '<div style="display: inline-block; margin: 2px;">'
+                f'<a href="{obj.signed_contract_url}" target="_blank" title="Ver contrato">'
+                f'<img src="{obj.signed_contract_url}" style="width: 40px; height: 40px; object-fit: cover; border: 2px solid #28a745; border-radius: 4px; cursor: pointer;">'
+                '</a>'
+                '<br><small style="font-size: 9px;">📄 Contrato</small>'
+                '</div>'
+            )
+        else:
+            docs_html.append(
+                '<div style="display: inline-block; margin: 2px;">'
+                '<div style="width: 40px; height: 40px; background: #ddd; border-radius: 4px; display: flex; align-items: center; justify-content: center;">❌</div>'
+                '<br><small style="font-size: 9px;">Contrato</small>'
+                '</div>'
+            )
+        
+        # Cédula frontal
+        if obj.id_card_front:
+            docs_html.append(
+                '<div style="display: inline-block; margin: 2px;">'
+                f'<a href="{obj.id_card_front.url}" target="_blank" title="Ver cédula frontal">'
+                f'<img src="{obj.id_card_front.url}" style="width: 40px; height: 40px; object-fit: cover; border: 2px solid #007bff; border-radius: 4px; cursor: pointer;">'
+                '</a>'
+                '<br><small style="font-size: 9px;">🪪 Frente</small>'
+                '</div>'
+            )
+        else:
+            docs_html.append(
+                '<div style="display: inline-block; margin: 2px;">'
+                '<div style="width: 40px; height: 40px; background: #ddd; border-radius: 4px; display: flex; align-items: center; justify-content: center;">❌</div>'
+                '<br><small style="font-size: 9px;">Frente</small>'
+                '</div>'
+            )
+        
+        # Cédula posterior
+        if obj.id_card_back:
+            docs_html.append(
+                '<div style="display: inline-block; margin: 2px;">'
+                f'<a href="{obj.id_card_back.url}" target="_blank" title="Ver cédula posterior">'
+                f'<img src="{obj.id_card_back.url}" style="width: 40px; height: 40px; object-fit: cover; border: 2px solid #007bff; border-radius: 4px; cursor: pointer;">'
+                '</a>'
+                '<br><small style="font-size: 9px;">🪪 Reverso</small>'
+                '</div>'
+            )
+        else:
+            docs_html.append(
+                '<div style="display: inline-block; margin: 2px;">'
+                '<div style="width: 40px; height: 40px; background: #ddd; border-radius: 4px; display: flex; align-items: center; justify-content: center;">❌</div>'
+                '<br><small style="font-size: 9px;">Reverso</small>'
+                '</div>'
+            )
+        
+        # Botón de vista detallada - usar format_html para el onclick
+        detail_button = format_html(
+            '<br><a href="#" class="button" onclick="showProviderDetail({}); return false;" '
+            'style="font-size: 11px; padding: 3px 8px; margin-top: 5px;">🔍 Ver Todo</a>',
+            obj.pk
+        )
+        
+        return format_html('{}{}', mark_safe(''.join(docs_html)), detail_button)
+    documents_preview.short_description = 'Documentos'
+    
+    def coverage_info(self, obj):
+        """Información de cobertura y costos"""
+        zones_count = obj.coverage_zones.count()
+        services = Service.objects.filter(provider=obj.user, available=True)
+        services_count = services.count()
+        
+        # Formatear el costo antes de pasarlo a format_html
+        travel_cost = float(obj.avg_travel_cost or 0)
+        travel_cost_formatted = f'${travel_cost:.2f}'
+        
+        return format_html(
+            '<strong>Zonas:</strong> {}<br>'
+            '<strong>Servicios:</strong> {}<br>'
+            '<strong>Costo viaje:</strong> {}<br>'
+            '<small style="color: #666;">{}</small>',
+            zones_count if zones_count > 0 else '❌ Sin zonas',
+            services_count if services_count > 0 else '❌ Sin servicios',
+            travel_cost_formatted,  # Ya formateado
+            obj.description[:50] + '...' if len(obj.description) > 50 else obj.description
+        )
+    coverage_info.short_description = 'Cobertura'
+    
+    def status_badge(self, obj):
+        """Badge mejorado de estado"""
+        colors = {
+            'created': '#6c757d',
+            'pending': '#ffc107',
+            'approved': '#28a745',
+            'rejected': '#dc3545',
+        }
+        color = colors.get(obj.status, '#6c757d')
+        
+        active_text = '🟢 Activo' if obj.is_active else '🔴 Inactivo'
+        
+        return format_html(
+            '<div style="text-align: center;">'
+            '<span style="background-color: {}; color: white; padding: 4px 12px; '
+            'border-radius: 12px; font-weight: bold; font-size: 11px;">{}</span><br>'
+            '<small style="color: {}; font-size: 10px; margin-top: 3px; display: inline-block;">{}</small>'
+            '</div>',
+            color,
+            obj.get_status_display(),
+            '#28a745' if obj.is_active else '#dc3545',
+            active_text
+        )
+    status_badge.short_description = 'Estado'
+    
+    def quick_actions(self, obj):
+        """Botones de acción rápida directamente en el listado"""
+        if obj.status in ['pending', 'created']:
+            return format_html(
+                '<div style="display: flex; flex-direction: column; gap: 3px;">'
+                '<a href="{}" class="button" style="background: #28a745; color: white; text-align: center; '
+                'padding: 5px 10px; border-radius: 4px; text-decoration: none; font-size: 11px;">✅ Aprobar</a>'
+                '<a href="{}" class="button" style="background: #dc3545; color: white; text-align: center; '
+                'padding: 5px 10px; border-radius: 4px; text-decoration: none; font-size: 11px;">❌ Rechazar</a>'
+                '</div>',
+                reverse('admin:quick_approve_provider', args=[obj.pk]),
+                reverse('admin:quick_reject_provider', args=[obj.pk])
+            )
+        elif obj.status == 'approved':
+            return format_html(
+                '<div style="text-align: center; color: #28a745; font-weight: bold;">✓ Aprobado</div>'
+            )
+        else:
+            return format_html(
+                '<div style="text-align: center; color: #dc3545;">✗ Rechazado</div>'
+            )
+    quick_actions.short_description = 'Acciones'
+    
     def rating(self, obj):
         from django.db.models import Avg
         avg = Review.objects.filter(booking__provider=obj.user).aggregate(Avg('rating'))
@@ -123,15 +290,38 @@ class ProviderProfileAdmin(admin.ModelAdmin):
         return f'{stars} ({rating:.1f})'
     rating.short_description = 'Calificación'
     
-    def approve_providers(self, request, queryset):
-        """Aprueba proveedores y envía email de bienvenida"""
-        count = 0
-        for provider_profile in queryset.filter(status__in=['pending', 'created']):
+    def get_urls(self):
+        """URLs personalizadas para acciones rápidas"""
+        urls = super().get_urls()
+        custom_urls = [
+            path(
+                '<int:provider_id>/quick-approve/',
+                self.admin_site.admin_view(self.quick_approve_view),
+                name='quick_approve_provider'
+            ),
+            path(
+                '<int:provider_id>/quick-reject/',
+                self.admin_site.admin_view(self.quick_reject_view),
+                name='quick_reject_provider'
+            ),
+            path(
+                '<int:provider_id>/detail-ajax/',
+                self.admin_site.admin_view(self.provider_detail_ajax),
+                name='provider_detail_ajax'
+            ),
+        ]
+        return custom_urls + urls
+    
+    def quick_approve_view(self, request, provider_id):
+        """Vista para aprobación rápida"""
+        try:
+            provider_profile = ProviderProfile.objects.get(pk=provider_id)
+            
             # Actualizar status
             provider_profile.status = 'approved'
             provider_profile.save()
             
-            # Crear notificación en el centro de notificaciones
+            # Crear notificación
             Notification.objects.create(
                 user=provider_profile.user,
                 notification_type='booking_accepted',
@@ -140,7 +330,7 @@ class ProviderProfileAdmin(admin.ModelAdmin):
                 action_url='/dashboard/'
             )
             
-            # Enviar email de bienvenida (asincrónico)
+            # Enviar email
             try:
                 from core.tasks import send_provider_approval_email_task
                 send_provider_approval_email_task.delay(provider_profile_id=provider_profile.pk)
@@ -150,7 +340,7 @@ class ProviderProfileAdmin(admin.ModelAdmin):
             # Log de auditoría
             AuditLog.objects.create(
                 user=request.user,
-                action='Proveedor aprobado',
+                action='Proveedor aprobado (acción rápida)',
                 metadata={
                     'provider_id': provider_profile.user.id,
                     'provider_username': provider_profile.user.username,
@@ -158,28 +348,83 @@ class ProviderProfileAdmin(admin.ModelAdmin):
                 }
             )
             
-            count += 1
+            messages.success(
+                request,
+                f'✅ Proveedor {provider_profile.user.get_full_name()} aprobado exitosamente. Email enviado.'
+            )
+        except ProviderProfile.DoesNotExist:
+            messages.error(request, '❌ Proveedor no encontrado')
         
-        self.message_user(
-            request,
-            f'✅ {count} proveedor(es) aprobado(s). Se han enviado emails de bienvenida.'
-        )
-    approve_providers.short_description = 'Aprobar proveedores'
+        return redirect('admin:core_providerprofile_changelist')
     
-    def reject_providers(self, request, queryset):
-        updated = queryset.update(status='rejected')
-        self.message_user(request, f'{updated} proveedor(es) rechazado(s).')
-    reject_providers.short_description = 'Rechazar proveedores'
+    def quick_reject_view(self, request, provider_id):
+        """Vista para rechazo rápido"""
+        try:
+            provider_profile = ProviderProfile.objects.get(pk=provider_id)
+            provider_profile.status = 'rejected'
+            provider_profile.save()
+            
+            # Notificación
+            Notification.objects.create(
+                user=provider_profile.user,
+                notification_type='booking_cancelled',
+                title='❌ Perfil Rechazado',
+                message='Tu perfil de proveedor no ha sido aprobado. Por favor contacta con soporte para más información.',
+                action_url='/dashboard/'
+            )
+            
+            messages.warning(
+                request,
+                f'⚠️ Proveedor {provider_profile.user.get_full_name()} rechazado.'
+            )
+        except ProviderProfile.DoesNotExist:
+            messages.error(request, '❌ Proveedor no encontrado')
+        
+        return redirect('admin:core_providerprofile_changelist')
     
-    def activate_providers(self, request, queryset):
-        updated = queryset.update(is_active=True)
-        self.message_user(request, f'{updated} proveedor(es) activado(s).')
-    activate_providers.short_description = 'Activar proveedores'
+    def provider_detail_ajax(self, request, provider_id):
+        """Vista AJAX para mostrar detalles completos en modal"""
+        from django.http import JsonResponse
+        
+        try:
+            provider = ProviderProfile.objects.select_related('user', 'category').prefetch_related('coverage_zones').get(id=provider_id)
+            services = Service.objects.filter(provider=provider.user)
+            
+            data = {
+                'name': provider.user.get_full_name() or provider.user.username,
+                'email': provider.user.email,
+                'phone': provider.user.profile.phone if hasattr(provider.user, 'profile') else 'N/A',
+                'category': provider.category.name,
+                'description': provider.description,
+                'status': provider.get_status_display(),
+                'is_active': provider.is_active,
+                'avg_travel_cost': float(provider.avg_travel_cost or 0),
+                'zones': list(provider.coverage_zones.values_list('name', flat=True)),
+                'services': [
+                    {
+                        'name': s.name,
+                        'price': float(s.base_price),
+                        'duration': s.duration_minutes,
+                        'available': s.available
+                    } for s in services
+                ],
+                'documents': {
+                    'contract': provider.signed_contract_url or None,
+                    'id_front': provider.id_card_front or None,
+                    'id_back': provider.id_card_back or None,
+                },
+                'created_at': provider.created_at.strftime('%d/%m/%Y %H:%M')
+            }
+            
+            return JsonResponse(data)
+        except ProviderProfile.DoesNotExist:
+            return JsonResponse({'error': 'Proveedor no encontrado'}, status=404)
     
-    def deactivate_providers(self, request, queryset):
-        updated = queryset.update(is_active=False)
-        self.message_user(request, f'{updated} proveedor(es) desactivado(s).')
-    deactivate_providers.short_description = 'Desactivar proveedores'
+    def changelist_view(self, request, extra_context=None):
+        """Agregar contexto extra al changelist"""
+        extra_context = extra_context or {}
+        extra_context['pending_count'] = ProviderProfile.objects.filter(status__in=['pending', 'created']).count()
+        return super().changelist_view(request, extra_context=extra_context)
 
 
 @admin.register(Service)

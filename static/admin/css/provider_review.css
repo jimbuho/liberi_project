@@ -1,0 +1,145 @@
+/* Estilos para revisión de proveedores */
+.provider-docs-preview {
+    display: flex;
+    gap: 5px;
+    align-items: center;
+}
+
+.doc-thumbnail {
+    position: relative;
+    width: 50px;
+    height: 50px;
+}
+
+.doc-thumbnail img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    border-radius: 4px;
+    border: 2px solid #ddd;
+    cursor: pointer;
+    transition: transform 0.2s;
+}
+
+.doc-thumbnail img:hover {
+    transform: scale(1.1);
+    border-color: #007bff;
+}
+
+.quick-action-btn {
+    display: inline-block;
+    padding: 5px 12px;
+    margin: 2px;
+    border-radius: 4px;
+    text-decoration: none;
+    font-size: 12px;
+    font-weight: bold;
+    text-align: center;
+    transition: opacity 0.2s;
+}
+
+.quick-action-btn:hover {
+    opacity: 0.8;
+}
+
+/* Modal para vista detallada */
+#providerDetailModal {
+    display: none;
+    position: fixed;
+    z-index: 10000;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0,0,0,0.7);
+}
+
+#providerDetailModal .modal-content {
+    background-color: #fefefe;
+    margin: 3% auto;
+    padding: 20px;
+    border-radius: 8px;
+    width: 90%;
+    max-width: 900px;
+    max-height: 85vh;
+    overflow-y: auto;
+}
+
+#providerDetailModal .modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 2px solid #ddd;
+    padding-bottom: 10px;
+    margin-bottom: 20px;
+}
+
+#providerDetailModal .close {
+    font-size: 28px;
+    font-weight: bold;
+    cursor: pointer;
+    color: #aaa;
+}
+
+#providerDetailModal .close:hover {
+    color: #000;
+}
+
+#providerDetailModal .detail-section {
+    margin-bottom: 20px;
+}
+
+#providerDetailModal .detail-section h3 {
+    color: #417690;
+    border-bottom: 1px solid #ddd;
+    padding-bottom: 5px;
+    margin-bottom: 10px;
+}
+
+#providerDetailModal .document-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 15px;
+    margin-top: 10px;
+}
+
+#providerDetailModal .document-item {
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    padding: 10px;
+    text-align: center;
+}
+
+#providerDetailModal .document-item img {
+    max-width: 100%;
+    height: auto;
+    border-radius: 4px;
+    margin-bottom: 5px;
+}
+
+.service-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 10px;
+}
+
+.service-card {
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    padding: 10px;
+    background: #f9f9f9;
+}
+
+.zone-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 5px;
+}
+
+.zone-tag {
+    background: #007bff;
+    color: white;
+    padding: 3px 8px;
+    border-radius: 12px;
+    font-size: 11px;
+}
