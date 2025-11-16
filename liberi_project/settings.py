@@ -134,6 +134,12 @@ AUTH_PASSWORD_VALIDATORS = [
     {'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator'},
 ]
 
+ADMINS = [
+    ('Diego', os.getenv('ADMIN_EMAIL', 'liberiservices@gmail.com')),
+]
+
+MANAGERS = ADMINS
+
 # ============================================
 # LOGGING
 # ============================================
@@ -178,6 +184,19 @@ LOGGING = {
             'propagate': False,
         },
     },
+}
+
+LOGGING['handlers']['mail_admins'] = {
+    'level': 'ERROR',
+    'class': 'django.utils.log.AdminEmailHandler',
+    'include_html': True,
+}
+
+# Agregar a los loggers para que Django envíe errores por email
+LOGGING['loggers']['django'] = {
+    'handlers': ['file', 'console', 'mail_admins'],
+    'level': 'INFO',
+    'propagate': False,
 }
 
 # Asegurar que existe el directorio de logs

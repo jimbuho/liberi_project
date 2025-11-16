@@ -5,6 +5,8 @@ from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework_simplejwt.tokens import RefreshToken
 from django.core.exceptions import ValidationError
 
+from django.shortcuts import render
+
 from .models import (
     Category, ProviderProfile, Service, Location, 
     Booking, Review, AuditLog
@@ -291,3 +293,81 @@ class ReviewViewSet(viewsets.ModelViewSet):
         
         serializer.save(customer=self.request.user)
         log_action(self.request.user, 'Reseña creada')
+
+def custom_404(request, exception):
+    """
+    Vista personalizada para error 404 - Página no encontrada
+    
+    Se activa cuando:
+    - El usuario intenta acceder a una URL que no existe
+    - No hay coincidencia en los patrones de URL
+    
+    Args:
+        request: HttpRequest object
+        exception: La excepción que causó el 404
+    
+    Returns:
+        HttpResponse con template 404.html y status 404
+    """
+    return render(request, '404.html', status=404)
+
+
+def custom_500(request):
+    """
+    Vista personalizada para error 500 - Error del servidor
+    
+    Se activa cuando:
+    - Hay una excepción no capturada en el código
+    - Error en la base de datos
+    - Error en las vistas o templates
+    
+    NOTA: Esta vista NO recibe 'exception' como parámetro
+    
+    Args:
+        request: HttpRequest object
+    
+    Returns:
+        HttpResponse con template 500.html y status 500
+    """
+    return render(request, '500.html', status=500)
+
+
+def custom_400(request, exception):
+    """
+    Vista personalizada para error 400 - Solicitud incorrecta
+    
+    Se activa cuando:
+    - Datos del formulario inválidos o malformados
+    - Parámetros de URL incorrectos
+    - Solicitud HTTP malformada
+    
+    Args:
+        request: HttpRequest object
+        exception: La excepción que causó el 400
+    
+    Returns:
+        HttpResponse con template 400.html y status 400
+    """
+    return render(request, '400.html', status=400)
+
+
+# ============================================
+# OPCIONAL: VISTAS DE PRUEBA PARA TESTING
+# ============================================
+
+def test_404_view(request):
+    """Vista de prueba para simular error 404"""
+    from django.http import Http404
+    raise Http404("Esta es una prueba de error 404")
+
+
+def test_500_view(request):
+    """Vista de prueba para simular error 500"""
+    # Esto causará un error intencional
+    raise Exception("Esta es una prueba de error 500")
+
+
+def test_400_view(request):
+    """Vista de prueba para simular error 400"""
+    from django.http import HttpResponseBadRequest
+    return HttpResponseBadRequest("Esta es una prueba de error 400")

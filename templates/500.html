@@ -1,0 +1,122 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Error del Servidor - Liberi</title>
+    
+    <!-- Favicon -->
+    <link rel="icon" type="image/svg+xml" href="{% static 'images/liberi_favicon.svg' %}">
+    
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="{% static 'css/liberi.css' %}?v=3.1">
+</head>
+<body>
+    <!-- Navbar Simple -->
+    <nav class="navbar navbar-light bg-white shadow-sm">
+        <div class="container">
+            <a class="navbar-brand d-flex align-items-center" href="/">
+                <img src="{% static 'images/logo-liberi.png' %}" alt="Liberi" style="height: 40px;">
+            </a>
+        </div>
+    </nav>
+
+    <!-- Contenido del Error -->
+    <section class="py-5">
+        <div class="container">
+            <div class="row justify-content-center">
+                <div class="col-lg-8 text-center">
+                    <div class="error-container py-5">
+                        <!-- Icono de error -->
+                        <div class="mb-4">
+                            <i class="fas fa-exclamation-triangle fa-5x text-danger" style="opacity: 0.5;"></i>
+                        </div>
+                        
+                        <!-- Código de error -->
+                        <h1 class="display-1 fw-bold text-danger mb-3">500</h1>
+                        
+                        <!-- Mensaje principal -->
+                        <h2 class="h3 mb-3">Error del servidor</h2>
+                        <p class="lead text-muted mb-4">
+                            Algo salió mal en nuestro servidor. Estamos trabajando para solucionarlo.
+                        </p>
+                        
+                        <!-- Información adicional -->
+                        <div class="alert alert-light border mb-5">
+                            <p class="mb-2"><strong>¿Qué hacer mientras tanto?</strong></p>
+                            <ul class="list-unstyled mb-0">
+                                <li><i class="fas fa-check text-success me-2"></i>Intenta recargar la página en unos momentos</li>
+                                <li><i class="fas fa-check text-success me-2"></i>Regresa a la página de inicio</li>
+                                <li><i class="fas fa-check text-success me-2"></i>Si el problema persiste, contáctanos</li>
+                            </ul>
+                        </div>
+                        
+                        <!-- Botones de acción -->
+                        <div class="d-flex gap-3 justify-content-center flex-wrap mb-5">
+                            <a href="/" class="btn btn-primary btn-lg">
+                                <i class="fas fa-home me-2"></i>Ir al Inicio
+                            </a>
+                            <button onclick="location.reload()" class="btn btn-outline-primary btn-lg">
+                                <i class="fas fa-sync me-2"></i>Recargar Página
+                            </button>
+                        </div>
+                        
+                        <!-- Información de contacto -->
+                        <div class="mt-5 pt-4 border-top">
+                            <p class="text-muted mb-3">¿Necesitas ayuda?</p>
+                            <div class="d-flex gap-4 justify-content-center flex-wrap">
+                                <a href="mailto:liberiservices@gmail.com" class="text-decoration-none">
+                                    <i class="fas fa-envelope text-primary me-1"></i>
+                                    liberiservices@gmail.com
+                                </a>
+                                <a href="https://wa.me/593998981436" class="text-decoration-none" target="_blank">
+                                    <i class="fab fa-whatsapp text-success me-1"></i>
+                                    +593 99 898 1436
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer Simple -->
+    <footer class="bg-dark text-white mt-5 py-3">
+        <div class="container text-center">
+            <p class="mb-0 text-white-50">&copy; 2025 Liberi Ecuador. Todos los derechos reservados.</p>
+        </div>
+    </footer>
+
+    <style>
+        body {
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+        }
+        
+        section {
+            flex: 1;
+        }
+        
+        .error-container {
+            animation: fadeIn 0.5s ease-in;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+    </style>
+
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

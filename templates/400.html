@@ -1,0 +1,83 @@
+{% extends 'base.html' %}
+
+{% block title %}Solicitud incorrecta - Liberi{% endblock %}
+
+{% block content %}
+<section class="py-5">
+    <div class="container">
+        <div class="row justify-content-center">
+            <div class="col-lg-8 text-center">
+                <div class="error-container py-5">
+                    <!-- Icono de error -->
+                    <div class="mb-4">
+                        <i class="fas fa-exclamation-circle fa-5x text-warning" style="opacity: 0.4;"></i>
+                    </div>
+                    
+                    <!-- Código de error -->
+                    <h1 class="display-1 fw-bold text-warning mb-3">400</h1>
+                    
+                    <!-- Mensaje principal -->
+                    <h2 class="h3 mb-3">Solicitud incorrecta</h2>
+                    <p class="lead text-muted mb-4">
+                        La solicitud que enviaste no pudo ser procesada. Verifica los datos e intenta nuevamente.
+                    </p>
+                    
+                    <!-- Información adicional -->
+                    <div class="alert alert-light border mb-5">
+                        <p class="mb-2"><strong>Posibles causas:</strong></p>
+                        <ul class="list-unstyled mb-0">
+                            <li><i class="fas fa-circle text-warning me-2" style="font-size: 0.5rem;"></i>Datos del formulario incompletos o inválidos</li>
+                            <li><i class="fas fa-circle text-warning me-2" style="font-size: 0.5rem;"></i>La sesión expiró, intenta iniciar sesión nuevamente</li>
+                            <li><i class="fas fa-circle text-warning me-2" style="font-size: 0.5rem;"></i>URL o parámetros incorrectos</li>
+                        </ul>
+                    </div>
+                    
+                    <!-- Botones de acción -->
+                    <div class="d-flex gap-3 justify-content-center flex-wrap">
+                        <a href="{% url 'home' %}" class="btn btn-primary btn-lg">
+                            <i class="fas fa-home me-2"></i>Ir al Inicio
+                        </a>
+                        <button onclick="history.back()" class="btn btn-outline-primary btn-lg">
+                            <i class="fas fa-arrow-left me-2"></i>Volver
+                        </button>
+                        {% if not user.is_authenticated %}
+                        <a href="{% url 'login' %}" class="btn btn-outline-secondary btn-lg">
+                            <i class="fas fa-sign-in-alt me-2"></i>Iniciar Sesión
+                        </a>
+                        {% endif %}
+                    </div>
+                    
+                    <!-- Enlaces útiles -->
+                    <div class="mt-5 pt-4 border-top">
+                        <p class="text-muted mb-3">O continúa explorando:</p>
+                        <div class="d-flex gap-4 justify-content-center flex-wrap">
+                            <a href="{% url 'services_list' %}" class="text-decoration-none">
+                                <i class="fas fa-th text-primary me-1"></i>Servicios
+                            </a>
+                            <a href="{% url 'providers_list' %}" class="text-decoration-none">
+                                <i class="fas fa-users text-primary me-1"></i>Proveedores
+                            </a>
+                            {% if user.is_authenticated %}
+                            <a href="{% url 'dashboard' %}" class="text-decoration-none">
+                                <i class="fas fa-tachometer-alt text-primary me-1"></i>Dashboard
+                            </a>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<style>
+    .error-container {
+        animation: fadeIn 0.5s ease-in;
+    }
+    
+    @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(20px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+</style>
+{% endblock %}
