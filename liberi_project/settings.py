@@ -140,63 +140,71 @@ ADMINS = [
 
 MANAGERS = ADMINS
 
+SERVER_EMAIL = 'liberiservices@gmail.com'
+EMAIL_SUBJECT_PREFIX = '[Liberi Error] '
+
 # ============================================
 # LOGGING
 # ============================================
 LOGGING = {
     'version': 1,
     'disable_existing_loggers': False,
+    
+    'filters': {
+        'require_debug_false': {
+            'class': 'django.utils.log.RequireDebugFalse',
+        },
+    },
+    
     'formatters': {
         'verbose': {
-            'format': '{levelname} {asctime} {module} {process:d} {thread:d} {message}',
-            'style': '{',
-        },
-        'simple': {
-            'format': '{levelname} {asctime} {message}',
+            'format': '{levelname} {asctime} {module} {message}',
             'style': '{',
         },
     },
+    
     'handlers': {
+        # 📧 Envía email a ADMINS cuando hay error 500
+        'mail_admins': {
+            'level': 'ERROR',
+            'class': 'django.utils.log.AdminEmailHandler',
+            'filters': ['require_debug_false'],  # Solo en producción (DEBUG=False)
+            'include_html': True,
+        },
+        
+        # 📄 Guarda errores en archivo
         'file': {
-            'level': 'DEBUG',
-            'class': 'logging.FileHandler',
-            'filename': 'liberi.log',
+            'level': 'ERROR',
+            'class': 'logging.handlers.RotatingFileHandler',
+            'filename': os.path.join(BASE_DIR, 'logs', 'errors.log'),
+            'maxBytes': 1024 * 1024 * 10,  # 10 MB
+            'backupCount': 5,
             'formatter': 'verbose',
         },
+        
+        # 🖥️ Muestra en consola
         'console': {
-            'class': 'logging.StreamHandler',
-            'formatter': 'simple',
-        },
-    },
-    'root': {
-        'handlers': ['file', 'console'],
-        'level': 'DEBUG',
-    },
-    'loggers': {
-        'django': {
-            'handlers': ['file', 'console'],
             'level': 'INFO',
+            'class': 'logging.StreamHandler',
+            'formatter': 'verbose',
+        },
+    },
+    
+    'loggers': {
+        # Logger para errores de Django (incluye 500)
+        'django.request': {
+            'handlers': ['mail_admins', 'file', 'console'],
+            'level': 'ERROR',
             'propagate': False,
         },
-        'payments': {  # Tu app de pagos
-            'handlers': ['file', 'console'],
-            'level': 'DEBUG',
+        
+        # Logger para errores de seguridad
+        'django.security': {
+            'handlers': ['mail_admins', 'file'],
+            'level': 'ERROR',
             'propagate': False,
         },
     },
-}
-
-LOGGING['handlers']['mail_admins'] = {
-    'level': 'ERROR',
-    'class': 'django.utils.log.AdminEmailHandler',
-    'include_html': True,
-}
-
-# Agregar a los loggers para que Django envíe errores por email
-LOGGING['loggers']['django'] = {
-    'handlers': ['file', 'console', 'mail_admins'],
-    'level': 'INFO',
-    'propagate': False,
 }
 
 # Asegurar que existe el directorio de logs
