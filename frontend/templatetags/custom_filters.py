@@ -1,7 +1,6 @@
 # bookings/templatetags/custom_filters.py
 from django import template
 from django.utils import timezone
-from datetime import timedelta
 
 register = template.Library()
 
@@ -29,3 +28,16 @@ def timeuntil(value, arg=None):
 def to_string(value):
     """Convierte Decimal a string para usar en templates"""
     return str(value)
+
+@register.filter
+def to_string(value):
+    """
+    Convierte un Decimal a string con formato internacional (punto, no coma)
+    Útil para inputs type="number" en HTML
+    """
+    if value is None:
+        return ""
+    
+    # Convertir a string y reemplazar coma con punto
+    str_value = str(value).replace(',', '.')
+    return str_value
