@@ -730,7 +730,34 @@ def check_uncompleted_services():
     
     for booking in uncompleted_bookings:
         try:
-            # Verificar que no se haya enviado notificación recientemente (últimas 24h)
+            # NOTIFICACION AL PROVEEDOR
+            recent_notification = Notification.objects.filter(
+                user=booking.provider,
+                booking=booking,
+                notification_type='provider_reminder',
+                title__contains='⏰ Recordatorio: Completa tu servicio',
+                created_at__gte=now - timedelta(hours=24)
+            ).exists()
+            
+            if recent_notification:
+                logger.info(f"Booking {booking.id}: Ya se notificó recientemente al proveedor")
+            else:
+                # Crear notificación para el proveedor
+                Notification.objects.create(
+                    user=booking.provider,
+                    notification_type='provider_reminder',
+                    title='⏰ Recordatorio: Completa tu servicio',
+                    message=f'Tu cita con {booking.customer.get_full_name()} estaba programada para {booking.scheduled_time.strftime("%d/%m/%Y %H:%M")}. Por favor marca el servicio como completado.',
+                    booking=booking,
+                    action_url=f'/bookings/{booking.id}/'
+                )
+                
+                # Enviar email al proveedor
+                send_provider_completion_reminder_email_task.delay(booking_id=str(booking.id))
+            
+                logger.info(f"✅ Recordatorio enviado al proveedor para booking {booking.id} a {booking.provider.email}")
+
+            # NOTIFICACION AL CLIENTE
             recent_notification = Notification.objects.filter(
                 user=booking.customer,
                 booking=booking,
@@ -740,29 +767,87 @@ def check_uncompleted_services():
             ).exists()
             
             if recent_notification:
-                logger.info(f"Booking {booking.id}: Ya se notificó recientemente")
-                continue
-            
-            # Crear notificación para el cliente
-            Notification.objects.create(
-                user=booking.customer,
-                notification_type='system',
-                title='❓ ¿Recibiste el servicio?',
-                message=f'Tu cita con {booking.provider.get_full_name()} estaba programada para {booking.scheduled_time.strftime("%d/%m/%Y %H:%M")}. Por favor confirma si recibiste el servicio.',
-                booking=booking,
-                action_url=f'/bookings/{booking.id}/'
-            )
-            
-            # Enviar email al cliente
-            send_service_completion_check_email_task.delay(booking_id=str(booking.id))
-            
-            logger.info(f"✅ Notificación enviada para booking {booking.id}")
+                logger.info(f"Booking {booking.id}: Ya se notificó recientemente al cliente")
+            else:
+                # Crear notificación para el cliente
+                Notification.objects.create(
+                    user=booking.customer,
+                    notification_type='system',
+                    title='❓ ¿Recibiste el servicio?',
+                    message=f'Tu cita con {booking.provider.get_full_name()} estaba programada para {booking.scheduled_time.strftime("%d/%m/%Y %H:%M")}. Por favor confirma si recibiste el servicio.',
+                    booking=booking,
+                    action_url=f'/bookings/{booking.id}/'
+                )
+                
+                # Enviar email al cliente
+                send_service_completion_check_email_task.delay(booking_id=str(booking.id))
+                
+                logger.info(f"✅ Notificación enviada al cliente para booking {booking.id} a {booking.customer.email}")
             
         except Exception as e:
             logger.error(f"Error procesando booking {booking.id}: {e}")
     
     logger.info("Verificación completada")
     return f"Procesados {uncompleted_bookings.count()} servicios"
+
+@shared_task
+def send_provider_completion_reminder_email_task(booking_id):
+    """
+    Envía email al proveedor recordándole que debe completar el servicio
+    """
+    try:
+        booking = Booking.objects.select_related('customer', 'provider').get(id=booking_id)
+        provider = booking.provider
+        customer = booking.customer
+        
+        subject = f'⏰ Recordatorio: Completa tu servicio - Reserva #{str(booking.id)[:8]}'
+        
+        message = f"""
+Hola {provider.get_full_name() or provider.username},
+
+Recordatorio: Tu servicio con {customer.get_full_name()} estaba programado para {booking.scheduled_time.strftime('%d/%m/%Y a las %H:%M')}.
+
+⚠️ ACCIÓN REQUERIDA:
+Por favor completa el servicio lo antes posible. Esto es importante para que el cliente pueda confirmar si recibió el servicio correctamente.
+
+DATOS DE LA RESERVA:
+- Número de Reserva: #{str(booking.id)[:8]}
+- Cliente: {customer.get_full_name()} ({customer.email})
+- Teléfono: {customer.profile.phone if hasattr(customer, 'profile') and hasattr(customer.profile, 'phone') else 'No disponible'}
+- Servicio: {booking.get_services_display()}
+- Monto: ${booking.total_cost}
+- Dirección: {booking.location.address if booking.location else 'Por confirmar'}
+
+✅ PASOS PARA MARCAR COMO COMPLETADO:
+1. Accede a tu panel: {settings.BASE_URL}/dashboard/
+2. Busca la reserva #{str(booking.id)[:8]}
+3. Haz clic en "Marcar como completado"
+4. Confirma cuando hayas finalizado el servicio
+
+Si ya completaste el servicio, por favor ignora este email.
+Si tienes algún problema, contáctanos: soporte@liberi.ec
+
+---
+Equipo Liberi 💙
+        """
+        
+        send_mail(
+            subject=subject,
+            message=message,
+            from_email=settings.DEFAULT_FROM_EMAIL,
+            recipient_list=[provider.email],
+            fail_silently=False,
+        )
+        
+        logger.info(f"✅ Email de recordatorio enviado a proveedor {provider.email} para booking {booking.id}")
+        return f"Email enviado a {provider.email}"
+        
+    except Booking.DoesNotExist:
+        logger.error(f"❌ Booking {booking_id} no encontrado")
+        return f"Error: Booking no encontrado"
+    except Exception as e:
+        logger.error(f"❌ Error enviando email de recordatorio: {e}", exc_info=True)
+        return f"Error: {str(e)}"
 
 
 @shared_task
