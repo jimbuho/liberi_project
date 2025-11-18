@@ -18,7 +18,7 @@ from .models import (
     Profile, Category, ProviderProfile, Service, Location, Booking, Review, AuditLog,
     Zone, ProviderSchedule, ProviderUnavailability, SystemConfig, ProviderZoneCost,
     PaymentMethod, BankAccount, PaymentProof, Notification, Payment,
-    WithdrawalRequest, ProviderBankAccount, Bank
+    WithdrawalRequest, ProviderBankAccount, Bank, City
 )
 
 logger = logging.getLogger(__name__)
@@ -85,6 +85,90 @@ class CategoryAdmin(admin.ModelAdmin):
         ).count()
         return count
     service_count.short_description = 'Servicios activos'
+
+
+# ============================================
+# ADMIN: City
+# ============================================
+
+@admin.register(City)
+class CityAdmin(admin.ModelAdmin):
+    list_display = ['name', 'code', 'country', 'active_display', 'zones_count', 'display_order', 'created_at']
+    list_filter = ['active', 'country', 'created_at']
+    search_fields = ['name', 'code']
+    readonly_fields = ['created_at', 'zones_list']
+    ordering = ['display_order', 'name']
+    
+    fieldsets = (
+        ('Información Básica', {
+            'fields': ('name', 'code', 'country')
+        }),
+        ('Configuración', {
+            'fields': ('active', 'display_order')
+        }),
+        ('Zonas', {
+            'fields': ('zones_list',),
+            'classes': ('collapse',)
+        }),
+        ('Auditoría', {
+            'fields': ('created_at',),
+            'classes': ('collapse',)
+        }),
+    )
+    
+    actions = ['activate_cities', 'deactivate_cities']
+    
+    def active_display(self, obj):
+        """Mostrar estado de la ciudad con icono"""
+        if obj.active:
+            return format_html('✅ Activa')
+        return format_html('❌ Inactiva')
+    active_display.short_description = 'Estado'
+    
+    def zones_count(self, obj):
+        """Contar zonas asociadas a la ciudad"""
+        count = obj.zones.count()
+        return format_html(
+            '<strong>{}</strong> zona{}'.format(
+                count,
+                's' if count != 1 else ''
+            )
+        )
+    zones_count.short_description = 'Zonas'
+    
+    def zones_list(self, obj):
+        """Listar todas las zonas de la ciudad"""
+        zones = obj.zones.all()
+        if not zones:
+            return 'No hay zonas registradas'
+        
+        zone_list = '<ul style="margin: 5px 0;">'
+        for zone in zones:
+            zone_list += f'<li>{zone.name}</li>'
+        zone_list += '</ul>'
+        
+        return format_html(zone_list)
+    zones_list.short_description = 'Zonas Registradas'
+    
+    def activate_cities(self, request, queryset):
+        """Activar ciudades seleccionadas"""
+        updated = queryset.update(active=True)
+        self.message_user(
+            request,
+            f'✅ {updated} ciudad(es) activada(s).',
+            messages.SUCCESS
+        )
+    activate_cities.short_description = '✅ Activar ciudades seleccionadas'
+    
+    def deactivate_cities(self, request, queryset):
+        """Desactivar ciudades seleccionadas"""
+        updated = queryset.update(active=False)
+        self.message_user(
+            request,
+            f'❌ {updated} ciudad(es) desactivada(s).',
+            messages.WARNING
+        )
+    deactivate_cities.short_description = '❌ Desactivar ciudades seleccionadas'
 
 
 @admin.register(ProviderProfile)

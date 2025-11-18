@@ -23,7 +23,7 @@ from core.models import (
     PaymentMethod, BankAccount, PaymentProof,
     ProviderZoneCost, SystemConfig, Notification, Payment,
     WithdrawalRequest, ProviderBankAccount, Bank,
-    EmailVerificationToken
+    EmailVerificationToken, City
 )
 from legal.models import LegalDocument, LegalAcceptance
 from legal.views import get_client_ip, get_user_agent
@@ -55,31 +55,96 @@ def get_active_categories():
 
 def home(request):
     """Página principal"""
+    # NUEVO: Obtener y establecer ciudad actual
+    current_city = get_current_city(request)
+    if current_city:
+        set_current_city(request, current_city)
+    
+    # ACTUALIZAR: Filtrar servicios por ciudad
     featured_services = Service.objects.filter(
         available=True, 
         provider__provider_profile__is_active=True,
-        provider__provider_profile__status='approved').order_by('-created_at')[:8]
+        provider__provider_profile__status='approved',
+        provider__provider_profile__coverage_zones__city=current_city
+    ).distinct().order_by('-created_at')[:8]
     
     context = {
         'categories': get_active_categories(),
         'featured_services': featured_services,
+        'current_city': current_city,  # NUEVO
+        'cities': City.objects.filter(active=True).order_by('display_order'),  # NUEVO
     }
     return render(request, 'home.html', context)
 
+def get_current_city(request):
+    """Obtiene la ciudad actual del usuario o de sesión"""
+    # 1. De perfil si está autenticado
+    if request.user.is_authenticated and hasattr(request.user, 'profile'):
+        if request.user.profile.current_city:
+            return request.user.profile.current_city
+    
+    # 2. De sesión
+    city_id = request.session.get('current_city_id')
+    if city_id:
+        try:
+            return City.objects.get(id=city_id, active=True)
+        except City.DoesNotExist:
+            pass
+    
+    # 3. De ubicación más reciente del usuario
+    if request.user.is_authenticated:
+        last_location = Location.objects.filter(
+            customer=request.user
+        ).select_related('city').order_by('-created_at').first()
+        
+        if last_location and last_location.city:
+            return last_location.city
+    
+    # 4. Por defecto, la primera ciudad activa
+    return City.objects.filter(active=True).order_by('display_order').first()
+
+
+def set_current_city(request, city):
+    """Establece la ciudad actual en sesión y perfil"""
+    request.session['current_city_id'] = city.id
+    
+    if request.user.is_authenticated and hasattr(request.user, 'profile'):
+        request.user.profile.current_city = city
+        request.user.profile.save(update_fields=['current_city'])
 
 @login_required
 def services_list(request):
-    """Listado de servicios con filtros mejorados por zona"""
+    """Listado de servicios con filtros mejorados por ciudad y zona"""
     services = Service.objects.filter(available=True).select_related('provider')
-    zones = Zone.objects.filter(active=True).order_by('name')
     
-    # Obtener zona actual del usuario (de sesión o ubicación)
+    # NUEVO: Obtener ciudad actual
+    current_city = get_current_city(request)
+    
+    # NUEVO: Cambiar ciudad si se solicita
+    city_id = request.GET.get('city')
+    if city_id:
+        try:
+            current_city = City.objects.get(id=city_id, active=True)
+            set_current_city(request, current_city)
+        except City.DoesNotExist:
+            pass
+    
+    # NUEVO: Obtener zonas de la ciudad actual
+    zones = Zone.objects.filter(
+        active=True,
+        city=current_city
+    ).order_by('name') if current_city else Zone.objects.none()
+    
+    # Obtener zona actual
     current_zone_id = request.session.get('current_zone_id')
-    current_zone = Zone.objects.filter(id=current_zone_id).first() if current_zone_id else None
+    current_zone = zones.filter(id=current_zone_id).first() if current_zone_id else None
     
-    # Si no hay zona en sesión, intentar obtener de la última ubicación del usuario
-    if not current_zone and hasattr(request.user, 'locations'):
-        last_location = request.user.locations.order_by('-created_at').first()
+    # Si no hay zona en sesión, intentar obtener de la última ubicación
+    if not current_zone and current_city:
+        last_location = request.user.locations.filter(
+            city=current_city
+        ).select_related('zone').order_by('-created_at').first()
+        
         if last_location and last_location.zone:
             current_zone = last_location.zone
             request.session['current_zone_id'] = current_zone.id
@@ -93,10 +158,22 @@ def services_list(request):
     
     # Si se selecciona una zona, guardarla en sesión
     if zone_id:
-        request.session['current_zone_id'] = zone_id
-        current_zone = Zone.objects.filter(id=zone_id).first()
+        try:
+            zone = zones.get(id=zone_id)
+            current_zone = zone
+            request.session['current_zone_id'] = zone.id
+        except Zone.DoesNotExist:
+            pass
     
-    # FILTRO PRINCIPAL: Solo mostrar servicios de proveedores que cubren la zona actual
+    # FILTRO PRINCIPAL: Solo servicios de proveedores que cubren la ciudad
+    if current_city:
+        services = services.filter(
+            provider__provider_profile__coverage_zones__city=current_city,
+            provider__provider_profile__is_active=True,
+            provider__provider_profile__status='approved'
+        )
+    
+    # FILTRO SECUNDARIO: Por zona específica
     if current_zone:
         services = services.filter(
             provider__provider_profile__coverage_zones=current_zone,
@@ -120,15 +197,12 @@ def services_list(request):
     if max_price:
         services = services.filter(base_price__lte=max_price)
     
-    # Filtrar solo proveedores activos y aprobados
     services = services.filter(
         provider__provider_profile__status='approved',
         provider__provider_profile__is_active=True
     ).distinct()
     
     # Agregar rating promedio y costo de movilización por zona
-    
-    
     for service in services:
         # Rating
         rating = Review.objects.filter(
@@ -151,18 +225,43 @@ def services_list(request):
         else:
             service.travel_cost = service.provider.provider_profile.avg_travel_cost
     
-    # Mensaje si no hay zona seleccionada
-    show_zone_warning = not current_zone
-    
     context = {
         'services': services,
         'categories': get_active_categories(),
         'zones': zones,
         'current_zone': current_zone,
+        'current_city': current_city,  # NUEVO
+        'cities': City.objects.filter(active=True).order_by('display_order'),  # NUEVO
         'selected_category': Category.objects.filter(id=category_id).first() if category_id else None,
-        'show_zone_warning': show_zone_warning,
+        'show_zone_warning': not current_zone and current_city,
     }
     return render(request, 'services/list.html', context)
+
+@login_required
+def set_current_city_ajax(request):
+    """Establecer ciudad actual (AJAX)"""
+    if request.method != 'POST':
+        return JsonResponse({'error': 'Método no permitido'}, status=405)
+    
+    city_id = request.POST.get('city_id')
+    
+    if city_id:
+        try:
+            city = City.objects.get(id=city_id, active=True)
+            set_current_city(request, city)
+            
+            # Limpiar zona actual al cambiar ciudad
+            request.session.pop('current_zone_id', None)
+            
+            return JsonResponse({
+                'success': True,
+                'city_name': city.name,
+                'message': f'Ciudad establecida en {city.name}'
+            })
+        except City.DoesNotExist:
+            return JsonResponse({'error': 'Ciudad no encontrada'}, status=404)
+    else:
+        return JsonResponse({'error': 'Ciudad requerida'}, status=400)
 
 
 def service_detail(request, service_code):
@@ -1449,7 +1548,14 @@ def booking_complete(request, booking_id):
 @login_required
 def location_create(request):
     """Crear una nueva ubicación con mapa"""
-    zones = Zone.objects.filter(active=True).order_by('name')
+    # NUEVO: Obtener ciudad actual
+    current_city = get_current_city(request)
+    
+    # NUEVO: Obtener zonas de la ciudad actual
+    zones = Zone.objects.filter(
+        active=True,
+        city=current_city
+    ).order_by('name') if current_city else Zone.objects.none()
     
     if request.method == 'POST':
         label = request.POST.get('label')
@@ -1462,15 +1568,20 @@ def location_create(request):
         # Validar coordenadas
         if not latitude or not longitude:
             messages.error(request, 'Debes seleccionar una ubicación en el mapa')
-            return render(request, 'locations/create.html', {'zones': zones})
+            return render(request, 'locations/create.html', {
+                'zones': zones,
+                'current_city': current_city,
+            })
         
-        # Validar zona
-        zone = get_object_or_404(Zone, id=zone_id, active=True)
+        # Validar zona - ACTUALIZAR para validar por city
+        zone = get_object_or_404(Zone, id=zone_id, active=True, city=current_city)
         
+        # NUEVO: Auto-asignar city desde zone
         location = Location.objects.create(
             customer=request.user,
             label=label,
             zone=zone,
+            city=zone.city,
             address=address,
             reference=reference,
             latitude=latitude,
@@ -1485,6 +1596,7 @@ def location_create(request):
     
     context = {
         'zones': zones,
+        'current_city': current_city,  # NUEVO
     }
     return render(request, 'locations/create.html', context)
 
@@ -2174,10 +2286,13 @@ def set_current_zone(request):
         return JsonResponse({'error': 'Método no permitido'}, status=405)
     
     zone_id = request.POST.get('zone_id')
+    # NUEVO: Obtener ciudad actual
+    current_city = get_current_city(request)
     
     if zone_id:
         try:
-            zone = Zone.objects.get(id=zone_id, active=True)
+            # NUEVO: Validar que la zona pertenezca a la ciudad actual
+            zone = Zone.objects.get(id=zone_id, active=True, city=current_city)
             request.session['current_zone_id'] = zone.id
             return JsonResponse({
                 'success': True,
@@ -2185,7 +2300,7 @@ def set_current_zone(request):
                 'message': f'Ubicación establecida en {zone.name}'
             })
         except Zone.DoesNotExist:
-            return JsonResponse({'error': 'Zona no encontrada'}, status=404)
+            return JsonResponse({'error': 'Zona no encontrada en tu ciudad'}, status=404)
     else:
         # Limpiar zona actual
         request.session.pop('current_zone_id', None)
@@ -2197,7 +2312,7 @@ def set_current_zone(request):
 
 @login_required
 def detect_user_location(request):
-    """Detectar ubicación del usuario y sugerir zona (AJAX)"""
+    """Detectar ubicación del usuario y sugerir zona"""
     if request.method != 'POST':
         return JsonResponse({'error': 'Método no permitido'}, status=405)
     
@@ -2209,18 +2324,19 @@ def detect_user_location(request):
     if not lat or not lng:
         return JsonResponse({'error': 'Coordenadas requeridas'}, status=400)
     
-    # Aquí podrías implementar lógica para determinar la zona según coordenadas
-    # Por simplicidad, buscaremos si el usuario tiene una ubicación cercana guardada
+    # NUEVO: Obtener ciudad actual
+    current_city = get_current_city(request)
+    
+    # NUEVO: Buscar en ciudad actual
     user_locations = Location.objects.filter(
-        customer=request.user
+        customer=request.user,
+        city=current_city
     ).select_related('zone')
     
-    # Buscar ubicación más cercana (simplificado)
     closest_location = None
     min_distance = float('inf')
     
     for location in user_locations:
-        # Calcular distancia simple (no es preciso, pero funciona para MVP)
         lat_diff = abs(float(location.latitude) - float(lat))
         lng_diff = abs(float(location.longitude) - float(lng))
         distance = lat_diff + lng_diff
@@ -2229,7 +2345,7 @@ def detect_user_location(request):
             min_distance = distance
             closest_location = location
     
-    # Si hay una ubicación cercana (< 0.01 grados ~ 1km)
+    # Si hay ubicación cercana (< 0.01 grados ~ 1km)
     if closest_location and min_distance < 0.01:
         zone = closest_location.zone
         request.session['current_zone_id'] = zone.id
@@ -2242,10 +2358,9 @@ def detect_user_location(request):
             'message': f'Ubicación detectada: {closest_location.label} en {zone.name}'
         })
     else:
-        # No se encontró ubicación cercana
         return JsonResponse({
             'success': False,
-            'message': 'No se encontró una ubicación guardada cercana. Por favor selecciona tu zona.',
+            'message': f'No se encontró una ubicación guardada cercana en {current_city.name}. Por favor selecciona tu zona.',
             'requires_selection': True
         })
 

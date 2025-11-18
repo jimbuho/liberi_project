@@ -78,6 +78,7 @@ urlpatterns = [
     
     # Location Detection & Zone Selection
     path('api/set-zone/', views.set_current_zone, name='set_current_zone'),
+    path('api/set-city/', views.set_current_city_ajax, name='set_current_city'),  # ← AGREGAR ESTA
     path('api/detect-location/', views.detect_user_location, name='detect_location'),
 
     # Pagos v2 (con imagen)

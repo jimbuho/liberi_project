@@ -6,8 +6,28 @@
 <!-- Hero Section -->
 <section class="hero-section">
     <div class="container">
+        <!-- NUEVO: Selector de Ciudad Compacto -->
+        {% if cities %}
+        <div class="mb-3" style="text-align: right;">
+            <form method="get" action="{% url 'services_list' %}" class="d-inline-block">
+                <div class="input-group input-group-sm" style="max-width: 300px;">
+                    <span class="input-group-text">
+                        <i class="fas fa-map-marker-alt"></i> Ciudad:
+                    </span>
+                    <select name="city" class="form-select form-select-sm" onchange="this.form.submit()">
+                        {% for city in cities %}
+                        <option value="{{ city.id }}" {% if current_city.id == city.id %}selected{% endif %}>
+                            {{ city.name }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </form>
+        </div>
+        {% endif %}
+
         <div class="hero-content">
-            <h1 class="hero-title">Servicios a Domicilio</h1>
+            <h1 class="hero-title">Servicios a Domicilio{% if current_city %} en {{ current_city.name }}{% endif %}</h1>
             <p class="hero-subtitle">
                 Servicios verificados, confiables, dónde y cuándo los necesites
             </p>

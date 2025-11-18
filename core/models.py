@@ -35,6 +35,16 @@ class Profile(models.Model):
     created_at = models.DateTimeField('Fecha de creación', auto_now_add=True)
     updated_at = models.DateTimeField('Última actualización', auto_now=True)
 
+    current_city = models.ForeignKey(
+        'City',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        verbose_name='Ciudad Actual',
+        related_name='users_current',
+        help_text='La ciudad donde el usuario está buscando servicios'
+    )
+
     class Meta:
         db_table = 'profiles'
         verbose_name = 'Perfil'
@@ -70,7 +80,28 @@ class Profile(models.Model):
                 continue
         
         return True
+    
+# ============================================
+# MODELO: City (NUEVO - Agregar ANTES de Zone)
+# ============================================
 
+class City(models.Model):
+    """Ciudades disponibles en la plataforma"""
+    name = models.CharField('Nombre', max_length=100, unique=True)
+    code = models.CharField('Código', max_length=10, unique=True, help_text='Ej: QTO, GYE, CUI')
+    country = models.CharField('País', max_length=100, default='Ecuador')
+    active = models.BooleanField('Activa', default=True)
+    display_order = models.IntegerField('Orden de visualización', default=0)
+    created_at = models.DateTimeField('Fecha de creación', auto_now_add=True)
+
+    class Meta:
+        db_table = 'cities'
+        verbose_name = 'Ciudad'
+        verbose_name_plural = 'Ciudades'
+        ordering = ['display_order', 'name']
+
+    def __str__(self):
+        return self.name
 
 class Category(models.Model):
     name = models.CharField('Nombre', max_length=100)
@@ -224,6 +255,14 @@ class Location(models.Model):
                                 verbose_name='Cliente')
     zone = models.ForeignKey('Zone', on_delete=models.SET_NULL, null=True,
                             verbose_name='Zona')
+    city = models.ForeignKey(
+        City,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        verbose_name='Ciudad',
+        related_name='locations'
+    )
     address = models.TextField('Dirección')
     reference = models.CharField('Referencia', max_length=255, blank=True)
     label = models.CharField('Etiqueta', max_length=50, default='casa')
@@ -237,7 +276,15 @@ class Location(models.Model):
         verbose_name_plural = 'Ubicaciones'
 
     def __str__(self):
-        return f"{self.customer.username} - {self.label}"
+        city_name = self.city.name if self.city else 'Sin ciudad'
+        return f"{self.customer.username} - {self.label} ({city_name})"
+    
+    # NUEVO:
+    def save(self, *args, **kwargs):
+        # Auto-setear city desde zone si existe
+        if self.zone and not self.city:
+            self.city = self.zone.city
+        super().save(*args, **kwargs)
 
 
 class Booking(models.Model):
@@ -442,7 +489,12 @@ class Zone(models.Model):
     """Zonas geográficas para matching cliente-proveedor"""
     name = models.CharField('Nombre', max_length=100, unique=True)
     description = models.TextField('Descripción', blank=True)
-    city = models.CharField('Ciudad', max_length=100, default='Quito')
+    city = models.ForeignKey(
+        City,
+        on_delete=models.CASCADE,
+        verbose_name='Ciudad',
+        related_name='zones'
+    )
     active = models.BooleanField('Activa', default=True)
     created_at = models.DateTimeField('Fecha de creación', auto_now_add=True)
 
@@ -450,7 +502,8 @@ class Zone(models.Model):
         db_table = 'zones'
         verbose_name = 'Zona'
         verbose_name_plural = 'Zonas'
-        ordering = ['city', 'name']
+        ordering = ['city__name', 'name']
+        unique_together = ['name', 'city'] 
 
     def __str__(self):
         return f"{self.name} - {self.city}"

@@ -2,109 +2,118 @@
 
 {% block title %}Agregar Ubicación - Liberi{% endblock %}
 
-{% block extra_css %}
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-<style>
-    #map {
-        height: 400px;
-        width: 100%;
-        border-radius: 10px;
-        margin-bottom: 20px;
-    }
-    .location-search {
-        position: relative;
-        z-index: 1000;
-        margin-bottom: 10px;
-    }
-</style>
-{% endblock %}
-
 {% block content %}
 <div class="container mt-4 mb-5">
     <div class="row justify-content-center">
         <div class="col-md-8">
-            <div class="card">
-                <div class="card-body p-4">
-                    <h2 class="text-center mb-4">
-                        <i class="fas fa-map-marker-alt"></i> Agregar Ubicación
-                    </h2>
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h2>
+                    <i class="fas fa-map-marked-alt"></i> Agregar Nueva Ubicación
+                </h2>
+                <a href="{% url 'dashboard' %}" class="btn btn-outline-secondary">
+                    <i class="fas fa-arrow-left"></i> Atrás
+                </a>
+            </div>
 
+            <div class="card">
+                <div class="card-body">
                     <form method="post" id="locationForm">
                         {% csrf_token %}
 
+                        <!-- NUEVA: Selección de Ciudad -->
                         <div class="mb-3">
-                            <label for="label" class="form-label">Etiqueta *</label>
-                            <select class="form-select" id="label" name="label" required>
-                                <option value="casa">🏠 Casa</option>
-                                <option value="oficina">🏢 Oficina</option>
-                                <option value="trabajo">💼 Trabajo</option>
-                                <option value="otro">📍 Otro</option>
-                            </select>
+                            <label for="city" class="form-label fw-bold">
+                                <i class="fas fa-city"></i> Ciudad
+                            </label>
+                            <p class="text-muted small mb-2">
+                                {% if current_city %}
+                                    Estás agregando ubicación en <strong>{{ current_city.name }}</strong>
+                                {% else %}
+                                    Selecciona la ciudad donde deseas agregar la ubicación
+                                {% endif %}
+                            </p>
+                            {% if current_city %}
+                                <input type="hidden" name="city" value="{{ current_city.id }}">
+                                <input type="text" class="form-control" value="{{ current_city.name }}" readonly>
+                            {% endif %}
                         </div>
 
-                        <!-- Buscador de Dirección -->
+                        <!-- Selección de Zona -->
                         <div class="mb-3">
-                            <label for="searchAddress" class="form-label">Buscar Dirección</label>
-                            <div class="input-group">
-                                <input type="text" class="form-control" id="searchAddress" 
-                                       placeholder="Ej: Av. 6 de Diciembre, Quito">
-                                <button class="btn btn-primary" type="button" onclick="searchLocation()">
-                                    <i class="fas fa-search"></i> Buscar
-                                </button>
+                            <label for="zone" class="form-label fw-bold">
+                                <i class="fas fa-map-marked-alt"></i> Zona de Cobertura
+                            </label>
+                            <select name="zone" id="zone" class="form-select" required>
+                                <option value="">-- Selecciona una zona --</option>
+                                {% for zone in zones %}
+                                <option value="{{ zone.id }}">
+                                    {{ zone.name }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                            {% if not zones %}
+                            <div class="alert alert-warning mt-2">
+                                <i class="fas fa-exclamation-triangle"></i>
+                                No hay zonas disponibles en {{ current_city.name }}
                             </div>
-                            <small class="text-muted">O haz clic directamente en el mapa</small>
+                            {% endif %}
+                            <small class="text-muted d-block mt-1">
+                                La zona debe estar dentro de tu ciudad
+                            </small>
+                        </div>
+
+                        <!-- Etiqueta -->
+                        <div class="mb-3">
+                            <label for="label" class="form-label fw-bold">
+                                <i class="fas fa-tag"></i> Etiqueta (Ej: Casa, Oficina, etc.)
+                            </label>
+                            <input type="text" name="label" id="label" class="form-control" 
+                                   placeholder="Casa, Oficina, Casa de padres..." required>
+                            <small class="text-muted">Esto te ayudará a identificar la ubicación</small>
+                        </div>
+
+                        <!-- Dirección -->
+                        <div class="mb-3">
+                            <label for="address" class="form-label fw-bold">
+                                <i class="fas fa-map-pin"></i> Dirección
+                            </label>
+                            <input type="text" name="address" id="address" class="form-control" 
+                                   placeholder="Ej: Calle Principal 123, Apto 4B" required>
+                        </div>
+
+                        <!-- Referencia -->
+                        <div class="mb-3">
+                            <label for="reference" class="form-label fw-bold">
+                                <i class="fas fa-comment"></i> Referencia (Opcional)
+                            </label>
+                            <input type="text" name="reference" id="reference" class="form-control" 
+                                   placeholder="Ej: Cerca del parque, al lado del supermercado...">
+                            <small class="text-muted">Información adicional para que el proveedor encuentre fácilmente</small>
                         </div>
 
                         <!-- Mapa -->
-                        <div id="map"></div>
-
-                        <!-- Zona -->
                         <div class="mb-3">
-                            <label for="zone" class="form-label">Zona *</label>
-                            <select class="form-select" id="zone" name="zone" required>
-                                <option value="">Selecciona tu zona...</option>
-                                {% for zone in zones %}
-                                <option value="{{ zone.id }}">{{ zone.name }}</option>
-                                {% endfor %}
-                            </select>
-                            <small class="text-muted">Esto ayuda a encontrar proveedores cerca de ti</small>
+                            <label for="map" class="form-label fw-bold">
+                                <i class="fas fa-map"></i> Selecciona en el Mapa
+                            </label>
+                            <p class="text-muted small">
+                                Haz clic en el mapa para seleccionar tu ubicación exacta
+                            </p>
+                            <div id="map" style="height: 400px; border: 2px solid #ddd; border-radius: 8px; margin-bottom: 10px;"></div>
                         </div>
 
-                        <!-- Dirección (auto-completada) -->
-                        <div class="mb-3">
-                            <label for="address" class="form-label">Dirección Completa *</label>
-                            <textarea class="form-control" id="address" name="address" 
-                                      rows="2" required readonly
-                                      placeholder="La dirección se completará al seleccionar en el mapa"></textarea>
-                        </div>
+                        <!-- Coordenadas (Oculto) -->
+                        <input type="hidden" name="latitude" id="latitude" required>
+                        <input type="hidden" name="longitude" id="longitude" required>
 
-                        <div class="mb-3">
-                            <label for="reference" class="form-label">Referencia (opcional)</label>
-                            <input type="text" class="form-control" id="reference" name="reference"
-                                   placeholder="Ej: Edificio azul, portón negro, junto al parque">
-                        </div>
-
-                        <!-- Coordenadas (ocultas) -->
-                        <input type="hidden" id="latitude" name="latitude" required>
-                        <input type="hidden" id="longitude" name="longitude" required>
-
-                        <div class="alert alert-info">
-                            <i class="fas fa-info-circle"></i>
-                            <strong>Instrucciones:</strong>
-                            <ul class="mb-0 mt-2">
-                                <li>Busca tu dirección o haz zoom en el mapa</li>
-                                <li>Haz clic en el punto exacto de tu ubicación</li>
-                                <li>Verifica que la dirección sea correcta</li>
-                            </ul>
-                        </div>
-
-                        <div class="d-grid gap-2">
-                            <button type="submit" class="btn btn-primary btn-lg" id="submitBtn" disabled>
-                                <i class="fas fa-save"></i> Guardar Ubicación
-                            </button>
+                        <!-- Botones -->
+                        <div class="d-grid gap-2 d-md-flex justify-content-md-end">
                             <a href="{% url 'dashboard' %}" class="btn btn-outline-secondary">
-                                <i class="fas fa-arrow-left"></i> Cancelar
+                                <i class="fas fa-times"></i> Cancelar
                             </a>
+                            <button type="submit" class="btn btn-primary" id="submitBtn">
+                                <i class="fas fa-check"></i> Guardar Ubicación
+                            </button>
                         </div>
                     </form>
                 </div>
@@ -112,110 +121,70 @@
         </div>
     </div>
 </div>
-{% endblock %}
 
-{% block extra_js %}
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<!-- Leaflet Map -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css" />
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+
 <script>
-// Inicializar mapa centrado en Quito, Ecuador
-let map = L.map('map').setView([-0.1807, -78.4678], 13);
+let map;
+let marker;
 
-// Agregar capa de OpenStreetMap
-L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-    attribution: '© OpenStreetMap contributors',
-    maxZoom: 19
-}).addTo(map);
-
-// Marcador
-let marker = null;
-
-// Click en el mapa
-map.on('click', function(e) {
-    const lat = e.latlng.lat;
-    const lng = e.latlng.lng;
+// Inicializar mapa
+function initMap() {
+    // Ubicación por defecto
+    const defaultLat = -0.2226;
+    const defaultLng = -78.5129;
     
-    // Actualizar marcador
-    if (marker) {
-        marker.setLatLng(e.latlng);
-    } else {
-        marker = L.marker(e.latlng).addTo(map);
-    }
+    map = L.map('map').setView([defaultLat, defaultLng], 13);
     
-    // Guardar coordenadas
-    document.getElementById('latitude').value = lat;
-    document.getElementById('longitude').value = lng;
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '© OpenStreetMap contributors',
+        maxZoom: 19,
+    }).addTo(map);
     
-    // Obtener dirección (Reverse Geocoding)
-    fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=18&addressdetails=1`)
-        .then(response => response.json())
-        .then(data => {
-            const address = data.display_name || `${lat}, ${lng}`;
-            document.getElementById('address').value = address;
-            document.getElementById('submitBtn').disabled = false;
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            document.getElementById('address').value = `Lat: ${lat}, Lng: ${lng}`;
-            document.getElementById('submitBtn').disabled = false;
-        });
-});
-
-// Buscar ubicación
-function searchLocation() {
-    const query = document.getElementById('searchAddress').value;
-    if (!query) {
-        alert('Por favor ingresa una dirección');
-        return;
-    }
-    
-    fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}, Quito, Ecuador&limit=1`)
-        .then(response => response.json())
-        .then(data => {
-            if (data.length > 0) {
-                const lat = parseFloat(data[0].lat);
-                const lng = parseFloat(data[0].lon);
-                
-                // Centrar mapa
-                map.setView([lat, lng], 16);
-                
-                // Agregar marcador
-                if (marker) {
-                    marker.setLatLng([lat, lng]);
-                } else {
-                    marker = L.marker([lat, lng]).addTo(map);
-                }
-                
-                // Actualizar campos
-                document.getElementById('latitude').value = lat;
-                document.getElementById('longitude').value = lng;
-                document.getElementById('address').value = data[0].display_name;
-                document.getElementById('submitBtn').disabled = false;
-            } else {
-                alert('No se encontró la dirección. Intenta con otra búsqueda o selecciona en el mapa.');
-            }
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            alert('Error al buscar la dirección');
-        });
-}
-
-// Obtener ubicación actual del usuario
-if (navigator.geolocation) {
-    navigator.geolocation.getCurrentPosition(function(position) {
-        const userLat = position.coords.latitude;
-        const userLng = position.coords.longitude;
-        map.setView([userLat, userLng], 15);
-        
-        // Agregar marcador temporal
-        L.marker([userLat, userLng], {
-            icon: L.icon({
-                iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-blue.png',
-                iconSize: [25, 41],
-                iconAnchor: [12, 41]
-            })
-        }).addTo(map).bindPopup('📍 Tu ubicación actual').openPopup();
+    // Click en el mapa para agregar marcador
+    map.on('click', function(e) {
+        setMarker(e.latlng.lat, e.latlng.lng);
     });
 }
+
+function setMarker(lat, lng) {
+    // Remover marcador anterior
+    if (marker) {
+        map.removeLayer(marker);
+    }
+    
+    // Crear nuevo marcador
+    marker = L.marker([lat, lng], {
+        draggable: true
+    }).addTo(map);
+    
+    // Actualizar campos
+    document.getElementById('latitude').value = lat.toFixed(6);
+    document.getElementById('longitude').value = lng.toFixed(6);
+    
+    // Permitir mover el marcador
+    marker.on('dragend', function() {
+        const position = marker.getLatLng();
+        document.getElementById('latitude').value = position.lat.toFixed(6);
+        document.getElementById('longitude').value = position.lng.toFixed(6);
+    });
+    
+    // Zoom al marcador
+    map.setView([lat, lng], 15);
+}
+
+// Validar formulario
+document.getElementById('locationForm').addEventListener('submit', function(e) {
+    if (!document.getElementById('latitude').value || !document.getElementById('longitude').value) {
+        e.preventDefault();
+        alert('Por favor selecciona una ubicación en el mapa');
+        return false;
+    }
+});
+
+// Inicializar al cargar
+document.addEventListener('DOMContentLoaded', initMap);
 </script>
 {% endblock %}
