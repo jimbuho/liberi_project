@@ -1,7 +1,7 @@
 {% extends 'base.html' %}
 {% load static %}
 
-{% block title %}Proceso de Pago - Reserva #{{ booking.id }}{% endblock %}
+{% block title %}Proceso de Pago - Reserva #{{ booking.booking_id }}{% endblock %}
 
 {% block extra_css %}
 <style>
@@ -77,7 +77,7 @@
             <div class="row">
                 <div class="col-md-6 mb-3">
                     <strong><i class="fas fa-hashtag me-2"></i>Número de Reserva:</strong>
-                    <p class="mb-0">#{{ booking.id }}</p>
+                    <p class="mb-0">#{{ booking.booking_id }}</p>
                 </div>
                 <div class="col-md-6 mb-3">
                     <strong><i class="fas fa-user me-2"></i>Proveedor:</strong>

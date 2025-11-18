@@ -9,7 +9,7 @@
         <ol class="breadcrumb">
             <li class="breadcrumb-item"><a href="{% url 'home' %}">Inicio</a></li>
             <li class="breadcrumb-item"><a href="{% url 'bookings_list' %}">Mis Reservas</a></li>
-            <li class="breadcrumb-item active">Reserva #{{ booking.id|slice:":8" }}</li>
+            <li class="breadcrumb-item active">Reserva #{{ booking.booking_id }}</li>
         </ol>
     </nav>
 
@@ -20,7 +20,7 @@
                 <div class="card-header bg-primary text-white">
                     <h4 class="mb-0">
                         <i class="fas fa-calendar-check"></i> 
-                        Reserva #{{ booking.id|slice:":8" }}
+                        Reserva #{{ booking.booking_id }}
                     </h4>
                 </div>
                 <div class="card-body">

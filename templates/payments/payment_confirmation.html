@@ -1,7 +1,7 @@
 {% extends 'base.html' %}
 {% load static %}
 
-{% block title %}Pago Confirmado - Reserva #{{ booking.id }}{% endblock %}
+{% block title %}Pago Confirmado - Reserva #{{ booking.booking_id }}{% endblock %}
 
 {% block extra_css %}
 <style>
@@ -234,7 +234,7 @@
                 <div class="timeline-text flex-grow-1">
                     <h6>Reserva Creada</h6>
                     <p>
-                        Reserva <strong>#{{ booking.id|slice:":8" }}</strong> 
+                        Reserva <strong>#{{ booking.booking_id }}</strong> 
                         - {{ booking.created_at|date:"d/m/Y H:i" }}
                     </p>
                 </div>

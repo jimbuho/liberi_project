@@ -257,6 +257,13 @@ class Booking(models.Model):
     ]
     
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    slug = models.SlugField(
+        'ID Corto (Slug)',
+        db_index=True,
+        max_length=12,
+        blank=True,
+        help_text='Identificador único corto para la reserva'
+    )
     customer = models.ForeignKey(User, on_delete=models.CASCADE, related_name='customer_bookings',
                                 verbose_name='Cliente')
     provider = models.ForeignKey(User, on_delete=models.CASCADE, related_name='provider_bookings',
@@ -319,6 +326,22 @@ class Booking(models.Model):
         verbose_name_plural = 'Reservas'
         ordering = ['-created_at']
 
+    def save(self, *args, **kwargs):
+        # Generar slug si no existe
+        if not self.slug:
+            # Usar primeros 8 caracteres del UUID
+            base_slug = str(self.id)[:8].lower()
+            self.slug = base_slug
+            
+            # Verificar que sea único
+            counter = 1
+            original_slug = self.slug
+            while Booking.objects.filter(slug=self.slug).exclude(pk=self.pk).exists():
+                self.slug = f"{original_slug}-{counter}"
+                counter += 1
+        
+        super().save(*args, **kwargs)
+
     def get_services_display(self):
         """
         Retorna una representación legible de los servicios
@@ -328,7 +351,11 @@ class Booking(models.Model):
         return 'N/A'
 
     def __str__(self):
-        return f"Reserva {str(self.id)[:8]} - {self.get_status_display()}"
+        return f"Reserva {self.booking_id} - {self.get_status_display()}"
+
+    @property
+    def booking_id(self):
+        return self.slug if self.slug else  str(self.id)[:8].lower()
 
     @property
     def is_past(self):

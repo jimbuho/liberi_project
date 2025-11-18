@@ -811,11 +811,29 @@ class PaymentInline(admin.TabularInline):
 # Actualizar BookingAdmin para incluir el inline de pagos
 @admin.register(Booking)
 class BookingAdmin(admin.ModelAdmin):
-    list_display = ['booking_id', 'customer_name', 'provider_name', 'status_display', 'payment_display', 'scheduled_time', 'total_cost']
-    list_filter = ['status', 'payment_status', 'created_at']
+    list_display = [
+        'booking_id',           # Cambio #1: ID corto
+        'customer_name',
+        'provider_name',
+        'status_display',
+        'payment_display',
+        'incident_badge',       # Cambio #2: NUEVO - Badge de incidencia
+        'scheduled_time',
+        'total_cost'
+    ]
+    
+    # Cambio #2: Agregar filtro por incidencias reportadas
+    list_filter = ['status', 'payment_status', 'incident_reported', 'created_at']
+    
     search_fields = ['id', 'customer__username', 'provider__username']
     date_hierarchy = 'created_at'
-    readonly_fields = ('id', 'created_at', 'updated_at')
+    
+    readonly_fields = (
+        'id',
+        'created_at',
+        'updated_at',
+        'incident_details'     # Cambio #2: NUEVO - Detalles de incidencia
+    )
     
     fieldsets = (
         ('Información de la Reserva', {
@@ -827,6 +845,17 @@ class BookingAdmin(admin.ModelAdmin):
         ('Pago', {
             'fields': ('payment_status', 'total_cost', 'payment_method')
         }),
+        # Cambio #2: NUEVO - Sección de Incidencias Reportadas
+        ('Incidencias Reportadas', {
+            'fields': (
+                'incident_reported',
+                'incident_details',
+                'incident_description',
+                'incident_reported_at'
+            ),
+            'classes': ('collapse',),
+            'description': 'Gestión de incidencias reportadas por clientes'
+        }),
         ('Notas', {
             'fields': ('notes',)
         }),
@@ -836,9 +865,59 @@ class BookingAdmin(admin.ModelAdmin):
         }),
     )
     
+    # Cambio #1: Mostrar ID corto en listado
     def booking_id(self, obj):
-        return f'#{str(obj.id)[:8]}'
+        return f'#{obj.booking_id}'
     booking_id.short_description = 'ID Reserva'
+    
+    # Cambio #2: NUEVO - Método para mostrar badge de incidencia
+    def incident_badge(self, obj):
+        """
+        Muestra un badge visual distintivo para reservas con incidencias reportadas.
+        Facilita la identificación rápida de problemas en el listado.
+        """
+        if obj.incident_reported:
+            return format_html(
+                '<span style="background-color: #dc3545; color: white; padding: 5px 10px; '
+                'border-radius: 12px; font-weight: bold; font-size: 11px; display: inline-block;">'
+                '<i class="fas fa-flag"></i> INCIDENCIA</span>'
+            )
+        return format_html(
+            '<span style="color: #6c757d; font-size: 11px;">✓ OK</span>'
+        )
+    incident_badge.short_description = 'Estado Incidencia'
+    
+    # Cambio #2: NUEVO - Método para mostrar detalles de incidencia
+    def incident_details(self, obj):
+        """
+        Muestra los detalles completos de la incidencia en el formulario de edición.
+        Proporciona un panel destacado en rojo con toda la información del problema.
+        """
+        if obj.incident_reported:
+            return format_html(
+                '<div style="background-color: #f8d7da; border: 2px solid #f5c6cb; '
+                'padding: 15px; border-radius: 4px; margin: 10px 0;">'
+                '<strong style="color: #721c24; font-size: 14px;">'
+                '<i class="fas fa-exclamation-triangle"></i> ⚠️ INCIDENCIA REPORTADA</strong>'
+                '<hr style="border-color: #f5c6cb; margin: 10px 0;">'
+                '<p style="margin: 10px 0; color: #721c24; font-size: 13px; line-height: 1.5;">'
+                '<strong>Descripción:</strong><br>{}</p>'
+                '<p style="margin: 10px 0; color: #721c24; font-size: 12px;">'
+                '<i class="fas fa-clock"></i> <strong>Reportado:</strong> {}</p>'
+                '<div style="margin-top: 15px; padding-top: 10px; border-top: 1px solid #f5c6cb;">'
+                '<small style="color: #721c24;">'
+                '💡 <strong>Acción recomendada:</strong> Contactar al cliente y resolver el incidente.'
+                '</small></div></div>',
+                obj.incident_description or '<em>Sin descripción proporcionada</em>',
+                obj.incident_reported_at.strftime('%d/%m/%Y a las %H:%M') if obj.incident_reported_at else 'N/A'
+            )
+        return format_html(
+            '<div style="color: #28a745; font-size: 13px; padding: 10px;">'
+            '✅ <strong>Sin incidencias</strong><br>'
+            '<small>Esta reserva no tiene reportes de incidentes</small>'
+            '</div>'
+        )
+    incident_details.short_description = 'Detalles de Incidencia'
     
     def customer_name(self, obj):
         return obj.customer.get_full_name() or obj.customer.username
