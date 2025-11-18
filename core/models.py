@@ -289,6 +289,29 @@ class Booking(models.Model):
     notes = models.TextField('Notas', blank=True)
     created_at = models.DateTimeField('Fecha de creación', auto_now_add=True)
     updated_at = models.DateTimeField('Última actualización', auto_now=True)
+    completion_code = models.CharField(
+        'Código de Finalización',
+        max_length=6,
+        blank=True,
+        null=True,
+        help_text='Código de 6 dígitos que el cliente entrega al proveedor'
+    )
+    incident_reported = models.BooleanField(
+        'Incidencia Reportada',
+        default=False,
+        help_text='Si el cliente reportó que no recibió el servicio'
+    )
+    incident_description = models.TextField(
+        'Descripción de Incidencia',
+        blank=True,
+        null=True,
+        help_text='Detalles del problema reportado por el cliente'
+    )
+    incident_reported_at = models.DateTimeField(
+        'Incidencia Reportada En',
+        blank=True,
+        null=True
+    )
 
     class Meta:
         db_table = 'bookings'
@@ -327,6 +350,30 @@ class Booking(models.Model):
             return 0
         delta = self.scheduled_time - timezone.now()
         return int(delta.total_seconds() / 3600)
+
+    def generate_completion_code(self):
+        """Genera un código de 6 dígitos para completar el servicio"""
+        import random
+        self.completion_code = ''.join([str(random.randint(0, 9)) for _ in range(6)])
+        self.save(update_fields=['completion_code'])
+        return self.completion_code
+    
+    def verify_completion_code(self, code):
+        """Verifica si el código ingresado es correcto"""
+        return self.completion_code == code
+    
+    def should_show_completion_code(self):
+        """Determina si debe mostrar el código al cliente"""
+        # Mostrar cuando: está aceptada, pagada, y faltan 2 horas o menos
+        if self.status != 'accepted' or self.payment_status != 'paid':
+            return False
+        
+        from django.utils import timezone
+        now = timezone.now()
+        time_until = self.scheduled_time - now
+        hours_until = time_until.total_seconds() / 3600
+        
+        return hours_until <= 2
 
 
 class Review(models.Model):

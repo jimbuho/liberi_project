@@ -30,6 +30,8 @@ urlpatterns = [
     path('bookings/<uuid:booking_id>/reject/', views.booking_reject, name='booking_reject'),
     path('bookings/<uuid:booking_id>/complete/', views.booking_complete, name='booking_complete'),
     path('bookings/<int:booking_id>/payment/', views.payment_process, name='payment_process'),
+    path('bookings/<uuid:booking_id>/complete-with-code/', views.booking_complete_with_code, name='booking_complete_with_code'),
+    path('bookings/<uuid:booking_id>/report-incident/', views.booking_report_incident, name='booking_report_incident'),
     
     # Locations
     path('locations/create/', views.location_create, name='location_create'),

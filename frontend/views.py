@@ -1053,7 +1053,7 @@ def bookings_list(request):
 
 @login_required
 def booking_detail(request, booking_id):
-    """Detalle de una reserva con lógica de contacto"""
+    """Detalle de una reserva con lógica de contacto y código de finalización"""
     booking = get_object_or_404(Booking, id=booking_id)
     
     # Verificar que el usuario tenga acceso
@@ -1076,6 +1076,11 @@ def booking_detail(request, booking_id):
             
             if hours_until <= 2:
                 can_contact = True
+                
+                # NUEVO: Generar código de finalización si no existe
+                if not booking.completion_code:
+                    booking.generate_completion_code()
+                    
             else:
                 # Calcular horas restantes para mostrar
                 hours_remaining = int(hours_until)
@@ -1097,11 +1102,16 @@ def booking_detail(request, booking_id):
             hours_remaining = int(hours_until)
             contact_message = f'El contacto estará disponible 2 horas antes de la cita (faltan {hours_remaining} horas) y luego del pago exitoso.'
     
+    # Determinar si mostrar código de finalización al cliente
+    show_completion_code = False
+    if request.user.profile.role == 'customer':
+        show_completion_code = booking.should_show_completion_code()
+    
     context = {
         'booking': booking,
         'can_contact': can_contact,
         'contact_message': contact_message,
-        # CAMBIO #4.6: Agregar datos de ubicación para el mapa
+        'show_completion_code': show_completion_code,  # NUEVO
         'booking_location': booking.location,
         'booking_location_lat': float(booking.location.latitude) if booking.location else None,
         'booking_location_lng': float(booking.location.longitude) if booking.location else None,
@@ -3351,3 +3361,182 @@ Revisa en admin: /admin/core/withdrawalrequest/{withdrawal.id}/change/
         'error_msg': error_msg if not can_withdraw_today else None
     }
     return render(request, 'providers/withdrawal_create.html', context)
+
+# ============================================================================
+# FRONTEND/VIEWS.PY - NUEVAS VISTAS
+# Agregar estas vistas al final del archivo
+# ============================================================================
+
+@login_required
+def booking_complete_with_code(request, booking_id):
+    """
+    Vista para que el proveedor complete el servicio ingresando el código
+    """
+    if request.method != 'POST':
+        return redirect('booking_detail', booking_id=booking_id)
+    
+    booking = get_object_or_404(Booking, id=booking_id)
+    
+    # Verificar que sea el proveedor
+    if booking.provider != request.user:
+        messages.error(request, 'No tienes permiso para esta acción')
+        return redirect('booking_detail', booking_id=booking_id)
+    
+    # Verificar estado
+    if booking.status != 'accepted':
+        messages.error(request, 'Esta reserva no está en estado aceptado')
+        return redirect('booking_detail', booking_id=booking_id)
+    
+    if booking.payment_status != 'paid':
+        messages.error(request, 'Esta reserva no ha sido pagada')
+        return redirect('booking_detail', booking_id=booking_id)
+    
+    # Obtener código ingresado
+    code = request.POST.get('completion_code', '').strip()
+    
+    if not code:
+        messages.error(request, 'Debes ingresar el código de finalización')
+        return redirect('booking_detail', booking_id=booking_id)
+    
+    # Verificar código
+    if not booking.verify_completion_code(code):
+        messages.error(request, 'Código incorrecto. Verifica con el cliente.')
+        return redirect('booking_detail', booking_id=booking_id)
+    
+    # Marcar como completado
+    try:
+        with transaction.atomic():
+            booking.status = 'completed'
+            booking.provider_completed_at = timezone.now()
+            booking.customer_completed_at = timezone.now()  # Ambos confirmados con código
+            booking.save()
+            
+            # Notificaciones
+            Notification.objects.create(
+                user=booking.customer,
+                notification_type='booking_completed',
+                title='✅ Servicio Completado',
+                message=f'Tu servicio con {booking.provider.get_full_name()} ha sido completado exitosamente.',
+                booking=booking,
+                action_url=f'/bookings/{booking.id}/'
+            )
+            
+            Notification.objects.create(
+                user=booking.provider,
+                notification_type='booking_completed',
+                title='✅ Servicio Completado',
+                message=f'Has completado el servicio con {booking.customer.get_full_name()}. El dinero estará disponible para retiro.',
+                booking=booking,
+                action_url=f'/bookings/{booking.id}/'
+            )
+            
+            # Log
+            AuditLog.objects.create(
+                user=request.user,
+                action='Servicio completado con código',
+                metadata={
+                    'booking_id': str(booking.id),
+                    'code_verified': True
+                }
+            )
+            
+            messages.success(request, '✅ ¡Servicio completado! El código fue verificado correctamente.')
+            
+    except Exception as e:
+        logger.error(f"Error completando servicio: {e}")
+        messages.error(request, 'Error al completar el servicio. Intenta nuevamente.')
+    
+    return redirect('booking_detail', booking_id=booking_id)
+
+
+@login_required
+def booking_report_incident(request, booking_id):
+    """
+    Vista para que el cliente reporte que no recibió el servicio
+    """
+    if request.method != 'POST':
+        return redirect('booking_detail', booking_id=booking_id)
+    
+    booking = get_object_or_404(Booking, id=booking_id)
+    
+    # Verificar que sea el cliente
+    if booking.customer != request.user:
+        messages.error(request, 'No tienes permiso para esta acción')
+        return redirect('booking_detail', booking_id=booking_id)
+    
+    # Verificar que no haya sido reportado ya
+    if booking.incident_reported:
+        messages.info(request, 'Ya has reportado una incidencia para esta reserva')
+        return redirect('booking_detail', booking_id=booking_id)
+    
+    # Obtener descripción
+    description = request.POST.get('incident_description', '').strip()
+    
+    if not description:
+        messages.error(request, 'Debes describir qué sucedió')
+        return redirect('booking_detail', booking_id=booking_id)
+    
+    try:
+        with transaction.atomic():
+            # Registrar incidencia
+            booking.incident_reported = True
+            booking.incident_description = description
+            booking.incident_reported_at = timezone.now()
+            booking.save()
+            
+            # Notificar al proveedor
+            Notification.objects.create(
+                user=booking.provider,
+                notification_type='system',
+                title='⚠️ Incidencia Reportada',
+                message=f'El cliente {booking.customer.get_full_name()} reportó una incidencia: {description[:100]}',
+                booking=booking,
+                action_url=f'/bookings/{booking.id}/'
+            )
+            
+            # Notificar a los administradores
+            admin_users = User.objects.filter(is_staff=True, is_active=True)
+            
+            for admin in admin_users:
+                Notification.objects.create(
+                    user=admin,
+                    notification_type='system',
+                    title='🚨 Nueva Incidencia Reportada',
+                    message=f'Reserva #{str(booking.id)[:8]} - Cliente: {booking.customer.get_full_name()}',
+                    booking=booking,
+                    action_url=f'/admin/core/booking/{booking.id}/change/'
+                )
+            
+            # Enviar email a admins
+            admin_emails = [admin.email for admin in admin_users if admin.email]
+            
+            if admin_emails:
+                try:
+                    from core.tasks import send_incident_notification_to_admins_task
+                    send_incident_notification_to_admins_task.delay(
+                        booking_id=str(booking.id),
+                        admin_emails=admin_emails
+                    )
+                except Exception as e:
+                    logger.warning(f"Error enviando email de incidencia: {e}")
+            
+            # Log
+            AuditLog.objects.create(
+                user=request.user,
+                action='Incidencia reportada',
+                metadata={
+                    'booking_id': str(booking.id),
+                    'description': description
+                }
+            )
+            
+            messages.success(
+                request,
+                '✅ Incidencia reportada. Nuestro equipo revisará el caso y te contactará pronto.'
+            )
+            
+    except Exception as e:
+        logger.error(f"Error reportando incidencia: {e}")
+        messages.error(request, 'Error al reportar la incidencia. Intenta nuevamente.')
+    
+    return redirect('booking_detail', booking_id=booking_id)

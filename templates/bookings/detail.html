@@ -54,6 +54,98 @@
 
                     <hr>
 
+                    <!-- NUEVO: Código de Finalización para Cliente -->
+                    {% if user.profile.role == 'customer' and show_completion_code and booking.completion_code %}
+                    <div class="alert alert-warning border-warning">
+                        <h5 class="alert-heading">
+                            <i class="fas fa-key"></i> Código de Finalización
+                        </h5>
+                        <p class="mb-2">
+                            Entrega este código al proveedor <strong>solo cuando hayas recibido el servicio completo</strong>:
+                        </p>
+                        <div class="text-center my-3">
+                            <h1 class="display-3 font-monospace fw-bold text-primary">
+                                {{ booking.completion_code }}
+                            </h1>
+                        </div>
+                        <hr>
+                        <p class="mb-0">
+                            <i class="fas fa-info-circle"></i>
+                            <small>
+                                Este código confirma que recibiste el servicio. No lo compartas hasta estar seguro de que todo esté completo y correcto.
+                            </small>
+                        </p>
+                    </div>
+                    <hr>
+                    {% endif %}
+
+                    <!-- NUEVO: Formulario para Proveedor - Ingresar Código -->
+                    {% if user.profile.role == 'provider' and booking.status == 'accepted' and booking.payment_status == 'paid' %}
+                    <div class="card bg-light mb-4">
+                        <div class="card-body">
+                            <h5 class="card-title">
+                                <i class="fas fa-check-circle"></i> Completar Servicio
+                            </h5>
+                            <p class="text-muted">
+                                Solicita al cliente el código de finalización y ingrésalo aquí:
+                            </p>
+                            <form method="post" action="{% url 'booking_complete_with_code' booking.id %}">
+                                {% csrf_token %}
+                                <div class="input-group input-group-lg mb-3">
+                                    <input type="text" 
+                                           name="completion_code" 
+                                           class="form-control text-center font-monospace fw-bold" 
+                                           placeholder="000000"
+                                           maxlength="6"
+                                           pattern="[0-9]{6}"
+                                           required>
+                                    <button type="submit" class="btn btn-success">
+                                        <i class="fas fa-check"></i> Verificar y Completar
+                                    </button>
+                                </div>
+                                <small class="text-muted">
+                                    <i class="fas fa-info-circle"></i> El cliente debe entregarte un código de 6 dígitos
+                                </small>
+                            </form>
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    <!-- NUEVO: Opción para Cliente - Reportar Incidencia -->
+                    {% if user.profile.role == 'customer' and booking.status == 'accepted' and booking.payment_status == 'paid' and not booking.incident_reported %}
+                    <div class="card border-danger mb-4">
+                        <div class="card-body">
+                            <h5 class="card-title text-danger">
+                                <i class="fas fa-exclamation-triangle"></i> ¿No recibiste el servicio?
+                            </h5>
+                            <p class="text-muted">
+                                Si el proveedor no asistió o hubo algún problema, repórtalo aquí:
+                            </p>
+                            <button type="button" class="btn btn-danger" data-bs-toggle="modal" data-bs-target="#reportIncidentModal">
+                                <i class="fas fa-flag"></i> Reportar Incidencia
+                            </button>
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    <!-- MOSTRAR si ya se reportó incidencia -->
+                    {% if booking.incident_reported %}
+                    <div class="alert alert-danger">
+                        <h5 class="alert-heading">
+                            <i class="fas fa-flag"></i> Incidencia Reportada
+                        </h5>
+                        <p><strong>Descripción:</strong> {{ booking.incident_description }}</p>
+                        <p class="mb-0">
+                            <small><i class="fas fa-clock"></i> Reportado: {{ booking.incident_reported_at|date:"d/m/Y H:i" }}</small>
+                        </p>
+                        <hr>
+                        <p class="mb-0">
+                            <i class="fas fa-info-circle"></i> Nuestro equipo está revisando el caso y te contactará pronto.
+                        </p>
+                    </div>
+                    <hr>
+                    {% endif %}
+
                     <!-- Provider/Customer Info -->
                     {% if user.profile.role == 'customer' %}
                     <h5><i class="fas fa-user-tie"></i> Proveedor</h5>
@@ -61,15 +153,16 @@
                         <div class="card-body">
                             <h6>{{ booking.provider.get_full_name }}</h6>
                             
-                            <!-- Mostrar contacto según lógica del backend -->
+                            <!-- CAMBIO #1: Arreglar WhatsApp - usar booking.provider.profile.phone -->
                             {% if can_contact %}
                                 <p class="mb-1">
-                                    <i class="fas fa-phone"></i> {{ booking.provider_phone }}
+                                    <i class="fas fa-phone"></i> {{ booking.provider.profile.phone }}
                                 </p>
                                 <p class="mb-1">
                                     <i class="fas fa-envelope"></i> {{ booking.provider.email }}
                                 </p>
-                                <a href="https://wa.me/593{{ booking.provider_phone }}" 
+                                <!-- CAMBIO #1 y #2: Arreglar WhatsApp y eliminar botón llamar -->
+                                <a href="https://wa.me/593{{ booking.provider.profile.phone|slice:'1:' }}" 
                                    target="_blank" 
                                    class="btn btn-success btn-sm mt-2">
                                     <i class="fab fa-whatsapp"></i> Contactar por WhatsApp
@@ -93,15 +186,14 @@
                         <div class="card-body">
                             <h6>{{ booking.customer.get_full_name }}</h6>
                             
-                            <!-- Proveedor: mostrar según lógica del backend -->
                             {% if can_contact %}
                                 <p class="mb-1">
-                                    <i class="fas fa-phone"></i> {{ booking.customer_phone }}
+                                    <i class="fas fa-phone"></i> {{ booking.customer.profile.phone }}
                                 </p>
                                 <p class="mb-0">
                                     <i class="fas fa-envelope"></i> {{ booking.customer.email }}
                                 </p>
-                                <a href="https://wa.me/593{{ booking.customer_phone }}" 
+                                <a href="https://wa.me/593{{ booking.customer.profile.phone|slice:'1:' }}" 
                                    target="_blank" 
                                    class="btn btn-success btn-sm mt-2">
                                     <i class="fab fa-whatsapp"></i> Contactar por WhatsApp
@@ -157,7 +249,6 @@
                     </div>
                     {% endif %}
 
-
                     <!-- Services -->
                     <h5><i class="fas fa-concierge-bell"></i> Servicios Contratados</h5>
                     <div class="table-responsive">
@@ -205,16 +296,6 @@
                             </button>
                         </form>
                     </div>
-                    {% endif %}
-
-                    {% if user.profile.role == 'provider' and booking.status == 'accepted' and booking.payment_status == 'paid' %}
-                    <hr>
-                    <form method="post" action="{% url 'booking_complete' booking.id %}">
-                        {% csrf_token %}
-                        <button type="submit" class="btn btn-success btn-lg w-100">
-                            <i class="fas fa-check-circle"></i> Marcar como Completada
-                        </button>
-                    </form>
                     {% endif %}
                 </div>
             </div>
@@ -329,19 +410,13 @@
                     <hr>
                     {% if user.profile.role == 'customer' %}
                         <p class="mb-2">Contacta al proveedor:</p>
-                        <a href="tel:{{ booking.provider_phone }}" class="btn btn-outline-primary w-100 mb-2">
-                            <i class="fas fa-phone"></i> Llamar
-                        </a>
-                        <a href="https://wa.me/593{{ booking.provider_phone }}" target="_blank" 
+                        <a href="https://wa.me/593{{ booking.provider.profile.phone|slice:'1:' }}" target="_blank" 
                            class="btn btn-success w-100">
                             <i class="fab fa-whatsapp"></i> WhatsApp
                         </a>
                     {% else %}
                         <p class="mb-2">Contacta al cliente:</p>
-                        <a href="tel:{{ booking.customer_phone }}" class="btn btn-outline-primary w-100 mb-2">
-                            <i class="fas fa-phone"></i> Llamar
-                        </a>
-                        <a href="https://wa.me/593{{ booking.customer_phone }}" target="_blank" 
+                        <a href="https://wa.me/593{{ booking.customer.profile.phone|slice:'1:' }}" target="_blank" 
                            class="btn btn-success w-100">
                             <i class="fab fa-whatsapp"></i> WhatsApp
                         </a>
@@ -352,4 +427,43 @@
         </div>
     </div>
 </div>
+
+<!-- Modal para Reportar Incidencia -->
+{% if user.profile.role == 'customer' and booking.status == 'accepted' and booking.payment_status == 'paid' and not booking.incident_reported %}
+<div class="modal fade" id="reportIncidentModal" tabindex="-1" aria-labelledby="reportIncidentModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form method="post" action="{% url 'booking_report_incident' booking.id %}">
+                {% csrf_token %}
+                <div class="modal-header bg-danger text-white">
+                    <h5 class="modal-title" id="reportIncidentModalLabel">
+                        <i class="fas fa-flag"></i> Reportar Incidencia
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <p>Por favor describe qué sucedió:</p>
+                    <textarea name="incident_description" 
+                              class="form-control" 
+                              rows="5" 
+                              placeholder="Ej: El proveedor no asistió a la cita / El servicio no se completó / Hubo un problema con..."
+                              required></textarea>
+                    <div class="alert alert-info mt-3">
+                        <small>
+                            <i class="fas fa-info-circle"></i>
+                            Nuestro equipo revisará tu caso y te contactará para resolver la situación.
+                        </small>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-danger">
+                        <i class="fas fa-flag"></i> Enviar Reporte
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endif %}
 {% endblock %}

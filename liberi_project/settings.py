@@ -3,6 +3,7 @@ import dj_database_url
 from pathlib import Path
 from datetime import timedelta
 from dotenv import load_dotenv
+from celery.schedules import crontab
 
 load_dotenv()
 
@@ -306,7 +307,6 @@ CELERY_RESULT_SERIALIZER = 'json'
 CELERY_TIMEZONE = 'America/Guayaquil'
 CELERY_TASK_TIME_LIMIT = 30 * 60  # 30 minutos máximo
 CELERY_TASK_SOFT_TIME_LIMIT = 25 * 60  # 25 minutos soft limit
-CELERY_BEAT_SCHEDULE = {}
 
 # ============================================
 # WHATSAPP CLOUD API CONFIGURATION
@@ -319,6 +319,10 @@ CELERY_BEAT_SCHEDULE = {
     'send-service-reminders': {
         'task': 'whatsapp_notifications.tasks.send_service_reminders',
         'schedule': 1800.0,  # cada 30 minutos
+    },
+    'check-uncompleted-services': {
+        'task': 'core.tasks.check_uncompleted_services',
+        'schedule': crontab(minute=0),  # Cada hora en punto
     },
 }
 

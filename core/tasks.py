@@ -4,7 +4,9 @@ from django.core.mail import send_mail
 from django.template.loader import render_to_string
 from django.conf import settings
 from django.utils import timezone
-from django.contrib.auth.models import User
+
+from core.models import User, Service, Booking, Payment, WithdrawalRequest, ProviderProfile, Notification
+
 import logging
 
 logger = logging.getLogger(__name__)
@@ -126,7 +128,7 @@ def send_welcome_email_task(self, user_id, user_email, user_name, is_provider=Fa
 @shared_task
 def send_provider_approval_notification_task(provider_id, admin_emails):
     """Notifica a admins cuando proveedor completa primer servicio"""
-    from core.models import User, Service
+    
     
     try:
         provider = User.objects.get(id=provider_id)
@@ -219,8 +221,6 @@ El Equipo de Liberi
 @shared_task
 def send_new_booking_to_provider_task(booking_id):
     """Notifica al proveedor sobre una nueva reserva"""
-    from core.models import Booking
-    
     try:
         booking = Booking.objects.get(id=booking_id)
         provider = booking.provider
@@ -262,7 +262,6 @@ Liberi
 @shared_task
 def send_booking_accepted_to_customer_task(booking_id):
     """Notifica al cliente cuando proveedor acepta reserva"""
-    from core.models import Booking
     
     try:
         booking = Booking.objects.get(id=booking_id)
@@ -314,7 +313,6 @@ El Equipo de Liberi
 @shared_task
 def send_payment_approved_to_customer_task(payment_id):
     """Notifica al cliente cuando pago es aprobado"""
-    from core.models import Payment
     
     try:
         payment = Payment.objects.get(id=payment_id)
@@ -366,8 +364,7 @@ El Equipo de Liberi
 @shared_task
 def send_payment_approved_to_provider_task(payment_id):
     """Notifica al proveedor cuando pago del cliente es aprobado"""
-    from core.models import Payment
-    
+
     try:
         payment = Payment.objects.get(id=payment_id)
         booking = payment.booking
@@ -466,7 +463,6 @@ El Equipo de Liberi
 @shared_task
 def send_withdrawal_request_to_admins_task(withdrawal_id):
     """Notifica a admins sobre nueva solicitud de retiro"""
-    from core.models import WithdrawalRequest, User
     
     try:
         withdrawal = WithdrawalRequest.objects.get(id=withdrawal_id)
@@ -515,7 +511,6 @@ Sistema Liberi
 @shared_task
 def send_withdrawal_completed_to_provider_task(withdrawal_id):
     """Notifica al proveedor cuando su retiro fue completado"""
-    from core.models import WithdrawalRequest
     
     try:
         withdrawal = WithdrawalRequest.objects.get(id=withdrawal_id)
@@ -647,7 +642,6 @@ def send_provider_approval_email_task(provider_profile_id):
     """
     Envía email de bienvenida cuando un proveedor es aprobado
     """
-    from core.models import ProviderProfile
     from django.core.mail import EmailMultiAlternatives
     from django.template.loader import render_to_string
     from django.conf import settings
@@ -695,3 +689,183 @@ def send_provider_approval_email_task(provider_profile_id):
     except Exception as e:
         logger.error(f'❌ Error enviando email de aprobación del proveedor: {e}')
         return False
+
+# ============================================================================
+# CORE/TASKS.PY - NUEVAS TAREAS
+# Agregar al final del archivo
+# ============================================================================
+
+@shared_task
+def check_uncompleted_services():
+    """
+    Tarea periódica (cada hora) que verifica servicios que no se completaron
+    y envía notificaciones al cliente preguntando si recibió el servicio
+    """
+    from django.utils import timezone
+    from datetime import timedelta
+    from django.contrib.auth.models import User
+    
+    logger.info("="*50)
+    logger.info("Iniciando verificación de servicios no completados")
+    logger.info("="*50)
+    
+    now = timezone.now()
+    
+    # Buscar servicios que:
+    # 1. Están aceptados y pagados
+    # 2. La fecha programada ya pasó (más de 2 horas)
+    # 3. NO están completados
+    # 4. NO tienen incidencia reportada
+    
+    two_hours_ago = now - timedelta(hours=2)
+    
+    uncompleted_bookings = Booking.objects.filter(
+        status='accepted',
+        payment_status='paid',
+        scheduled_time__lt=two_hours_ago,
+        incident_reported=False
+    ).select_related('customer', 'provider')
+    
+    logger.info(f"Servicios no completados encontrados: {uncompleted_bookings.count()}")
+    
+    for booking in uncompleted_bookings:
+        try:
+            # Verificar que no se haya enviado notificación recientemente (últimas 24h)
+            recent_notification = Notification.objects.filter(
+                user=booking.customer,
+                booking=booking,
+                notification_type='system',
+                title__contains='¿Recibiste el servicio?',
+                created_at__gte=now - timedelta(hours=24)
+            ).exists()
+            
+            if recent_notification:
+                logger.info(f"Booking {booking.id}: Ya se notificó recientemente")
+                continue
+            
+            # Crear notificación para el cliente
+            Notification.objects.create(
+                user=booking.customer,
+                notification_type='system',
+                title='❓ ¿Recibiste el servicio?',
+                message=f'Tu cita con {booking.provider.get_full_name()} estaba programada para {booking.scheduled_time.strftime("%d/%m/%Y %H:%M")}. Por favor confirma si recibiste el servicio.',
+                booking=booking,
+                action_url=f'/bookings/{booking.id}/'
+            )
+            
+            # Enviar email al cliente
+            send_service_completion_check_email_task.delay(booking_id=str(booking.id))
+            
+            logger.info(f"✅ Notificación enviada para booking {booking.id}")
+            
+        except Exception as e:
+            logger.error(f"Error procesando booking {booking.id}: {e}")
+    
+    logger.info("Verificación completada")
+    return f"Procesados {uncompleted_bookings.count()} servicios"
+
+
+@shared_task
+def send_service_completion_check_email_task(booking_id):
+    """
+    Envía email al cliente preguntando si recibió el servicio
+    """
+    try:
+        booking = Booking.objects.get(id=booking_id)
+        customer = booking.customer
+        
+        subject = f'¿Recibiste tu servicio? - Reserva #{str(booking.id)[:8]}'
+        
+        message = f"""
+Hola {customer.get_full_name() or customer.username},
+
+Notamos que tu servicio con {booking.provider.get_full_name()} estaba programado para {booking.scheduled_time.strftime('%d/%m/%Y a las %H:%M')}.
+
+¿Recibiste el servicio correctamente?
+
+Si TODO ESTÁ BIEN:
+- No necesitas hacer nada. El proveedor marcará el servicio como completado.
+
+Si NO RECIBISTE EL SERVICIO o hubo algún problema:
+- Ingresa a tu reserva y reporta la incidencia: https://liberi.ec/bookings/{booking.id}/
+- Nuestro equipo revisará el caso y te contactará.
+
+DATOS DE TU RESERVA:
+- Número de Reserva: #{str(booking.id)[:8]}
+- Servicio: {booking.get_services_display()}
+- Proveedor: {booking.provider.get_full_name()}
+- Monto: ${booking.total_cost}
+
+Si tienes dudas, contáctanos: soporte@liberi.ec
+
+---
+Equipo Liberi
+        """
+        
+        send_mail(
+            subject=subject,
+            message=message,
+            from_email=settings.DEFAULT_FROM_EMAIL,
+            recipient_list=[customer.email],
+            fail_silently=False,
+        )
+        
+        logger.info(f"✅ Email de verificación enviado a {customer.email}")
+        return f"Email enviado a {customer.email}"
+        
+    except Booking.DoesNotExist:
+        logger.error(f"Booking {booking_id} no encontrado")
+        return f"Error: Booking no encontrado"
+    except Exception as e:
+        logger.error(f"Error enviando email: {e}")
+        return f"Error: {str(e)}"
+
+
+@shared_task
+def send_incident_notification_to_admins_task(booking_id, admin_emails):
+    """
+    Notifica a los administradores sobre una incidencia reportada
+    """
+    try:
+        booking = Booking.objects.get(id=booking_id)
+        
+        subject = f'🚨 INCIDENCIA REPORTADA - Reserva #{str(booking.id)[:8]}'
+        
+        message = f"""
+ALERTA: Un cliente ha reportado una incidencia
+
+DETALLES DE LA RESERVA:
+- ID: {booking.id}
+- Cliente: {booking.customer.get_full_name()} ({booking.customer.email})
+- Proveedor: {booking.provider.get_full_name()} ({booking.provider.email})
+- Servicio: {booking.get_services_display()}
+- Fecha Programada: {booking.scheduled_time.strftime('%d/%m/%Y %H:%M')}
+- Monto: ${booking.total_cost}
+
+DESCRIPCIÓN DEL PROBLEMA:
+{booking.incident_description}
+
+ACCIÓN REQUERIDA:
+1. Revisar el caso en el admin: /admin/core/booking/{booking.id}/change/
+2. Contactar al cliente: {booking.customer.email}
+3. Contactar al proveedor: {booking.provider.email}
+4. Determinar solución (reembolso, reprogramación, etc.)
+
+---
+Sistema Liberi
+        """
+        
+        send_mail(
+            subject=subject,
+            message=message,
+            from_email=settings.DEFAULT_FROM_EMAIL,
+            recipient_list=admin_emails,
+            fail_silently=False,
+        )
+        
+        logger.info(f"Email de incidencia enviado a {len(admin_emails)} admins")
+        return f"Email enviado"
+        
+    except Exception as e:
+        logger.error(f"Error: {e}")
+        return f"Error: {str(e)}"
