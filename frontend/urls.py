@@ -101,4 +101,9 @@ urlpatterns = [
     path('provider/withdrawals/', views.provider_withdrawal_list, name='provider_withdrawal_list'),
     path('provider/withdrawals/create/', views.provider_withdrawal_create, name='provider_withdrawal_create'),
 
+    # Password Reset
+    path('forgot-password/', views.forgot_password_view, name='forgot_password'),
+    path('reset-password/<str:token>/', views.reset_password_view, name='reset_password'),
+    path('change-password/', views.change_password_view, name='change_password'),
+
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

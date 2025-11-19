@@ -236,6 +236,7 @@
 
 <!-- ========================================
      MODAL: SELECCIÓN DE CIUDAD
+     VERSION SIMPLIFICADA: Usa GET redirect
      ======================================== -->
 <div class="modal fade" id="cityModal" tabindex="-1" aria-labelledby="cityModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
@@ -251,12 +252,10 @@
                     Elige la ciudad donde deseas buscar servicios
                 </p>
                 
-                <div class="list-group" id="citiesList">
+                <div class="list-group">
                     {% for city in cities %}
-                    <button type="button" 
-                            class="list-group-item list-group-item-action city-option {% if current_city.id == city.id %}active{% endif %}"
-                            data-city-id="{{ city.id }}"
-                            data-city-name="{{ city.name }}">
+                    <a href="?city={{ city.id }}" 
+                       class="list-group-item list-group-item-action {% if current_city.id == city.id %}active{% endif %}">
                         <div class="d-flex justify-content-between align-items-center">
                             <div>
                                 <h6 class="mb-1"><i class="fas fa-map-marker-alt"></i> {{ city.name }}</h6>
@@ -266,7 +265,7 @@
                             <span class="badge bg-primary">Actual</span>
                             {% endif %}
                         </div>
-                    </button>
+                    </a>
                     {% empty %}
                     <p class="text-muted text-center">No hay ciudades disponibles</p>
                     {% endfor %}
@@ -330,45 +329,6 @@
 
 <script>
 // ========================================
-// EVENTO: Click en una ciudad
-// ========================================
-document.querySelectorAll('.city-option').forEach(cityBtn => {
-    cityBtn.addEventListener('click', function() {
-        const cityId = this.getAttribute('data-city-id');
-        const cityName = this.getAttribute('data-city-name');
-        
-        // Mostrar loader
-        const loader = document.getElementById('globalLoader');
-        if (loader) loader.classList.add('active');
-        
-        // Hacer POST a set_current_city_ajax
-        fetch('{% url "set_current_city" %}', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/x-www-form-urlencoded',
-                'X-CSRFToken': '{{ csrf_token }}'
-            },
-            body: 'city_id=' + cityId
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                // Recargar la página
-                window.location.reload();
-            } else {
-                alert(data.error || 'Error al cambiar ciudad');
-                if (loader) loader.classList.remove('active');
-            }
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            alert('Error al cambiar ciudad');
-            if (loader) loader.classList.remove('active');
-        });
-    });
-});
-
-// ========================================
 // Categoría Filter
 // ========================================
 document.querySelectorAll('.category-filter').forEach(radio => {
@@ -382,59 +342,6 @@ document.querySelectorAll('.category-filter').forEach(radio => {
     });
 });
 
-// ========================================
-// Detección de ubicación (opcional)
-// ========================================
-function detectLocation() {
-    if (!navigator.geolocation) {
-        alert('Tu navegador no soporta geolocalización');
-        return;
-    }
-    
-    const btn = event.target;
-    btn.disabled = true;
-    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Detectando...';
-    
-    navigator.geolocation.getCurrentPosition(
-        async function(position) {
-            const lat = position.coords.latitude;
-            const lng = position.coords.longitude;
-            
-            try {
-                const response = await fetch('{% url "detect_location" %}', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'X-CSRFToken': '{{ csrf_token }}'
-                    },
-                    body: JSON.stringify({ latitude: lat, longitude: lng })
-                });
-                
-                const data = await response.json();
-                
-                if (data.success) {
-                    alert(data.message);
-                    window.location.reload();
-                } else {
-                    if (data.requires_selection) {
-                        alert(data.message);
-                        const modal = new bootstrap.Modal(document.getElementById('zoneModal'));
-                        modal.show();
-                    }
-                }
-            } catch (error) {
-                alert('Error al detectar ubicación');
-            } finally {
-                btn.disabled = false;
-                btn.innerHTML = '<i class="fas fa-crosshairs"></i> Detectar';
-            }
-        },
-        function(error) {
-            alert('No se pudo obtener tu ubicación. Por favor selecciona tu zona manualmente.');
-            btn.disabled = false;
-            btn.innerHTML = '<i class="fas fa-crosshairs"></i> Detectar';
-        }
-    );
-}
+console.log('✅ JavaScript de servicios cargado correctamente');
 </script>
 {% endblock %}

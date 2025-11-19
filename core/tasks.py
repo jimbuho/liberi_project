@@ -954,3 +954,56 @@ Sistema Liberi
     except Exception as e:
         logger.error(f"Error: {e}")
         return f"Error: {str(e)}"
+
+# ============================================
+# TAREA CELERY: ENVIAR EMAIL DE RESET
+# ============================================
+
+@shared_task
+def send_password_reset_email_task(user_id, token):
+    """
+    Envía email con enlace de reset de contraseña
+    """
+    try:
+        user = User.objects.get(id=user_id)
+    except User.DoesNotExist:
+        logger.error(f"Usuario {user_id} no encontrado")
+        return
+    
+    try:
+        reset_url = f"{settings.BASE_URL}/reset-password/{token}/"
+        
+        context = {
+            'user_name': user.first_name or user.username,
+            'reset_url': reset_url,
+            'expiry_hours': 1,
+            'support_email': 'soporte@liberi.com'
+        }
+        
+        html_message = render_to_string('auth/emails/password_reset_email.html', context)
+        
+        text_message = f"""
+        Hola {user.first_name or user.username},
+        
+        Solicitaste un reset de contraseña. Haz clic en el siguiente enlace:
+        {reset_url}
+        
+        Este enlace expira en 1 hora.
+        
+        Si no solicitaste esto, ignora este email.
+        """
+        
+        send_mail(
+            subject='🔐 Resetea tu Contraseña de Liberi',
+            message=text_message,
+            from_email=settings.DEFAULT_FROM_EMAIL,
+            recipient_list=[user.email],
+            html_message=html_message,
+            fail_silently=False
+        )
+        
+        logger.info(f"Email de reset enviado a {user.email}")
+        
+    except Exception as e:
+        logger.error(f"Error enviando email de reset: {e}")
+        raise

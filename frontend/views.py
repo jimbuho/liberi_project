@@ -10,6 +10,7 @@ from datetime import timedelta, datetime
 from django.contrib.auth.models import User
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
+from django.contrib.auth.password_validation import validate_password
 
 import requests
 import logging
@@ -23,7 +24,7 @@ from core.models import (
     PaymentMethod, BankAccount, PaymentProof,
     ProviderZoneCost, SystemConfig, Notification, Payment,
     WithdrawalRequest, ProviderBankAccount, Bank,
-    EmailVerificationToken, City
+    EmailVerificationToken, City, PasswordResetToken
 )
 from legal.models import LegalDocument, LegalAcceptance
 from legal.views import get_client_ip, get_user_agent
@@ -536,27 +537,72 @@ def provider_profile_edit(request):
 # ============================================================================
 
 def login_view(request):
-    """Login de usuario"""
+    """
+    Login de usuario - Soporta EMAIL o USERNAME
+    """
     if request.user.is_authenticated:
         return redirect('dashboard')
     
     if request.method == 'POST':
-        username = request.POST.get('username')
-        password = request.POST.get('password')
+        username_or_email = request.POST.get('username', '').strip()
+        password = request.POST.get('password', '')
         
-        user = authenticate(request, username=username, password=password)
+        if not username_or_email or not password:
+            messages.error(request, 'Por favor ingresa usuario/email y contraseña')
+            return render(request, 'auth/login.html')
         
+        # Paso 1: Intentar encontrar el usuario por email O username
+        user = None
+        
+        # Buscar por email
+        try:
+            user = User.objects.get(email=username_or_email)
+            username = user.username  # Usar el username para authenticate
+        except User.DoesNotExist:
+            pass
+        
+        # Si no encontró por email, buscar por username
+        if user is None:
+            username = username_or_email
+            try:
+                user = User.objects.get(username=username_or_email)
+            except User.DoesNotExist:
+                user = None
+        
+        # Paso 2: Autenticar con Django
         if user is not None:
-            # 🔥 VERIFICAR QUE EL EMAIL ESTÉ VERIFICADO
-            if not user.profile.verified:
-                messages.error(request, 'Credenciales inválidas o cuenta no verificada.')
+            authenticated_user = authenticate(request, username=user.username, password=password)
+        else:
+            authenticated_user = None
+        
+        # Paso 3: Verificar contraseña y estado de cuenta
+        if authenticated_user is not None:
+            # Verificar que el email esté verificado
+            if not authenticated_user.profile.verified:
+                messages.error(
+                    request, 
+                    'Tu cuenta no ha sido verificada. Revisa tu email para activarla.'
+                )
                 return render(request, 'auth/login.html')
             
-            login(request, user)
-            messages.success(request, f'¡Bienvenido, {user.first_name or user.username}!')
+            # Login exitoso
+            login(request, authenticated_user)
+            
+            # Log de auditoría
+            AuditLog.objects.create(
+                user=authenticated_user,
+                action='Inicio de sesión',
+                metadata={'ip': get_client_ip(request)}
+            )
+            
+            messages.success(
+                request, 
+                f'¡Bienvenido, {authenticated_user.first_name or authenticated_user.username}!'
+            )
             return redirect(request.GET.get('next', 'dashboard'))
         else:
-            messages.error(request, 'Credenciales inválidas.')
+            messages.error(request, 'Usuario/Email o contraseña incorrectos.')
+            return render(request, 'auth/login.html')
     
     return render(request, 'auth/login.html')
 
@@ -3655,3 +3701,194 @@ def booking_report_incident(request, booking_id):
         messages.error(request, 'Error al reportar la incidencia. Intenta nuevamente.')
     
     return redirect('booking_detail', booking_id=booking_id)
+
+# ============================================
+# PASSWORD RESET VIEWS
+# ============================================
+
+def forgot_password_view(request):
+    """
+    Vista para que el usuario solicite reset de contraseña
+    GET: Muestra el formulario
+    POST: Envía email con enlace de reset
+    """
+    if request.user.is_authenticated:
+        return redirect('dashboard')
+    
+    if request.method == 'POST':
+        email = request.POST.get('email', '').strip()
+        
+        if not email:
+            messages.error(request, 'Por favor ingresa tu email')
+            return render(request, 'auth/forgot_password.html')
+        
+        try:
+            user = User.objects.get(email=email)
+        except User.DoesNotExist:
+            messages.success(
+                request,
+                '✓ Si existe una cuenta con ese email, recibirás un enlace para resetear tu contraseña.'
+            )
+            return redirect('forgot_password')
+        
+        try:
+            reset_token = PasswordResetToken.create_for_user(user)
+            
+            from core.tasks import send_password_reset_email_task
+            send_password_reset_email_task.delay(
+                user_id=user.id,
+                token=reset_token.token
+            )
+            
+            AuditLog.objects.create(
+                user=user,
+                action='Solicitud de reset de contraseña',
+                metadata={'email': email}
+            )
+            
+            messages.success(
+                request,
+                '✓ Si existe una cuenta con ese email, recibirás un enlace para resetear tu contraseña.'
+            )
+            return redirect('login')
+            
+        except Exception as e:
+            logger.error(f"Error en forgot_password: {e}")
+            messages.error(request, 'Error al procesar tu solicitud. Intenta nuevamente.')
+            return render(request, 'auth/forgot_password.html')
+    
+    return render(request, 'auth/forgot_password.html')
+
+
+def reset_password_view(request, token):
+    """
+    Vista para resetear la contraseña con token
+    GET: Muestra el formulario de nueva contraseña
+    POST: Actualiza la contraseña
+    """
+    if request.user.is_authenticated:
+        return redirect('dashboard')
+    
+    try:
+        reset_token = PasswordResetToken.objects.get(token=token)
+    except PasswordResetToken.DoesNotExist:
+        messages.error(request, 'Enlace de reset inválido')
+        return redirect('forgot_password')
+    
+    if not reset_token.is_valid():
+        messages.error(request, 'El enlace de reset ha expirado. Solicita uno nuevo.')
+        reset_token.delete_if_expired()
+        return redirect('forgot_password')
+    
+    user = reset_token.user
+    
+    if request.method == 'POST':
+        password = request.POST.get('password', '')
+        password_confirm = request.POST.get('password_confirm', '')
+        
+        if not password or not password_confirm:
+            messages.error(request, 'Por favor completa todos los campos')
+            return render(request, 'auth/reset_password.html', {'token': token})
+        
+        if password != password_confirm:
+            messages.error(request, 'Las contraseñas no coinciden')
+            return render(request, 'auth/reset_password.html', {'token': token})
+        
+        if len(password) < 8:
+            messages.error(request, 'La contraseña debe tener al menos 8 caracteres')
+            return render(request, 'auth/reset_password.html', {'token': token})
+        
+        try:
+            validate_password(password, user=user)
+        except Exception as e:
+            messages.error(request, f'Contraseña débil: {str(e)}')
+            return render(request, 'auth/reset_password.html', {'token': token})
+        
+        try:
+            user.set_password(password)
+            user.save()
+            
+            reset_token.mark_as_used()
+            
+            AuditLog.objects.create(
+                user=user,
+                action='Contraseña reseteada',
+                metadata={}
+            )
+            
+            messages.success(
+                request,
+                '✓ Tu contraseña ha sido actualizada. Ahora puedes iniciar sesión con tu nueva contraseña.'
+            )
+            return redirect('login')
+            
+        except Exception as e:
+            logger.error(f"Error reseteando contraseña: {e}")
+            messages.error(request, 'Error al actualizar tu contraseña. Intenta nuevamente.')
+            return render(request, 'auth/reset_password.html', {'token': token})
+    
+    return render(request, 'auth/reset_password.html', {
+        'token': token,
+        'user_email': user.email
+    })
+
+
+@login_required
+def change_password_view(request):
+    """
+    Vista para que el usuario cambie su contraseña estando autenticado
+    (Desde el perfil/dashboard)
+    """
+    if request.method == 'POST':
+        current_password = request.POST.get('current_password', '')
+        new_password = request.POST.get('new_password', '')
+        new_password_confirm = request.POST.get('new_password_confirm', '')
+        
+        if not request.user.check_password(current_password):
+            messages.error(request, 'Tu contraseña actual es incorrecta')
+            return render(request, 'dashboard/change_password.html')
+        
+        if new_password != new_password_confirm:
+            messages.error(request, 'Las nuevas contraseñas no coinciden')
+            return render(request, 'dashboard/change_password.html')
+        
+        if len(new_password) < 8:
+            messages.error(request, 'La contraseña debe tener al menos 8 caracteres')
+            return render(request, 'dashboard/change_password.html')
+        
+        if current_password == new_password:
+            messages.error(request, 'Tu nueva contraseña debe ser diferente a la actual')
+            return render(request, 'dashboard/change_password.html')
+        
+        try:
+            validate_password(new_password, user=request.user)
+        except Exception as e:
+            messages.error(request, f'Contraseña débil: {str(e)}')
+            return render(request, 'dashboard/change_password.html')
+        
+        try:
+            request.user.set_password(new_password)
+            request.user.save()
+            
+            AuditLog.objects.create(
+                user=request.user,
+                action='Contraseña cambiada',
+                metadata={'from_profile': True}
+            )
+            
+            messages.success(
+                request,
+                '✓ Tu contraseña ha sido actualizada exitosamente.'
+            )
+            
+            from django.contrib.auth import update_session_auth_hash
+            update_session_auth_hash(request, request.user)
+            
+            return redirect('dashboard')
+            
+        except Exception as e:
+            logger.error(f"Error cambiando contraseña: {e}")
+            messages.error(request, 'Error al cambiar tu contraseña. Intenta nuevamente.')
+            return render(request, 'dashboard/change_password.html')
+    
+    return render(request, 'dashboard/change_password.html')

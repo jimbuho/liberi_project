@@ -1247,3 +1247,51 @@ class EmailVerificationToken(models.Model):
             self.delete()
             return True
         return False
+
+class PasswordResetToken(models.Model):
+    """Token para resetear contraseña"""
+    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='password_reset_token')
+    token = models.CharField('Token', max_length=255, unique=True)
+    created_at = models.DateTimeField('Creado', auto_now_add=True)
+    used_at = models.DateTimeField('Usado en', null=True, blank=True)
+    is_used = models.BooleanField('Usado', default=False)
+    
+    class Meta:
+        db_table = 'password_reset_tokens'
+        verbose_name = 'Token de Reset de Contraseña'
+        verbose_name_plural = 'Tokens de Reset de Contraseña'
+    
+    def __str__(self):
+        return f"Reset token para {self.user.username}"
+    
+    @classmethod
+    def create_for_user(cls, user):
+        """Crea un nuevo token para reset de contraseña"""
+        cls.objects.filter(user=user, is_used=False).delete()
+        token = secrets.token_urlsafe(32)
+        reset_token = cls.objects.create(
+            user=user,
+            token=token,
+            is_used=False
+        )
+        return reset_token
+    
+    def is_valid(self):
+        """Verifica si el token es válido (no expirado ni usado)"""
+        if self.is_used:
+            return False
+        expiry_time = self.created_at + timedelta(hours=1)
+        return timezone.now() < expiry_time
+    
+    def mark_as_used(self):
+        """Marca el token como usado"""
+        self.is_used = True
+        self.used_at = timezone.now()
+        self.save()
+    
+    def delete_if_expired(self):
+        """Elimina el token si está expirado"""
+        if not self.is_valid() and not self.is_used:
+            self.delete()
+            return True
+        return False
