@@ -1,0 +1,89 @@
+<!-- templates/socialaccount/signup.html -->
+{% extends 'base.html' %}
+{% load socialaccount %}
+
+{% block title %}Completar Registro - Liberi{% endblock %}
+
+{% block content %}
+<div class="container mt-5 mb-5">
+    <div class="row justify-content-center">
+        <div class="col-md-6">
+            <div class="card shadow-sm">
+                <div class="card-body p-5">
+                    <div class="text-center mb-4">
+                        <i class="fas fa-user-plus fa-3x text-primary mb-3"></i>
+                        <h2>Completa tu Registro</h2>
+                        <p class="text-muted">
+                            Ya casi terminamos, solo necesitamos algunos datos más
+                        </p>
+                    </div>
+
+                    <div class="alert alert-success border-0 mb-4">
+                        <i class="fas fa-check-circle"></i>
+                        <strong>Información recibida de Google:</strong>
+                        <ul class="mb-0 mt-2">
+                            {% if form.instance.email %}
+                            <li>Email: <strong>{{ form.instance.email }}</strong></li>
+                            {% endif %}
+                            {% if form.instance.first_name %}
+                            <li>Nombre: <strong>{{ form.instance.first_name }} {{ form.instance.last_name }}</strong></li>
+                            {% endif %}
+                        </ul>
+                    </div>
+
+                    <form method="post" action="{% url 'socialaccount_signup' %}">
+                        {% csrf_token %}
+                        
+                        {% if form.errors %}
+                        <div class="alert alert-danger">
+                            {% for field, errors in form.errors.items %}
+                                <strong>{{ field }}:</strong> {{ errors|join:", " }}<br>
+                            {% endfor %}
+                        </div>
+                        {% endif %}
+
+                        {% if form.username %}
+                        <div class="mb-3">
+                            <label for="{{ form.username.id_for_label }}" class="form-label">
+                                Nombre de Usuario *
+                            </label>
+                            {{ form.username }}
+                            <small class="text-muted">Elige un nombre de usuario único</small>
+                        </div>
+                        {% endif %}
+
+                        {% if form.email %}
+                        <div class="mb-3">
+                            <label for="{{ form.email.id_for_label }}" class="form-label">
+                                Email *
+                            </label>
+                            {{ form.email }}
+                        </div>
+                        {% endif %}
+
+                        <div class="d-grid gap-2 mb-3">
+                            <button type="submit" class="btn btn-primary btn-lg">
+                                <i class="fas fa-check"></i> Completar Registro
+                            </button>
+                        </div>
+                    </form>
+
+                    <hr>
+
+                    <div class="text-center">
+                        <a href="{% url 'login' %}" class="btn btn-outline-secondary">
+                            <i class="fas fa-times"></i> Cancelar
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .form-control {
+        width: 100%;
+    }
+</style>
+{% endblock %}

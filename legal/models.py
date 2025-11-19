@@ -69,9 +69,9 @@ class LegalDocument(models.Model):
         super().save(*args, **kwargs)
 
 
+
 class LegalAcceptance(models.Model):
     """Registro de aceptación de documentos legales por usuarios"""
-    
     user = models.ForeignKey(
         User,
         on_delete=models.CASCADE,
@@ -100,12 +100,20 @@ class LegalAcceptance(models.Model):
         help_text='Información del navegador/dispositivo'
     )
     
+    # NUEVO CAMPO
+    accepted_via = models.CharField(
+        'Aceptado vía',
+        max_length=50,
+        default='web_form',
+        help_text='Método de aceptación: web_form, google_oauth, etc.'
+    )
+    
     class Meta:
         db_table = 'legal_acceptances'
         verbose_name = 'Aceptación Legal'
         verbose_name_plural = 'Aceptaciones Legales'
         ordering = ['-accepted_at']
         unique_together = ['user', 'document']
-    
+
     def __str__(self):
         return f"{self.user.username} aceptó {self.document.get_document_type_display()} v{self.document.version}"

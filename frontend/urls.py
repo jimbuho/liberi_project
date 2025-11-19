@@ -106,4 +106,8 @@ urlpatterns = [
     path('reset-password/<str:token>/', views.reset_password_view, name='reset_password'),
     path('change-password/', views.change_password_view, name='change_password'),
 
+    # Google OAuth para proveedores
+    path('auth/google/provider/', views.google_provider_signup, name='google_provider_signup'),
+    path('provider/complete-profile-google/', views.complete_provider_profile_google, name='complete_provider_profile_google'),
+    
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

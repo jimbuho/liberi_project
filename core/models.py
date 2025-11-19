@@ -266,6 +266,15 @@ class Location(models.Model):
     address = models.TextField('Dirección')
     reference = models.CharField('Referencia', max_length=255, blank=True)
     label = models.CharField('Etiqueta', max_length=50, default='casa')
+    
+    # NUEVO CAMPO
+    recipient_name = models.CharField(
+        'Quién recibe el servicio',
+        max_length=200,
+        blank=True,
+        help_text='Nombre de la persona que recibirá el servicio en esta ubicación'
+    )
+    
     latitude = models.DecimalField('Latitud', max_digits=9, decimal_places=6)
     longitude = models.DecimalField('Longitud', max_digits=9, decimal_places=6)
     created_at = models.DateTimeField('Fecha de creación', auto_now_add=True)
@@ -277,9 +286,9 @@ class Location(models.Model):
 
     def __str__(self):
         city_name = self.city.name if self.city else 'Sin ciudad'
-        return f"{self.customer.username} - {self.label} ({city_name})"
+        recipient_info = f" - {self.recipient_name}" if self.recipient_name else ""
+        return f"{self.customer.username} - {self.label} ({city_name}){recipient_info}"
     
-    # NUEVO:
     def save(self, *args, **kwargs):
         # Auto-setear city desde zone si existe
         if self.zone and not self.city:

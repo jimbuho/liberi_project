@@ -1,0 +1,126 @@
+<!-- templates/auth/complete_provider_profile_google.html -->
+{% extends 'base.html' %}
+
+{% block title %}Completar Perfil de Proveedor - Liberi{% endblock %}
+
+{% block content %}
+<div class="container mt-5 mb-5">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card shadow-sm">
+                <div class="card-body p-5">
+                    <div class="alert alert-success border-0 mb-4">
+                        <div class="d-flex align-items-center">
+                            <i class="fas fa-check-circle fa-2x me-3"></i>
+                            <div>
+                                <h5 class="mb-0">¡Bienvenido, {{ user.first_name }}!</h5>
+                                <p class="mb-0 small">Tu cuenta de Google ha sido vinculada exitosamente</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="text-center mb-4">
+                        <div class="badge bg-primary mb-3" style="font-size: 0.9rem; padding: 0.5rem 1rem;">
+                            <i class="fas fa-arrow-right me-1"></i> Paso 1 de 6: Completar Perfil
+                        </div>
+                        <h2>
+                            <i class="fas fa-user-edit"></i> Completa tu Perfil de Proveedor
+                        </h2>
+                        <p class="text-muted">Solo faltan algunos datos para continuar</p>
+                    </div>
+
+                    <form method="post" enctype="multipart/form-data">
+                        {% csrf_token %}
+
+                        <div class="alert alert-info border-0 mb-4">
+                            <i class="fas fa-info-circle"></i>
+                            <strong>Tu información de Google:</strong>
+                            <ul class="mb-0 mt-2">
+                                <li>Email: <strong>{{ user.email }}</strong></li>
+                                <li>Nombre: <strong>{{ user.get_full_name }}</strong></li>
+                            </ul>
+                        </div>
+
+                        <h5 class="mb-3">Información Profesional</h5>
+
+                        <div class="mb-3">
+                            <label for="phone" class="form-label">Teléfono/WhatsApp *</label>
+                            <input type="tel" class="form-control" id="phone" name="phone" 
+                                   placeholder="0999999999" pattern="[0-9]{10}" required>
+                            <small class="text-muted">Este será tu número de contacto con los clientes</small>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="business_name" class="form-label">Nombre Comercial *</label>
+                            <input type="text" class="form-control" id="business_name" name="business_name" 
+                                   placeholder="Ej: Salón de Belleza María, Limpieza Express" required>
+                            <small class="text-muted">Este será el nombre que verán tus clientes</small>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="profile_photo" class="form-label">Foto de Perfil *</label>
+                            <input type="file" class="form-control" id="profile_photo" name="profile_photo" 
+                                   accept="image/jpeg,image/png" required>
+                            <small class="text-muted">Puede ser una foto comercial de tu negocio o tuya trabajando. Solo JPG o PNG.</small>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="category" class="form-label">Categoría de Servicio *</label>
+                            <select class="form-select" id="category" name="category" required>
+                                <option value="">Seleccione una categoría</option>
+                                {% for category in categories %}
+                                <option value="{{ category.id }}">{{ category.icon }} {{ category.name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="description" class="form-label">Descripción de tus servicios *</label>
+                            <textarea class="form-control" id="description" name="description" 
+                                      rows="4" required
+                                      placeholder="Describe tu experiencia, especialidades y qué te hace único..."></textarea>
+                            <small class="text-muted">Mínimo 50 caracteres</small>
+                        </div>
+
+                        <div class="alert alert-warning border-0">
+                            <i class="fas fa-clipboard-list"></i>
+                            <strong>Próximos pasos:</strong>
+                            <ol class="mb-0 mt-2">
+                                <li>Subirás tus documentos de identificación</li>
+                                <li>Crearás tu primer servicio</li>
+                                <li>Nuestro equipo revisará y aprobará tu perfil</li>
+                            </ol>
+                        </div>
+
+                        <div class="form-check mb-3">
+                            <input type="checkbox" class="form-check-input" id="terms_check" 
+                                name="terms_accepted" value="true" required>
+                            <label class="form-check-label" for="terms_check">
+                                Acepto los 
+                                <a href="{% url 'legal:terms_provider' %}" target="_blank" class="text-decoration-none">
+                                    Términos de Uso
+                                </a>
+                                y la 
+                                <a href="{% url 'legal:privacy_provider' %}" target="_blank" class="text-decoration-none">
+                                    Política de Privacidad
+                                </a>
+                                para Proveedores
+                            </label>
+                        </div>
+
+                        <button type="submit" class="btn btn-primary btn-lg w-100 mb-3">
+                            <i class="fas fa-arrow-right"></i> Continuar al Paso 2 (Verificación)
+                        </button>
+                    </form>
+
+                    <div class="text-center mt-3">
+                        <small class="text-muted">
+                            <i class="fas fa-lock"></i> Tu información está protegida y segura
+                        </small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

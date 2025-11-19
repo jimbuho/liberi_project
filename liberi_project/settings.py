@@ -56,7 +56,12 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-    
+    'django.contrib.sites',
+    'allauth',
+    'allauth.account',
+    'allauth.socialaccount',
+    'allauth.socialaccount.providers.google',
+
     'rest_framework',
     'rest_framework_simplejwt',
     'corsheaders',
@@ -81,11 +86,13 @@ MIDDLEWARE = [
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
+    'allauth.account.middleware.AccountMiddleware',
     'legal.middleware.LegalAcceptanceMiddleware',
     'core.middleware.PayPhoneReferrerPolicyMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
     'core.middleware.EmailVerificationMiddleware',
+    'core.middleware.ProviderProfileCheckMiddleware',
 ]
 
 ROOT_URLCONF = 'liberi_project.urls'
@@ -101,6 +108,7 @@ TEMPLATES = [
                 'django.template.context_processors.request',
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
+                'django.template.context_processors.request',
             ],
         },
     },
@@ -145,17 +153,63 @@ SERVER_EMAIL = 'liberiservices@gmail.com'
 EMAIL_SUBJECT_PREFIX = '[Liberi Error] '
 
 # ============================================
+# ALLAUTH
+# ============================================
+SITE_ID = 1
+
+AUTHENTICATION_BACKENDS = [
+    'django.contrib.auth.backends.ModelBackend',
+    'allauth.account.auth_backends.AuthenticationBackend',
+]
+
+# Configuración de allauth
+ACCOUNT_LOGIN_METHODS = {'username', 'email'} 
+ACCOUNT_EMAIL_VERIFICATION = 'none'  # Ya manejamos verificación custom
+
+
+ACCOUNT_SIGNUP_FIELDS = [
+    'email*',      # * indica que es obligatorio
+    'username*',   # * indica que es obligatorio
+    'password1*',  # * indica que es obligatorio
+    'password2*',  # * indica que es obligatorio
+]
+
+# Conectar cuentas existentes si el email coincide
+SOCIALACCOUNT_ADAPTER = 'core.adapters.CustomSocialAccountAdapter'
+
+# Configuración de Google OAuth
+SOCIALACCOUNT_PROVIDERS = {
+    'google': {
+        'SCOPE': [
+            'profile',
+            'email',
+        ],
+        'AUTH_PARAMS': {
+            'access_type': 'online',
+        },
+        'OAUTH_PKCE_ENABLED': True,
+        'APP': {
+            'client_id': os.getenv('GOOGLE_CLIENT_ID', default=''),
+            'secret': os.getenv('GOOGLE_CLIENT_SECRET', default=''),
+            'key': ''
+        }
+    }
+}
+
+# Signup
+SOCIALACCOUNT_AUTO_SIGNUP = True
+SOCIALACCOUNT_EMAIL_REQUIRED = True
+SOCIALACCOUNT_QUERY_EMAIL = True
+SOCIALACCOUNT_LOGIN_ON_GET = True
+
+ACCOUNT_LOGOUT_REDIRECT_URL = '/'
+
+# ============================================
 # LOGGING
 # ============================================
 LOGGING = {
     'version': 1,
     'disable_existing_loggers': False,
-    
-    'filters': {
-        'require_debug_false': {
-            'class': 'django.utils.log.RequireDebugFalse',
-        },
-    },
     
     'formatters': {
         'verbose': {
@@ -165,45 +219,37 @@ LOGGING = {
     },
     
     'handlers': {
-        # 📧 Envía email a ADMINS cuando hay error 500
-        'mail_admins': {
-            'level': 'ERROR',
-            'class': 'django.utils.log.AdminEmailHandler',
-            'filters': ['require_debug_false'],  # Solo en producción (DEBUG=False)
-            'include_html': True,
+        'console': {
+            'level': 'DEBUG',
+            'class': 'logging.StreamHandler',
+            'formatter': 'verbose',
         },
-        
-        # 📄 Guarda errores en archivo
         'file': {
             'level': 'ERROR',
             'class': 'logging.handlers.RotatingFileHandler',
             'filename': os.path.join(BASE_DIR, 'logs', 'errors.log'),
-            'maxBytes': 1024 * 1024 * 10,  # 10 MB
+            'maxBytes': 1024 * 1024 * 10,
             'backupCount': 5,
-            'formatter': 'verbose',
-        },
-        
-        # 🖥️ Muestra en consola
-        'console': {
-            'level': 'INFO',
-            'class': 'logging.StreamHandler',
             'formatter': 'verbose',
         },
     },
     
     'loggers': {
-        # Logger para errores de Django (incluye 500)
-        'django.request': {
-            'handlers': ['mail_admins', 'file', 'console'],
-            'level': 'ERROR',
-            'propagate': False,
+        'django': {
+            'handlers': ['console'],
+            'level': 'INFO',
         },
-        
-        # Logger para errores de seguridad
-        'django.security': {
-            'handlers': ['mail_admins', 'file'],
-            'level': 'ERROR',
-            'propagate': False,
+        'core.adapters': {  # AGREGAR ESTO
+            'handlers': ['console'],
+            'level': 'DEBUG',
+        },
+        'frontend.views': {  # AGREGAR ESTO
+            'handlers': ['console'],
+            'level': 'DEBUG',
+        },
+        'allauth': {  # AGREGAR ESTO
+            'handlers': ['console'],
+            'level': 'DEBUG',
         },
     },
 }
@@ -277,6 +323,7 @@ FRONTEND_URL = os.getenv('FRONTEND_URL', 'http://localhost:8000')
 
 LOGIN_URL = '/login/'
 LOGIN_REDIRECT_URL = '/dashboard/'
+ACCOUNT_SIGNUP_REDIRECT_URL = '/dashboard/' 
 LOGOUT_REDIRECT_URL = '/'
 
 STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"

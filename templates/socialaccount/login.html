@@ -1,0 +1,78 @@
+<!-- templates/socialaccount/login.html -->
+{% extends 'base.html' %}
+{% load socialaccount %}
+
+{% block title %}Iniciar Sesión con Google - Liberi{% endblock %}
+
+{% block content %}
+<div class="container mt-5 mb-5">
+    <div class="row justify-content-center">
+        <div class="col-md-6">
+            <div class="card shadow-sm">
+                <div class="card-body p-5">
+                    <div class="text-center mb-4">
+                        <img src="https://www.google.com/images/branding/googlelogo/2x/googlelogo_color_92x30dp.png" 
+                             alt="Google" 
+                             style="height: 30px;"
+                             class="mb-3">
+                        <h2 class="mb-3">Conectar con Google</h2>
+                        <p class="text-muted">
+                            Estás a punto de vincular tu cuenta de Google con Liberi
+                        </p>
+                    </div>
+
+                    <div class="alert alert-info border-0">
+                        <i class="fas fa-shield-alt"></i>
+                        <strong>¿Qué información compartiremos?</strong>
+                        <ul class="mb-0 mt-2">
+                            <li>Tu nombre completo</li>
+                            <li>Tu dirección de email</li>
+                            <li>Tu foto de perfil (opcional)</li>
+                        </ul>
+                    </div>
+
+                    <form method="post" action="{% url 'google_login' %}">
+                        {% csrf_token %}
+                        
+                        {% if form.errors %}
+                        <div class="alert alert-danger">
+                            {{ form.errors }}
+                        </div>
+                        {% endif %}
+
+                        <div class="d-grid gap-2 mb-3">
+                            <button type="submit" class="btn btn-primary btn-lg">
+                                <i class="fab fa-google me-2"></i>
+                                Continuar con Google
+                            </button>
+                        </div>
+
+                        <input type="hidden" name="process" value="login">
+                        
+                        {% if next %}
+                        <input type="hidden" name="next" value="{{ next }}">
+                        {% endif %}
+                    </form>
+
+                    <hr>
+
+                    <div class="text-center">
+                        <a href="{% url 'login' %}" class="btn btn-outline-secondary">
+                            <i class="fas fa-arrow-left"></i> Volver al Login
+                        </a>
+                    </div>
+
+                    <div class="text-center mt-3">
+                        <small class="text-muted">
+                            Al continuar, aceptas nuestros 
+                            <a href="{% url 'legal:terms_user' %}" target="_blank">Términos de Uso</a>
+                            y 
+                            <a href="{% url 'legal:privacy_user' %}" target="_blank">Política de Privacidad</a>
+                        </small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

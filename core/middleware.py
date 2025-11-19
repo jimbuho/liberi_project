@@ -58,3 +58,38 @@ class EmailVerificationMiddleware:
             if path.startswith(allowed_path) or path == allowed_path:
                 return True
         return False
+    
+# core/middleware.py - Agregar esta clase
+
+class ProviderProfileCheckMiddleware:
+    """
+    Middleware que verifica si un proveedor autenticado con Google
+    necesita completar su perfil
+    """
+    def __init__(self, get_response):
+        self.get_response = get_response
+
+    def __call__(self, request):
+        # Solo verificar si el usuario está autenticado
+        if request.user.is_authenticated:
+            # Si es proveedor y no tiene provider_profile
+            if (hasattr(request.user, 'profile') and 
+                request.user.profile.role == 'provider' and 
+                not hasattr(request.user, 'provider_profile')):
+                
+                # Permitir acceso a estas rutas
+                allowed_paths = [
+                    '/provider/complete-profile-google/',
+                    '/logout/',
+                    '/accounts/logout/',
+                    '/static/',
+                    '/media/',
+                ]
+                
+                # Si no está en una ruta permitida, redirigir
+                if not any(request.path.startswith(path) for path in allowed_paths):
+                    from django.shortcuts import redirect
+                    return redirect('complete_provider_profile_google')
+        
+        response = self.get_response(request)
+        return response

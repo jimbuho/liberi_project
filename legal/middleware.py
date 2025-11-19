@@ -19,6 +19,8 @@ class LegalAcceptanceMiddleware:
         'home',
         'verify_email',
         'email_verification_pending_view',
+        'provider_complete_profile_google',
+        'customer_complete_profile_google',
     ]
     
     def __init__(self, get_response):
@@ -26,6 +28,14 @@ class LegalAcceptanceMiddleware:
     
     def __call__(self, request):
         if request.user.is_authenticated:
+            # ✅ Si el usuario acaba de auto-aceptar términos con Google, no verificar
+            if request.session.get('legal_auto_accepted', False):
+                # Limpiar la flag después de la primera verificación
+                if 'legal_auto_accepted' in request.session:
+                    del request.session['legal_auto_accepted']
+                response = self.get_response(request)
+                return response
+            
             try:
                 resolved = resolve(request.path)
                 view_name = resolved.url_name

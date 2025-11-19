@@ -12,6 +12,7 @@ urlpatterns = [
     path('api/messaging/', include('messaging.urls')),
     path('', include('frontend.urls')),
     path('legal/', include('legal.urls')),
+    path('accounts/', include('allauth.urls')),
 ]
 
 if settings.DEBUG:

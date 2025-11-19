@@ -12,6 +12,9 @@ from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.contrib.auth.password_validation import validate_password
 
+from django.http import HttpResponseRedirect
+from allauth.socialaccount.providers.google.views import oauth2_login
+
 import requests
 import logging
 
@@ -1608,6 +1611,7 @@ def location_create(request):
         zone_id = request.POST.get('zone')
         address = request.POST.get('address')
         reference = request.POST.get('reference', '')
+        recipient_name = request.POST.get('recipient_name', '')  # NUEVO
         latitude = request.POST.get('latitude')
         longitude = request.POST.get('longitude')
         
@@ -1630,6 +1634,7 @@ def location_create(request):
             city=zone.city,
             address=address,
             reference=reference,
+            recipient_name=recipient_name,  # NUEVO
             latitude=latitude,
             longitude=longitude
         )
@@ -1642,7 +1647,7 @@ def location_create(request):
     
     context = {
         'zones': zones,
-        'current_city': current_city,  # NUEVO
+        'current_city': current_city,
     }
     return render(request, 'locations/create.html', context)
 
@@ -3892,3 +3897,140 @@ def change_password_view(request):
             return render(request, 'dashboard/change_password.html')
     
     return render(request, 'dashboard/change_password.html')
+
+# frontend/views.py - Agregar estas vistas
+
+@login_required
+def complete_provider_profile_google(request):
+    """
+    Vista para completar el perfil de proveedor después de registrarse con Google
+    """
+    # Verificar que sea proveedor
+    if not hasattr(request.user, 'profile') or request.user.profile.role != 'provider':
+        messages.error(request, 'Esta página es solo para proveedores')
+        return redirect('dashboard')
+    
+    # Verificar que no tenga ya un perfil de proveedor completo
+    if hasattr(request.user, 'provider_profile'):
+        messages.info(request, 'Ya tienes un perfil de proveedor completado')
+        return redirect('dashboard')
+    
+    if request.method == 'POST':
+        business_name = request.POST.get('business_name')
+        category_id = request.POST.get('category')
+        description = request.POST.get('description')
+        profile_photo = request.FILES.get('profile_photo')
+        phone = request.POST.get('phone')
+        terms_accepted = request.POST.get('terms_accepted')
+        
+        # Validaciones
+        if not all([business_name, category_id, description, profile_photo, phone]):
+            messages.error(request, 'Todos los campos son obligatorios')
+            return render(request, 'auth/complete_provider_profile_google.html', {
+                'categories': get_active_categories(),
+            })
+        
+        if not terms_accepted:
+            messages.error(request, 'Debes aceptar los Términos de Uso y Política de Privacidad')
+            return render(request, 'auth/complete_provider_profile_google.html', {
+                'categories': get_active_categories(),
+            })
+        
+        try:
+            # Actualizar teléfono en el perfil
+            request.user.profile.phone = phone
+            request.user.profile.save()
+            
+            # Subir foto
+            photo_url = upload_profile_photo(
+                file=profile_photo,
+                user_id=request.user.id
+            )
+            
+            # Crear perfil de proveedor
+            ProviderProfile.objects.create(
+                user=request.user,
+                category_id=category_id,
+                description=description,
+                business_name=business_name,
+                profile_photo=photo_url,
+                status='created',
+                registration_step=1
+            )
+            
+            # Registrar aceptación de términos legales
+            try:
+                for doc_type in ['terms_provider', 'privacy_provider']:
+                    try:
+                        document = LegalDocument.objects.get(
+                            document_type=doc_type,
+                            is_active=True,
+                            status='published'
+                        )
+                        
+                        LegalAcceptance.objects.get_or_create(
+                            user=request.user,
+                            document=document,
+                            defaults={
+                                'ip_address': get_client_ip(request),
+                                'user_agent': get_user_agent(request),
+                            }
+                        )
+                    except LegalDocument.DoesNotExist:
+                        pass
+            except Exception as e:
+                logger.warning(f"Error registrando aceptación legal: {e}")
+            
+            # Log
+            AuditLog.objects.create(
+                user=request.user,
+                action='Perfil de proveedor completado (Google)',
+                metadata={
+                    'business_name': business_name,
+                    'via': 'google_oauth'
+                }
+            )
+            
+            messages.success(
+                request,
+                '✅ Perfil de proveedor creado. Ahora sube tus documentos de verificación.'
+            )
+            return redirect('provider_register_step2')
+            
+        except Exception as e:
+            messages.error(request, f'Error al crear perfil: {str(e)}')
+            return render(request, 'auth/complete_provider_profile_google.html', {
+                'categories': get_active_categories(),
+            })
+    
+    context = {
+        'categories': get_active_categories(),
+        'user': request.user,
+    }
+    return render(request, 'auth/complete_provider_profile_google.html', context)
+
+
+def google_provider_signup(request):
+    """
+    Vista intermedia que marca en sesión que es un registro de proveedor
+    antes de redirigir a Google OAuth
+    """
+    # Marcar que es registro de proveedor
+    request.session['is_provider_signup'] = True
+    request.session.modified = True
+    
+    # Log para debug
+    import logging
+    logger = logging.getLogger(__name__)
+    logger.info("Iniciando registro de proveedor con Google")
+    logger.info(f"Sesión marcada: is_provider_signup = {request.session.get('is_provider_signup')}")
+    
+    # Construir la URL de Google OAuth
+    from django.urls import reverse
+    from urllib.parse import urlencode
+    
+    # Obtener la URL del provider
+    google_login_url = reverse('google_login')
+    
+    # Redirigir a Google
+    return HttpResponseRedirect(google_login_url)
