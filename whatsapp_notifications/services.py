@@ -17,22 +17,22 @@ class WhatsAppService:
     # IMPORTANTE: Actualizar estos Content SIDs después de crear y aprobar los templates
     TEMPLATES = {
         'booking_created': {
-            'content_sid': 'HXxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx',  # ← ACTUALIZAR con tu Content SID
+            'content_sid': 'HXc7292f5e0afc81cb3a70eb183ddc7d2f',  # ← ACTUALIZAR con tu Content SID
             'friendly_name': 'booking_created',
             'variables_count': 4,  # nombre_cliente, servicio, fecha_hora, booking_url
         },
         'booking_accepted': {
-            'content_sid': 'HXxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx',  # ← ACTUALIZAR con tu Content SID
+            'content_sid': 'HXac888f41014603ccab8e9670a3a864cb',  # ← ACTUALIZAR con tu Content SID
             'friendly_name': 'booking_accepted',
             'variables_count': 3,  # nombre_proveedor, servicio, booking_url
         },
         'payment_confirmed': {
-            'content_sid': 'HXxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx',  # ← ACTUALIZAR con tu Content SID
+            'content_sid': 'HX851573b0be6caf15988a289ca93b8c8e',  # ← ACTUALIZAR con tu Content SID
             'friendly_name': 'payment_confirmed',
             'variables_count': 2,  # nombre_cliente, servicio
         },
         'reminder': {
-            'content_sid': 'HXxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx',  # ← ACTUALIZAR con tu Content SID
+            'content_sid': 'HX214f1e711934557e5b84c963cc2219e1',  # ← ACTUALIZAR con tu Content SID
             'friendly_name': 'reminder',
             'variables_count': 3,  # servicio, hora, booking_url
         },
