@@ -1,3 +1,4 @@
+import json
 import logging
 from django.conf import settings
 from twilio.rest import Client
@@ -17,22 +18,22 @@ class WhatsAppService:
     # IMPORTANTE: Actualizar estos Content SIDs después de crear y aprobar los templates
     TEMPLATES = {
         'booking_created': {
-            'content_sid': 'HXc7292f5e0afc81cb3a70eb183ddc7d2f',  # ← ACTUALIZAR con tu Content SID
+            'content_sid': 'HXc7292f5e0afc81cb3a70eb183ddc7d2f',
             'friendly_name': 'booking_created',
             'variables_count': 4,  # nombre_cliente, servicio, fecha_hora, booking_url
         },
         'booking_accepted': {
-            'content_sid': 'HXac888f41014603ccab8e9670a3a864cb',  # ← ACTUALIZAR con tu Content SID
+            'content_sid': 'HXac888f41014603ccab8e9670a3a864cb',
             'friendly_name': 'booking_accepted',
             'variables_count': 3,  # nombre_proveedor, servicio, booking_url
         },
         'payment_confirmed': {
-            'content_sid': 'HX851573b0be6caf15988a289ca93b8c8e',  # ← ACTUALIZAR con tu Content SID
+            'content_sid': 'HX851573b0be6caf15988a289ca93b8c8e',
             'friendly_name': 'payment_confirmed',
             'variables_count': 2,  # nombre_cliente, servicio
         },
         'reminder': {
-            'content_sid': 'HX214f1e711934557e5b84c963cc2219e1',  # ← ACTUALIZAR con tu Content SID
+            'content_sid': 'HX214f1e711934557e5b84c963cc2219e1',
             'friendly_name': 'reminder',
             'variables_count': 3,  # servicio, hora, booking_url
         },
@@ -125,23 +126,45 @@ class WhatsAppService:
             # Obtener cliente de Twilio
             client = WhatsAppService._get_twilio_client()
             
+            # ============================================
+            # FIX CRÍTICO: Twilio requiere JSON string
+            # ============================================
             # Preparar variables en formato Twilio: {"1": "valor1", "2": "valor2", ...}
-            content_variables = {
+            content_variables_dict = {
                 str(i + 1): str(var) for i, var in enumerate(variables)
             }
+            
+            # Convertir a JSON string (ESTE ES EL FIX)
+            content_variables_json = json.dumps(content_variables_dict)
             
             logger.info(f"📱 Enviando WhatsApp via Twilio:")
             logger.info(f"   Template: {template_name}")
             logger.info(f"   Destinatario: +{clean_number}")
-            logger.info(f"   Variables: {content_variables}")
+            logger.info(f"   Variables Dict: {content_variables_dict}")
+            logger.info(f"   Variables JSON: {content_variables_json}")
             
-            # Enviar mensaje usando Content Template
+            # ============================================
+            # Logging detallado de la petición a Twilio
+            # ============================================
+            logger.info("-- BEGIN Twilio API Request --")
+            logger.info(f"POST Request: https://api.twilio.com/2010-04-01/Accounts/{settings.TWILIO_ACCOUNT_SID}/Messages.json")
+            logger.info("Headers:")
+            logger.info("Content-Type : application/x-www-form-urlencoded")
+            logger.info("Accept : application/json")
+            logger.info(f"User-Agent : twilio-python/9.8.6 (Linux x86_64) Python/3.12.12")
+            logger.info("X-Twilio-Client : python-9.8.6")
+            logger.info("Accept-Charset : utf-8")
+            logger.info("-- END Twilio API Request --")
+            
+            # Enviar mensaje usando Content Template con JSON string
             message = client.messages.create(
                 from_=settings.TWILIO_WHATSAPP_FROM,
                 to=f'whatsapp:+{clean_number}',
                 content_sid=content_sid,
-                content_variables=content_variables
+                content_variables=content_variables_json  # <- AQUÍ ESTÁ EL FIX: JSON string
             )
+            
+            logger.info(f"Response Status Code: {message.status}")
             
             # Crear log exitoso
             log = WhatsAppLog.objects.create(
@@ -160,12 +183,15 @@ class WhatsAppService:
             
         except TwilioRestException as e:
             error_msg = f"Twilio Error {e.code}: {e.msg}"
+            logger.error(f"Response Status Code: 400")
+            logger.error(f"Response Headers: {getattr(e, 'headers', {})}")
             logger.error(f"❌ {error_msg}")
             
             # Errores comunes y sus soluciones
             error_hints = {
                 21211: "El número no está en el sandbox. Envía 'join plan-cover' al +1 415 523 8886",
                 21408: "El número está bloqueado o no acepta mensajes",
+                21656: "Content Variables inválidas. Verifica formato JSON y que coincidan con el template",
                 63016: "Content SID inválido. Verifica que el template esté aprobado",
                 63017: "Variables incorrectas. Verifica el número de variables del template",
             }
