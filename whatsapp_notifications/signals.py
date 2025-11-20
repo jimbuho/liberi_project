@@ -1,5 +1,6 @@
 from django.db.models.signals import post_save
 from django.dispatch import receiver
+from django.conf import settings
 from core.models import Booking, Payment
 from .tasks import send_whatsapp_message
 import logging
@@ -11,64 +12,109 @@ logger = logging.getLogger(__name__)
 @receiver(post_save, sender=Booking)
 def booking_whatsapp_notifications(sender, instance, created, **kwargs):
     """
-    Signal para enviar notificaciones de WhatsApp cuando cambia el estado de un Booking
+    Signal para enviar notificaciones de WhatsApp cuando cambia el estado de un Booking.
     
     Flujo:
-    1. Booking creado (created=True) → Notificar al proveedor
-    2. Booking aceptado (status='accepted') → Notificar al cliente
+    1. Booking creado (created=True) → Notificar al proveedor con enlace
+    2. Booking aceptado (status='accepted') → Notificar al cliente con enlace
     """
     # Obtener números de teléfono
     customer_phone = getattr(instance.customer.profile, 'phone', None)
     provider_phone = getattr(instance.provider.profile, 'phone', None)
     
+    # ============================================
     # CASO 1: Nuevo booking creado
+    # ============================================
     if created:
         if provider_phone:
             try:
-                # Preparar variables para el template
+                # Preparar datos del cliente
                 customer_name = instance.customer.get_full_name() or instance.customer.username
                 service_name = instance.get_services_display()
                 booking_date = instance.scheduled_time.strftime("%d/%m %H:%M")
                 
-                # Enviar mensaje al proveedor
+                # Construir URL para que el proveedor vea la reserva
+                # Usa slug si existe, sino usa ID
+                booking_identifier = getattr(instance, 'slug', instance.id)
+                
+                # Enviar WhatsApp al proveedor con 4 variables
                 send_whatsapp_message.delay(
                     recipient=provider_phone,
                     template_name='booking_created',
-                    variables=[customer_name, service_name, booking_date]
+                    variables=[
+                        customer_name,   # {{1}} - Nombre del cliente
+                        service_name,    # {{2}} - Servicio
+                        booking_date,    # {{3}} - Fecha/hora
+                        booking_identifier      # {{4}} - URL con botón "Ver Reserva"
+                    ]
                 )
-                logger.info(f"📨 WhatsApp 'booking_created' encolado para proveedor {instance.provider.username}")
+                
+                logger.info(
+                    f"📨 WhatsApp 'booking_created' encolado para proveedor "
+                    f"{instance.provider.username} (booking #{instance.id})"
+                )
+                
             except Exception as e:
-                logger.error(f"❌ Error encolando WhatsApp para nuevo booking: {e}")
+                logger.error(
+                    f"❌ Error encolando WhatsApp 'booking_created' para "
+                    f"booking #{instance.id}: {e}",
+                    exc_info=True
+                )
         else:
-            logger.warning(f"⚠️ Proveedor {instance.provider.username} no tiene teléfono para WhatsApp")
+            logger.warning(
+                f"⚠️ Proveedor {instance.provider.username} no tiene teléfono "
+                f"registrado para notificación de booking #{instance.id}"
+            )
         
         return  # Salir para no procesar los otros casos
     
+    # ============================================
     # CASO 2: Booking aceptado
+    # ============================================
     if instance.status == 'accepted' and customer_phone:
         try:
-            # Verificar si acaba de cambiar a 'accepted' (no queremos enviar múltiples veces)
-            # Usamos update_fields del kwargs si está disponible
+            # Verificar si acaba de cambiar a 'accepted'
+            # update_fields estará presente si se usó save(update_fields=[...])
             if kwargs.get('update_fields') is None or 'status' in kwargs.get('update_fields', []):
+                
+                # Preparar datos del proveedor
                 provider_name = instance.provider.get_full_name() or instance.provider.username
                 service_name = instance.get_services_display()
                 
+                # URL para que el cliente vea los detalles
+                booking_identifier = getattr(instance, 'slug', instance.id)
+                booking_url = f"{settings.BASE_URL}/bookings/{booking_identifier}"
+                
+                # Enviar WhatsApp al cliente con 3 variables
                 send_whatsapp_message.delay(
                     recipient=customer_phone,
                     template_name='booking_accepted',
-                    variables=[provider_name, service_name]
+                    variables=[
+                        provider_name,  # {{1}} - Nombre del proveedor
+                        service_name,   # {{2}} - Servicio
+                        booking_url     # {{3}} - URL con botón "Ver Detalles"
+                    ]
                 )
-                logger.info(f"📨 WhatsApp 'booking_accepted' encolado para cliente {instance.customer.username}")
+                
+                logger.info(
+                    f"📨 WhatsApp 'booking_accepted' encolado para cliente "
+                    f"{instance.customer.username} (booking #{instance.id})"
+                )
+                
         except Exception as e:
-            logger.error(f"❌ Error encolando WhatsApp para booking aceptado: {e}")
+            logger.error(
+                f"❌ Error encolando WhatsApp 'booking_accepted' para "
+                f"booking #{instance.id}: {e}",
+                exc_info=True
+            )
 
 
 @receiver(post_save, sender=Payment)
 def payment_whatsapp_notification(sender, instance, created, **kwargs):
     """
-    Signal para enviar notificación al proveedor cuando un pago es confirmado
+    Signal para enviar notificación al proveedor cuando un pago es confirmado.
     
-    Solo se envía cuando el estado del pago cambia a 'completed'
+    Solo se envía cuando el estado del pago cambia a 'completed'.
     """
     # Solo actuar cuando el pago está completado
     if instance.status == 'completed':
@@ -78,16 +124,38 @@ def payment_whatsapp_notification(sender, instance, created, **kwargs):
             try:
                 # Verificar si acaba de cambiar a 'completed'
                 if kwargs.get('update_fields') is None or 'status' in kwargs.get('update_fields', []):
-                    customer_name = instance.booking.customer.get_full_name() or instance.booking.customer.username
+                    
+                    # Preparar datos
+                    customer_name = (
+                        instance.booking.customer.get_full_name() or 
+                        instance.booking.customer.username
+                    )
                     service_name = instance.booking.get_services_display()
                     
+                    # Enviar WhatsApp al proveedor con 2 variables
+                    # Este template NO tiene botón dinámico (usa botón estático a /provider/earnings)
                     send_whatsapp_message.delay(
                         recipient=provider_phone,
                         template_name='payment_confirmed',
-                        variables=[customer_name, service_name]
+                        variables=[
+                            customer_name,  # {{1}} - Nombre del cliente
+                            service_name    # {{2}} - Servicio
+                        ]
                     )
-                    logger.info(f"📨 WhatsApp 'payment_confirmed' encolado para proveedor {instance.booking.provider.username}")
+                    
+                    logger.info(
+                        f"📨 WhatsApp 'payment_confirmed' encolado para proveedor "
+                        f"{instance.booking.provider.username} (payment #{instance.id})"
+                    )
+                    
             except Exception as e:
-                logger.error(f"❌ Error encolando WhatsApp para pago confirmado: {e}")
+                logger.error(
+                    f"❌ Error encolando WhatsApp 'payment_confirmed' para "
+                    f"payment #{instance.id}: {e}",
+                    exc_info=True
+                )
         else:
-            logger.warning(f"⚠️ Proveedor {instance.booking.provider.username} no tiene teléfono para WhatsApp")
+            logger.warning(
+                f"⚠️ Proveedor {instance.booking.provider.username} no tiene teléfono "
+                f"registrado para notificación de pago #{instance.id}"
+            )

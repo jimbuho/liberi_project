@@ -315,10 +315,6 @@ PAYPHONE_API_URL = os.getenv('PAYPHONE_API_URL', '')
 PAYPHONE_STORE_ID = os.getenv('PAYPHONE_STORE_ID', '')
 PAYPHONE_URL_CONFIRM_PAYPHONE = os.getenv('PAYPHONE_URL_CONFIRM_PAYPHONE', '')
 
-WHATSAPP_PHONE_NUMBER = os.getenv('WHATSAPP_PHONE_NUMBER', '')
-WHATSAPP_TOKEN = os.getenv('WHATSAPP_TOKEN', '')
-WHATSAPP_ACCOUNT_SID = os.getenv('WHATSAPP_ACCOUNT_SID', '')
-
 FRONTEND_URL = os.getenv('FRONTEND_URL', 'http://localhost:8000')
 
 LOGIN_URL = '/login/'
@@ -356,16 +352,17 @@ CELERY_TASK_TIME_LIMIT = 30 * 60  # 30 minutos máximo
 CELERY_TASK_SOFT_TIME_LIMIT = 25 * 60  # 25 minutos soft limit
 
 # ============================================
-# WHATSAPP CLOUD API CONFIGURATION
+# TWILIO WHATSAPP CONFIGURATION
 # ============================================
-WHATSAPP_TEST_MODE = os.getenv('WHATSAPP_TEST_MODE', default=True)
-WHATSAPP_ACCESS_TOKEN = os.getenv('WHATSAPP_ACCESS_TOKEN', '')
-WHATSAPP_PHONE_NUMBER_ID = os.getenv('WHATSAPP_PHONE_NUMBER_ID', '')
+TWILIO_ACCOUNT_SID = os.getenv('TWILIO_ACCOUNT_SID', '')
+TWILIO_AUTH_TOKEN = os.getenv('TWILIO_AUTH_TOKEN', '')
+TWILIO_WHATSAPP_FROM = os.getenv('TWILIO_WHATSAPP_FROM', 'whatsapp:+14155238886')
+WHATSAPP_TEST_MODE = os.getenv('WHATSAPP_TEST_MODE', 'True') == 'True'
 
 CELERY_BEAT_SCHEDULE = {
     'send-service-reminders': {
         'task': 'whatsapp_notifications.tasks.send_service_reminders',
-        'schedule': 1800.0,  # cada 30 minutos
+        'schedule': 3600.0,  # cada 60 minutos
     },
     'check-uncompleted-services': {
         'task': 'core.tasks.check_uncompleted_services',
