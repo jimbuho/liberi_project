@@ -83,6 +83,7 @@ class WhatsAppService:
                 message_type=template_name,
                 status='sent',
                 message_id='TEST_MODE',
+                template_variables=variables,  # Guardar variables para reintentos
                 response=f"🧪 TEST MODE: '{template_name}' → {variables}"
             )
             logger.info(f"🧪 TEST MODE: WhatsApp '{template_name}' a {recipient_number}")
@@ -95,7 +96,8 @@ class WhatsAppService:
             return WhatsAppService._create_error_log(
                 recipient_number,
                 template_name,
-                f"Template '{template_name}' no encontrado. Templates disponibles: {list(WhatsAppService.TEMPLATES.keys())}"
+                f"Template '{template_name}' no encontrado. Templates disponibles: {list(WhatsAppService.TEMPLATES.keys())}",
+                variables
             )
         
         # Validar Content SID configurado
@@ -108,7 +110,8 @@ class WhatsAppService:
                 recipient_number,
                 template_name,
                 f"Content SID para '{template_name}' no ha sido actualizado. "
-                f"Crea el template en Twilio y actualiza el Content SID en services.py"
+                f"Crea el template en Twilio y actualiza el Content SID en services.py",
+                variables
             )
         
         # Validar número correcto de variables
@@ -172,6 +175,7 @@ class WhatsAppService:
                 message_type=template_name,
                 status='sent',
                 message_id=message.sid,
+                template_variables=variables,  # Guardar variables para reintentos
                 response=f"Twilio Status: {message.status}, SID: {message.sid}"
             )
             
@@ -203,7 +207,8 @@ class WhatsAppService:
             return WhatsAppService._create_error_log(
                 clean_number,
                 template_name,
-                f"{error_msg}. {hint}" if hint else error_msg
+                f"{error_msg}. {hint}" if hint else error_msg,
+                variables
             )
             
         except ValueError as e:
@@ -211,7 +216,8 @@ class WhatsAppService:
             return WhatsAppService._create_error_log(
                 clean_number,
                 template_name,
-                str(e)
+                str(e),
+                variables
             )
             
         except Exception as e:
@@ -219,7 +225,8 @@ class WhatsAppService:
             return WhatsAppService._create_error_log(
                 clean_number,
                 template_name,
-                f"Error inesperado: {str(e)}"
+                f"Error inesperado: {str(e)}",
+                variables
             )
     
     @staticmethod
@@ -243,6 +250,7 @@ class WhatsAppService:
                 message_type='simple_message',
                 status='sent',
                 message_id='TEST_MODE',
+                template_variables=[message_body],  # Guardar mensaje para reintentos
                 response=f"🧪 TEST MODE: Mensaje simple: {message_body}"
             )
             logger.info(f"🧪 TEST MODE: Mensaje simple a {recipient_number}")
@@ -268,6 +276,7 @@ class WhatsAppService:
                 message_type='simple_message',
                 status='sent',
                 message_id=message.sid,
+                template_variables=[message_body],  # Guardar mensaje para reintentos
                 response=f"Twilio Status: {message.status}, SID: {message.sid}"
             )
             
@@ -279,7 +288,8 @@ class WhatsAppService:
             return WhatsAppService._create_error_log(
                 clean_number,
                 'simple_message',
-                f"Twilio Error {e.code}: {e.msg}"
+                f"Twilio Error {e.code}: {e.msg}",
+                [message_body]  # Guardar mensaje para reintentos
             )
             
         except Exception as e:
@@ -287,16 +297,18 @@ class WhatsAppService:
             return WhatsAppService._create_error_log(
                 clean_number,
                 'simple_message',
-                str(e)
+                str(e),
+                [message_body]  # Guardar mensaje para reintentos
             )
     
     @staticmethod
-    def _create_error_log(recipient: str, message_type: str, error_message: str):
+    def _create_error_log(recipient: str, message_type: str, error_message: str, variables: list = None):
         """Crea un log de error"""
         return WhatsAppLog.objects.create(
             recipient=recipient,
             message_type=message_type,
             status='failed',
+            template_variables=variables,  # Guardar variables para reintentos
             error_message=error_message
         )
     

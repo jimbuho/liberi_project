@@ -23,6 +23,15 @@ class WhatsAppLog(models.Model):
         max_length=50,
         help_text='Tipo de template: booking_created, booking_accepted, etc.'
     )
+    
+    # NUEVO: Guardar variables enviadas para poder reintentar
+    template_variables = models.JSONField(
+        'Variables del Template',
+        blank=True,
+        null=True,
+        help_text='Variables enviadas al template para permitir reintentos exactos'
+    )
+    
     status = models.CharField(
         'Estado',
         max_length=20,

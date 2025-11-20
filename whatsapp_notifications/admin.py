@@ -29,18 +29,6 @@ class WhatsAppLogAdmin(admin.ModelAdmin):
         'error_message',
     ]
     
-    # CAMBIO: Permitir agregar logs manualmente para pruebas
-    fields = [
-        'recipient',
-        'message_type',
-        'status',
-        'message_id',
-        'response',
-        'error_message',
-        'created_at',
-        'updated_at',
-    ]
-    
     readonly_fields = [
         'status',
         'message_id',
@@ -62,9 +50,12 @@ class WhatsAppLogAdmin(admin.ModelAdmin):
             'fields': (
                 'recipient',
                 'message_type',
+                'template_variables',  # Campo editable para ingresar variables
                 'status',
                 'message_id',
-            )
+            ),
+            'description': 'Para enviar un mensaje de prueba, ingresa las variables en formato JSON. '
+                          'Ejemplo para booking_created: ["Juan Pérez", "Corte de cabello", "20/11 14:00", "https://liberi.app/bookings/test"]'
         }),
         ('Detalles Técnicos', {
             'fields': (
@@ -128,19 +119,22 @@ class WhatsAppLogAdmin(admin.ModelAdmin):
     def retry_messages(self, request, queryset):
         """
         Acción para reintentar el envío de mensajes seleccionados.
-        Reenvía los mensajes usando las variables de ejemplo según el tipo.
+        Usa las variables guardadas en el log original.
         """
         retried = 0
         errors = []
         
         for log in queryset:
             try:
-                # Variables de ejemplo según el tipo de mensaje
-                variables = self._get_template_variables(log.message_type)
-                
-                if not variables:
-                    errors.append(f'Log {log.id}: Tipo de mensaje no soportado ({log.message_type})')
-                    continue
+                # Usar variables guardadas o valores por defecto
+                if log.template_variables:
+                    variables = log.template_variables
+                else:
+                    self.message_user(
+                        request,
+                        '❌ No existen variables para enviar el mensaje',
+                        messages.ERROR
+                    )
                 
                 # Enviar mensaje usando Celery
                 send_whatsapp_message.delay(
@@ -158,7 +152,7 @@ class WhatsAppLogAdmin(admin.ModelAdmin):
         if retried > 0:
             self.message_user(
                 request,
-                f'✅ {retried} mensaje(s) encolado(s) para reintento',
+                f'✅ {retried} mensaje(s) encolado(s) para reintento con variables originales',
                 messages.SUCCESS
             )
         
@@ -171,34 +165,29 @@ class WhatsAppLogAdmin(admin.ModelAdmin):
     
     retry_messages.short_description = '🔄 Reintentar mensajes seleccionados'
     
-    def _get_template_variables(self, message_type):
+    def get_form(self, request, obj=None, **kwargs):
         """
-        Retorna variables de ejemplo según el tipo de mensaje
+        Personalizar el formulario para agregar ayuda dinámica según el tipo de mensaje
         """
-        variables_map = {
-            'booking_created': [
-                'Cliente Prueba',
-                'Servicio de Prueba',
-                '20/11 14:00',
-                'https://liberi.app/bookings/test'
-            ],
-            'booking_accepted': [
-                'Proveedor Prueba',
-                'Servicio de Prueba',
-                'https://liberi.app/bookings/test'
-            ],
-            'payment_confirmed': [
-                'Cliente Prueba',
-                'Servicio de Prueba'
-            ],
-            'reminder': [
-                'Servicio de Prueba',
-                '14:00',
-                'https://liberi.app/bookings/test'
-            ],
-        }
+        form = super().get_form(request, obj, **kwargs)
         
-        return variables_map.get(message_type)
+        # Agregar texto de ayuda para el campo template_variables
+        if 'template_variables' in form.base_fields:
+            help_text = (
+                '<strong>Formato JSON de variables por template:</strong><br><br>'
+                '<code>booking_created</code> (4 variables):<br>'
+                '<code>["Juan Pérez", "Corte de cabello", "20/11 14:00", "https://liberi.app/bookings/abc123"]</code><br><br>'
+                '<code>booking_accepted</code> (3 variables):<br>'
+                '<code>["María López", "Manicure", "https://liberi.app/bookings/xyz789"]</code><br><br>'
+                '<code>payment_confirmed</code> (2 variables):<br>'
+                '<code>["Carlos Ruiz", "Limpieza de hogar"]</code><br><br>'
+                '<code>reminder</code> (3 variables):<br>'
+                '<code>["Masaje relajante", "14:30", "https://liberi.app/bookings/def456"]</code><br><br>'
+                '<em>Si lo dejas vacío, se usarán valores de prueba genéricos.</em>'
+            )
+            form.base_fields['template_variables'].help_text = help_text
+        
+        return form
     
     def save_model(self, request, obj, form, change):
         """
@@ -208,10 +197,11 @@ class WhatsAppLogAdmin(admin.ModelAdmin):
             # Guardar primero el objeto
             super().save_model(request, obj, form, change)
             
-            # Obtener variables según el tipo
-            variables = self._get_template_variables(obj.message_type)
-            
-            if variables:
+            # SOLO enviar si el usuario especificó variables
+            if obj.template_variables:
+                # Usuario especificó variables manualmente
+                variables = obj.template_variables
+                
                 # Enviar mensaje
                 send_whatsapp_message.delay(
                     recipient=obj.recipient,
@@ -221,16 +211,18 @@ class WhatsAppLogAdmin(admin.ModelAdmin):
                 
                 self.message_user(
                     request,
-                    f'✅ Mensaje de prueba encolado para {obj.recipient}',
+                    f'✅ Mensaje encolado con variables: {variables}',
                     messages.SUCCESS
                 )
             else:
+                # No hay variables, no enviar
                 self.message_user(
                     request,
-                    f'⚠️ Log creado pero tipo de mensaje no soportado: {obj.message_type}',
-                    messages.WARNING
+                    f'ℹ️ Log creado. Especifica "Variables del Template" en formato JSON y guarda nuevamente para enviar el mensaje.',
+                    messages.INFO
                 )
         else:
+            # Editando log existente
             super().save_model(request, obj, form, change)
     
     # CAMBIO: Permitir agregar logs manualmente para pruebas
