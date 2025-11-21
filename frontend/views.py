@@ -1288,7 +1288,6 @@ def booking_create(request):
     if request.method != 'POST':
         return redirect('services_list')
     
-    # Verificar que sea cliente
     if request.user.profile.role != 'customer':
         messages.error(request, 'Solo los clientes pueden hacer reservas')
         return redirect('services_list')
@@ -1300,15 +1299,16 @@ def booking_create(request):
     selected_time = request.POST.get('selected_time')
     notes = request.POST.get('notes', '')
     
-    # Validar datos
+    logger.info(f"📝 Intentando crear reserva: service_id={service_id}, provider_id={provider_id}, date={selected_date}, time={selected_time}")
+    
     service = get_object_or_404(Service, id=service_id)
     provider = get_object_or_404(User, id=provider_id)
     location = get_object_or_404(Location, id=location_id, customer=request.user)
     
-    # VALIDACIÓN CRÍTICA: Verificar que la zona de la ubicación esté en la cobertura del proveedor
+    # VALIDACIÓN CRÍTICA: Verificar zona
     if not location.zone:
         messages.error(request, 'La ubicación seleccionada no tiene zona asignada')
-        return redirect('service_detail', service_id=service.id)
+        return redirect('service_detail', service_code=service.service_code)
     
     provider_covers_zone = provider.provider_profile.coverage_zones.filter(
         id=location.zone_id
@@ -1317,10 +1317,9 @@ def booking_create(request):
     if not provider_covers_zone:
         messages.error(
             request,
-            f'El proveedor no cubre la zona {location.zone.name}. '
-            'Por favor selecciona otra ubicación o busca otro proveedor.'
+            f'El proveedor no cubre la zona {location.zone.name}.'
         )
-        return redirect('service_detail', service_id=service.id)
+        return redirect('service_detail', service_code=service.service_code)
     
     # Combinar fecha y hora
     try:
@@ -1329,11 +1328,13 @@ def booking_create(request):
             "%Y-%m-%d %H:%M"
         )
         scheduled_datetime = timezone.make_aware(scheduled_datetime)
-    except ValueError:
+        logger.info(f"✅ Fecha/hora parseada: {scheduled_datetime}")
+    except ValueError as e:
+        logger.error(f"❌ Error parseando fecha: {e}")
         messages.error(request, 'Fecha u hora inválida')
-        return redirect('service_detail', service_id=service.id)
+        return redirect('service_detail', service_code=service.service_code)
     
-    # Validar tiempo mínimo de anticipación (configurable)
+    # Validar tiempo mínimo
     min_hours = SystemConfig.get_config('min_booking_hours', 1)
     now = timezone.now()
     if scheduled_datetime < now + timedelta(hours=min_hours):
@@ -1341,21 +1342,60 @@ def booking_create(request):
             request,
             f'La reserva debe ser al menos {min_hours} hora(s) en el futuro'
         )
-        return redirect('service_detail', service_id=service.id)
+        return redirect('service_detail', service_code=service.service_code)
     
-    # Verificar que el horario esté disponible
+    # ============================================
+    # CAMBIO #2: Validar que NO tenga otra reserva del MISMO SERVICIO ese DÍA
+    # ============================================
+    logger.info(f"🔍 Buscando reservas duplicadas...")
+    logger.info(f"   Cliente: {request.user.id}")
+    logger.info(f"   Proveedor: {provider.id}")
+    logger.info(f"   Fecha: {scheduled_datetime.date()}")
+    logger.info(f"   Servicio a reservar: {service_id} - {service.name}")
+    
+    # Obtener todas las reservas activas del cliente ese día
+    bookings_that_day = Booking.objects.filter(
+        customer=request.user,
+        provider=provider,
+        scheduled_time__date=scheduled_datetime.date(),
+        status__in=['pending', 'accepted'],
+        payment_status__in=['pending', 'pending_validation', 'paid']
+    ).values_list('id', 'service_list')
+    
+    logger.info(f"   Reservas encontradas ese día: {bookings_that_day.count()}")
+    
+    # Verificar si alguna tiene el mismo servicio
+    for booking_id, service_list in bookings_that_day:
+        logger.info(f"   Analizando booking {booking_id}: {service_list}")
+        
+        if service_list and isinstance(service_list, list):
+            for service_item in service_list:
+                item_service_id = service_item.get('service_id')
+                logger.info(f"      - Servicio en booking: {item_service_id}, buscando: {service_id}")
+                
+                # Comparar como integers
+                if int(item_service_id) == int(service_id):
+                    error_msg = f'Ya tienes una reserva del servicio "{service.name}" para el {scheduled_datetime.strftime("%d/%m")}. Por favor selecciona otro horario o fecha.'
+                    logger.warning(f"❌ DUPLICADO DETECTADO: {error_msg}")
+                    messages.error(request, error_msg)
+                    return redirect('service_detail', service_code=service.service_code)
+    
+    logger.info(f"✅ No hay duplicados. Continuando con creación de reserva...")
+    
+    # Verificar horarios disponibles
     available_slots = get_available_time_slots(
         provider, 
         scheduled_datetime.date(), 
-        service.duration_minutes
+        service.duration_minutes,
+        service_id
     )
     
     selected_time_obj = scheduled_datetime.time()
     if not any(slot['time'] == selected_time_obj for slot in available_slots):
         messages.error(request, 'El horario seleccionado ya no está disponible')
-        return redirect('service_detail', service_id=service.id)
+        return redirect('service_detail', service_code=service.service_code)
     
-    # Crear lista de servicios
+    # Crear lista de servicios y cálculos
     service_list = [{
         'service_id': service.id,
         'name': service.name,
@@ -1363,8 +1403,6 @@ def booking_create(request):
     }]
     
     sub_total_cost = Decimal(service.base_price)
-
-    total_cost = sub_total_cost
     
     # Agregar costo de traslado según zona específica
     zone_cost = ProviderZoneCost.objects.filter(    
@@ -1375,16 +1413,13 @@ def booking_create(request):
     if zone_cost:
         travel_cost = Decimal(zone_cost.travel_cost)
     else:
-        # Usar configuración por defecto
         travel_cost = Decimal(SystemConfig.get_config('default_travel_cost', 2.50))
     
-    total_cost += travel_cost
-    
-    service = Decimal(settings.TAXES_ENDUSER_SERVICE_COMMISSION)
+    service_fee = Decimal(settings.TAXES_ENDUSER_SERVICE_COMMISSION)
     iva = Decimal(settings.TAXES_IVA)
-    tax = sub_total_cost * iva +  service * iva
+    tax = sub_total_cost * iva + service_fee * iva
 
-    total_cost += tax
+    total_cost = sub_total_cost + travel_cost + tax
     
     # Crear reserva
     booking = Booking.objects.create(
@@ -1392,7 +1427,7 @@ def booking_create(request):
         provider=provider,
         service_list=service_list,
         sub_total_cost=sub_total_cost,
-        service=service,
+        service=service_fee,
         tax=tax,
         total_cost=total_cost,
         travel_cost=travel_cost,
@@ -1402,10 +1437,10 @@ def booking_create(request):
         status='pending',
         payment_status='pending'
     )
+    
+    logger.info(f"✅ Reserva creada exitosamente: {booking.id}")
 
-    # ============================================
-    # CAMBIO #1: Crear notificación para proveedor
-    # ============================================
+    # Notificar al proveedor
     Notification.objects.create(
         user=provider,
         notification_type='booking_created',
@@ -1415,15 +1450,12 @@ def booking_create(request):
         action_url=f'/bookings/{booking.id}/'
     )
 
-    # Enviar email al proveedor
-    # Enviar email de forma asincrónica
     try:
         from core.tasks import send_new_booking_to_provider_task
         send_new_booking_to_provider_task.delay(booking_id=str(booking.id))
     except Exception as e:
         logger.error(f"Error enviando email al proveedor: {e}")
     
-    # Log
     AuditLog.objects.create(
         user=request.user,
         action='Reserva creada',
@@ -1886,9 +1918,10 @@ def service_delete(request, service_id):
     
     return redirect('dashboard')
 
-def get_available_time_slots(provider, service_date, service_duration_minutes):
+def get_available_time_slots(provider, service_date, service_duration_minutes, service_id=None):
     """
-    Obtiene los horarios disponibles para un proveedor en una fecha específica
+    Obtiene los horarios disponibles para un proveedor en una fecha específica.
+    CAMBIO #1 & #2: Solo bloquea horarios de reservas ACEPTADAS Y PAGADAS
     """
     from django.utils import timezone
     
@@ -1903,7 +1936,7 @@ def get_available_time_slots(provider, service_date, service_duration_minutes):
     )
     
     if unavailabilities.exists():
-        return []  # Proveedor no disponible este día
+        return []
     
     # Obtener horarios configurados para ese día
     schedules = ProviderSchedule.objects.filter(
@@ -1913,23 +1946,22 @@ def get_available_time_slots(provider, service_date, service_duration_minutes):
     )
     
     if not schedules.exists():
-        return []  # No tiene horarios configurados para este día
+        return []
     
-    # Obtener reservas existentes para ese día
+    # CAMBIO #1: Solo contar reservas ACEPTADAS Y PAGADAS como bloqueadas
     existing_bookings = Booking.objects.filter(
         provider=provider,
         scheduled_time__date=service_date,
-        status__in=['pending', 'accepted']
+        status='accepted',           # ← CAMBIO: Solo aceptadas
+        payment_status='paid'        # ← CAMBIO: Solo pagadas
     )
     
     available_slots = []
     
     for schedule in schedules:
-        # CORRECCIÓN: Crear slots AWARE en lugar de NAIVE
         current_time = datetime.combine(service_date, schedule.start_time)
         end_time = datetime.combine(service_date, schedule.end_time)
         
-        # Hacer los datetimes "aware" con el timezone configurado
         current_time = timezone.make_aware(current_time)
         end_time = timezone.make_aware(end_time)
         
@@ -1937,19 +1969,17 @@ def get_available_time_slots(provider, service_date, service_duration_minutes):
             slot_start = current_time
             slot_end = current_time + timedelta(minutes=service_duration_minutes)
             
-            # Verificar si este slot está ocupado
+            # Verificar si este slot está ocupado por reserva confirmada
             is_occupied = False
             for booking in existing_bookings:
                 booking_start = booking.scheduled_time
-                booking_end = booking_start + timedelta(minutes=60)  # Estimado
+                booking_end = booking_start + timedelta(minutes=60)
                 
-                # AHORA AMBOS SON AWARE - la comparación funcionará
                 if (slot_start < booking_end and slot_end > booking_start):
                     is_occupied = True
                     break
             
             if not is_occupied:
-                # Verificar que sea al menos 1 hora en el futuro
                 now = timezone.now()
                 if slot_start > now + timedelta(hours=1):
                     available_slots.append({
@@ -1957,7 +1987,6 @@ def get_available_time_slots(provider, service_date, service_duration_minutes):
                         'display': slot_start.strftime('%H:%M')
                     })
             
-            # Avanzar 30 minutos
             current_time += timedelta(minutes=30)
     
     return available_slots

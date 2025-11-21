@@ -15,8 +15,8 @@ def booking_whatsapp_notifications(sender, instance, created, **kwargs):
     Signal para enviar notificaciones de WhatsApp cuando cambia el estado de un Booking.
     
     Flujo:
-    1. Booking creado (created=True) → Notificar al proveedor con enlace
-    2. Booking aceptado (status='accepted') → Notificar al cliente con enlace
+    1. Booking creado (created=True) → Notificar al proveedor
+    2. Booking aceptado (status='accepted') → Notificar al cliente
     """
     # Obtener números de teléfono
     customer_phone = getattr(instance.customer.profile, 'phone', None)
@@ -28,24 +28,19 @@ def booking_whatsapp_notifications(sender, instance, created, **kwargs):
     if created:
         if provider_phone:
             try:
-                # Preparar datos del cliente
                 customer_name = instance.customer.get_full_name() or instance.customer.username
                 service_name = instance.get_services_display()
                 booking_date = instance.scheduled_time.strftime("%d/%m %H:%M")
-                
-                # Construir URL para que el proveedor vea la reserva
-                # Usa slug si existe, sino usa ID
                 booking_identifier = getattr(instance, 'slug', instance.id)
                 
-                # Enviar WhatsApp al proveedor con 4 variables
                 send_whatsapp_message.delay(
                     recipient=provider_phone,
                     template_name='booking_created',
                     variables=[
-                        customer_name,   # {{1}} - Nombre del cliente
-                        service_name,    # {{2}} - Servicio
-                        booking_date,    # {{3}} - Fecha/hora
-                        booking_identifier      # {{4}} - URL con botón "Ver Reserva"
+                        customer_name,
+                        service_name,
+                        booking_date,
+                        booking_identifier
                     ]
                 )
                 
@@ -66,33 +61,27 @@ def booking_whatsapp_notifications(sender, instance, created, **kwargs):
                 f"registrado para notificación de booking #{instance.id}"
             )
         
-        return  # Salir para no procesar los otros casos
+        return
     
     # ============================================
     # CASO 2: Booking aceptado
     # ============================================
     if instance.status == 'accepted' and customer_phone:
         try:
-            # Verificar si acaba de cambiar a 'accepted'
-            # update_fields estará presente si se usó save(update_fields=[...])
             if kwargs.get('update_fields') is None or 'status' in kwargs.get('update_fields', []):
                 
-                # Preparar datos del proveedor
                 provider_name = instance.provider.get_full_name() or instance.provider.username
                 service_name = instance.get_services_display()
-                
-                # URL para que el cliente vea los detalles
                 booking_identifier = getattr(instance, 'slug', instance.id)
                 booking_url = f"{settings.BASE_URL}/bookings/{booking_identifier}"
                 
-                # Enviar WhatsApp al cliente con 3 variables
                 send_whatsapp_message.delay(
                     recipient=customer_phone,
                     template_name='booking_accepted',
                     variables=[
-                        provider_name,  # {{1}} - Nombre del proveedor
-                        service_name,   # {{2}} - Servicio
-                        booking_url     # {{3}} - URL con botón "Ver Detalles"
+                        provider_name,
+                        service_name,
+                        booking_url
                     ]
                 )
                 
