@@ -24,8 +24,8 @@ urlpatterns = [
     
     # Bookings
     path('bookings/', views.bookings_list, name='bookings_list'),
-    path('bookings/<str:booking_id>/', views.booking_detail, name='booking_detail'),
     path('bookings/create/', views.booking_create, name='booking_create'),
+    path('bookings/<str:booking_id>/', views.booking_detail, name='booking_detail'),
     path('bookings/<uuid:booking_id>/accept/', views.booking_accept, name='booking_accept'),
     path('bookings/<uuid:booking_id>/reject/', views.booking_reject, name='booking_reject'),
     path('bookings/<uuid:booking_id>/complete/', views.booking_complete, name='booking_complete'),
