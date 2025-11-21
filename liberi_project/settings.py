@@ -121,8 +121,14 @@ ENVIRONMENT = os.getenv('ENVIRONMENT', 'development')  # development, production
 if ENVIRONMENT == 'production':
     # Configuración para Supabase (Producción)
     DATABASES = {
-        "default": dj_database_url.parse(os.environ.get("DATABASE_URL"))
+        "default": dj_database_url.parse(os.environ.get("DATABASE_URL"))    
     }
+
+    # === SOLO ESTO PARA HTTPS EN FLY ===
+    SECURE_PROXY_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+    USE_X_FORWARDED_HOST = True
+    SESSION_COOKIE_SECURE = True
+    CSRF_COOKIE_SECURE = True
 else:
     # Configuración para PostgreSQL local (Desarrollo)
     DATABASES = {
@@ -135,10 +141,6 @@ else:
             'PORT': os.getenv('LOCAL_DB_PORT', '5432'),
         }
     }
-
-SECURE_PROXY_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
-SESSION_COOKIE_SECURE = True
-CSRF_COOKIE_SECURE = True
 
 AUTH_PASSWORD_VALIDATORS = [
     {'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator'},
