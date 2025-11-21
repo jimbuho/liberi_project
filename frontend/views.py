@@ -14,6 +14,7 @@ from django.contrib.auth.password_validation import validate_password
 
 from django.http import HttpResponseRedirect
 from allauth.socialaccount.providers.google.views import oauth2_login
+from uuid import UUID
 
 import requests
 import logging
@@ -1202,7 +1203,17 @@ def bookings_list(request):
 @login_required
 def booking_detail(request, booking_id):
     """Detalle de una reserva con lógica de contacto y código de finalización"""
-    booking = get_object_or_404(Booking, id=booking_id)
+    try:
+        # 1. Intenta validar si la cadena tiene formato UUID.
+        UUID(booking_id)
+        
+        # 2. Si la validación pasa, intentamos buscar el objeto por el campo 'id' (UUID).
+        booking = get_object_or_404(Booking, id=booking_id)
+
+    except ValueError:
+        # 3. Si se lanzó un ValueError (el identificador no era un UUID), 
+        # intentamos buscar por el campo 'slug' (string).
+        booking = get_object_or_404(Booking, slug=booking_id)
     
     # Verificar que el usuario tenga acceso
     if booking.customer != request.user and booking.provider != request.user:

@@ -135,6 +135,7 @@ class WhatsAppLogAdmin(admin.ModelAdmin):
                         '❌ No existen variables para enviar el mensaje',
                         messages.ERROR
                     )
+                    break
                 
                 # Enviar mensaje usando Celery
                 send_whatsapp_message.delay(

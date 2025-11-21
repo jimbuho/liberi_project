@@ -896,7 +896,7 @@ class PaymentInline(admin.TabularInline):
 @admin.register(Booking)
 class BookingAdmin(admin.ModelAdmin):
     list_display = [
-        'booking_id',           # Cambio #1: ID corto
+        'slug',           # Cambio #1: ID corto
         'customer_name',
         'provider_name',
         'status_display',
