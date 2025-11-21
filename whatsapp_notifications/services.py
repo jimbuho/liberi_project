@@ -16,29 +16,7 @@ class WhatsAppService:
     
     # Templates aprobados en Twilio Content Template Builder
     # IMPORTANTE: Actualizar estos Content SIDs después de crear y aprobar los templates
-    TEMPLATES = {
-        'booking_created': {
-            'content_sid': 'HX3dd8c59fba35e20dddbd0530bdb56d6b',
-            'friendly_name': 'booking_created',
-            'variables_count': 4,  # nombre_cliente, servicio, fecha_hora, booking_url
-        },
-        'booking_accepted': {
-            'content_sid': 'HXac888f41014603ccab8e9670a3a864cb',
-            'friendly_name': 'booking_accepted',
-            'variables_count': 3,  # nombre_proveedor, servicio, booking_url
-        },
-        'payment_confirmed': {
-            'content_sid': 'HX851573b0be6caf15988a289ca93b8c8e',
-            'friendly_name': 'payment_confirmed',
-            'variables_count': 2,  # nombre_cliente, servicio
-        },
-        'reminder': {
-            'content_sid': 'HX214f1e711934557e5b84c963cc2219e1',
-            'friendly_name': 'reminder',
-            'variables_count': 3,  # servicio, hora, booking_url
-        },
-    }
-    
+
     @staticmethod
     def _get_twilio_client():
         """Obtiene el cliente de Twilio configurado"""
@@ -90,18 +68,20 @@ class WhatsAppService:
             logger.info(f"   Variables: {variables}")
             return log
 
+        TEMPLATES = settings.TWILIO_TEMPLATES
+
         # Validar template existe
-        if template_name not in WhatsAppService.TEMPLATES:
+        if template_name not in TEMPLATES:
             logger.error(f"❌ Template desconocido: {template_name}")
             return WhatsAppService._create_error_log(
                 recipient_number,
                 template_name,
-                f"Template '{template_name}' no encontrado. Templates disponibles: {list(WhatsAppService.TEMPLATES.keys())}",
+                f"Template '{template_name}' no encontrado. Templates disponibles: {list(TEMPLATES.keys())}",
                 variables
             )
         
         # Validar Content SID configurado
-        template_info = WhatsAppService.TEMPLATES[template_name]
+        template_info = TEMPLATES[template_name]
         content_sid = template_info['content_sid']
         
         if content_sid.startswith('HXxxxx'):
@@ -402,7 +382,7 @@ class WhatsAppService:
         Returns:
             dict: Información del template o None si no existe
         """
-        return WhatsAppService.TEMPLATES.get(template_name)
+        return settings.TWILIO_TEMPLATES.get(template_name)
     
     @staticmethod
     def list_templates() -> list:
@@ -412,7 +392,7 @@ class WhatsAppService:
         Returns:
             list: Lista de nombres de templates
         """
-        return list(WhatsAppService.TEMPLATES.keys())
+        return list(settings.TWILIO_TEMPLATES.keys())
     
     @staticmethod
     def validate_configuration() -> dict:
@@ -425,6 +405,8 @@ class WhatsAppService:
         errors = []
         warnings = []
         
+        TEMPLATES = settings.TWILIO_TEMPLATES
+
         # Validar credenciales
         if not settings.TWILIO_ACCOUNT_SID:
             errors.append("TWILIO_ACCOUNT_SID no configurado")
@@ -440,7 +422,7 @@ class WhatsAppService:
             errors.append("TWILIO_WHATSAPP_FROM debe tener formato 'whatsapp:+14155238886'")
         
         # Validar templates
-        for name, info in WhatsAppService.TEMPLATES.items():
+        for name, info in TEMPLATES.items():
             if info['content_sid'].startswith('HXxxxx'):
                 warnings.append(f"Content SID no configurado para template '{name}'")
         
@@ -463,8 +445,8 @@ class WhatsAppService:
             'warnings': warnings,
             'test_mode': settings.WHATSAPP_TEST_MODE,
             'templates_configured': sum(
-                1 for t in WhatsAppService.TEMPLATES.values() 
+                1 for t in TEMPLATES.values() 
                 if not t['content_sid'].startswith('HXxxxx')
             ),
-            'total_templates': len(WhatsAppService.TEMPLATES),
+            'total_templates': len(TEMPLATES),
         }

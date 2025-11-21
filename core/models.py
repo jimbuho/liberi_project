@@ -6,7 +6,7 @@ from django.conf import settings
 from django.core.validators import RegexValidator
 from django.utils.text import slugify
 from .custom_fields import SmartImageField, SmartFileField
-from .validators import validate_image_size_2mb, validate_ecuador_phone
+from .validators import validate_image_size_5mb, validate_ecuador_phone
 
 import secrets
 import uuid
@@ -145,7 +145,7 @@ class ProviderProfile(models.Model):
                                      help_text='Nombre con el que se promociona el negocio')
     profile_photo = SmartImageField('Foto de Perfil', upload_to='profiles/', blank=True,
                                       help_text='Foto de perfil (puede ser comercial)', max_length=255, 
-                                      validators=[validate_image_size_2mb])
+                                      validators=[validate_image_size_5mb])
     # FIN NUEVOS CAMPOS
     
     coverage_zones = models.ManyToManyField('Zone', verbose_name='Zonas de cobertura',
@@ -158,16 +158,16 @@ class ProviderProfile(models.Model):
     signed_contract_url = models.URLField('URL del contrato firmado', blank=True)
     id_card_front = SmartImageField('Cédula frontal', upload_to='documents/', 
                                     blank=True, max_length=255,
-                                    validators=[validate_image_size_2mb])
+                                    validators=[validate_image_size_5mb])
     id_card_back = SmartImageField('Cédula posterior', upload_to='documents/', blank=True, max_length=255,
-                                   validators=[validate_image_size_2mb])
+                                   validators=[validate_image_size_5mb])
     selfie_with_id = SmartImageField(
         'Foto Rostro con Cédula',
         upload_to='providers/validation/selfie/',
         blank=True,
         null=True,
         max_length=255,
-        validators=[validate_image_size_2mb],
+        validators=[validate_image_size_5mb],
         help_text='Foto del rostro sosteniendo la cédula de identidad'
     )
     documents_verified = models.BooleanField(
@@ -236,7 +236,7 @@ class Service(models.Model):
     duration_minutes = models.IntegerField('Duración (minutos)')
     available = models.BooleanField('Disponible', default=True)
     image = SmartImageField('Imagen', upload_to='services/', blank=True, max_length=255,
-                            validators=[validate_image_size_2mb])
+                            validators=[validate_image_size_5mb])
     created_at = models.DateTimeField('Fecha de creación', auto_now_add=True)
     updated_at = models.DateTimeField('Última actualización', auto_now=True)
 
@@ -856,7 +856,7 @@ class PaymentProof(models.Model):
         verbose_name='Comprobante de Pago',
         help_text='Imagen o foto del comprobante de pago',
         max_length=256,
-        validators=[validate_image_size_2mb]
+        validators=[validate_image_size_5mb]
     )
     verified = models.BooleanField(
         default=False, 
