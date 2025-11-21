@@ -18,7 +18,7 @@ class WhatsAppService:
     # IMPORTANTE: Actualizar estos Content SIDs después de crear y aprobar los templates
     TEMPLATES = {
         'booking_created': {
-            'content_sid': 'HXc7292f5e0afc81cb3a70eb183ddc7d2f',
+            'content_sid': 'HX3dd8c59fba35e20dddbd0530bdb56d6b',
             'friendly_name': 'booking_created',
             'variables_count': 4,  # nombre_cliente, servicio, fecha_hora, booking_url
         },

@@ -377,3 +377,26 @@ LIBERI_WITHDRAWAL_MAX_PER_DAY = int(os.getenv('LIBERI_WITHDRAWAL_MAX_PER_DAY', '
 
 TAXES_IVA = os.getenv('TAXES_IVA', 0.15)
 TAXES_ENDUSER_SERVICE_COMMISSION = os.getenv('TAXES_SERVICE_COMMISSION', 1)
+
+TWILIO_TEMPLATES = {
+        'booking_created': {
+            'content_sid': os.getenv('TWILIO_TEMPLATE_BOOKING_CREATE', ''),
+            'friendly_name': 'booking_created',
+            'variables_count': 4,  # nombre_cliente, servicio, fecha_hora, booking_url
+        },
+        'booking_accepted': {
+            'content_sid': os.getenv('TWILIO_TEMPLATE_BOOKING_ACEPTED', ''),
+            'friendly_name': 'booking_accepted',
+            'variables_count': 3,  # nombre_proveedor, servicio, booking_url
+        },
+        'payment_confirmed': {
+            'content_sid': os.getenv('TWILIO_TEMPLATE_BOOKING_CONFIRMED', ''),
+            'friendly_name': 'payment_confirmed',
+            'variables_count': 2,  # nombre_cliente, servicio
+        },
+        'reminder': {
+            'content_sid': os.getenv('TWILIO_TEMPLATE_BOOKING_REMINDER', ''),
+            'friendly_name': 'reminder',
+            'variables_count': 3,  # servicio, hora, booking_url
+        },
+    }
