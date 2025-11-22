@@ -331,9 +331,16 @@ def service_detail(request, service_code):
     
     # Calcular costo total
     total_cost = service.base_price + Decimal(str(travel_cost))
+
+    # Meta tags
+    meta_image = request.build_absolute_uri(service.image.url) if service.image else None
+    
     
     context = {
         'service': service,
+        'meta_image': meta_image,
+        'meta_title': f"{service.name} | Liberi",
+        'meta_description': (service.description[:160] if service.description else "Servicio verificado en Liberi"),
         'reviews': reviews,
         'provider_rating': round(rating_data['avg_rating'] or 0, 1),
         'total_reviews': rating_data['total'],
@@ -412,10 +419,18 @@ def provider_profile(request, slug):
         provider=provider,
         status='completed'
     ).count()
+
+    # Meta tags
+    meta_image = request.build_absolute_uri(provider_profile.profile_photo.url) if provider_profile.profile_photo else None
+    provider_name = provider_profile.business_name or provider_profile.user.get_full_name()
     
     context = {
         'provider': provider,
         'provider_profile': provider_profile,
+        'provider_name': provider_name,
+        'meta_image': meta_image,
+        'meta_title': f"{provider_profile.business_name or provider_profile.user.get_full_name()} | Liberi",
+        'meta_description': (provider_profile.description[:160] if provider_profile.description else f"Proveedor de {provider_profile.category.name}"),
         'services': services,
         'reviews': reviews,
         'rating_avg': round(rating_data['avg_rating'] or 0, 1),

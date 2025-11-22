@@ -1,6 +1,9 @@
 {% extends 'base.html' %}
 
 {% block title %}{{ service.name }} - Liberi{% endblock %}
+{% block og_title %}{{ service.name }} | Liberi{% endblock %}
+{% block og_description %}{{ meta_description }}{% endblock %}
+{% block twitter_title %}{{ service.name }} | Liberi{% endblock %}
 
 {% block content %}
 <div class="container mt-4 mb-5">
