@@ -129,6 +129,10 @@ if ENVIRONMENT == 'production':
     USE_X_FORWARDED_HOST = True
     SESSION_COOKIE_SECURE = True
     CSRF_COOKIE_SECURE = True
+
+    # AGREGAR ESTAS LÍNEAS PARA FORZAR HTTPS EN OAUTH
+    ACCOUNT_DEFAULT_HTTP_PROTOCOL = 'https'
+    SOCIALACCOUNT_LOGIN_ON_GET = True
 else:
     # Configuración para PostgreSQL local (Desarrollo)
     DATABASES = {
