@@ -54,20 +54,6 @@ class WhatsAppService:
             ...     ]
             ... )
         """
-        # Modo de prueba - no hace llamadas reales
-        if settings.WHATSAPP_TEST_MODE:
-            log = WhatsAppLog.objects.create(
-                recipient=recipient_number,
-                message_type=template_name,
-                status='sent',
-                message_id='TEST_MODE',
-                template_variables=variables,  # Guardar variables para reintentos
-                response=f"🧪 TEST MODE: '{template_name}' → {variables}"
-            )
-            logger.info(f"🧪 TEST MODE: WhatsApp '{template_name}' a {recipient_number}")
-            logger.info(f"   Variables: {variables}")
-            return log
-
         TEMPLATES = settings.TWILIO_TEMPLATES
 
         # Validar template existe
@@ -102,6 +88,20 @@ class WhatsAppService:
                 f"pero se recibieron {len(variables)}"
             )
         
+        # Modo de prueba - no hace llamadas reales
+        if settings.WHATSAPP_TEST_MODE:
+            log = WhatsAppLog.objects.create(
+                recipient=recipient_number,
+                message_type=template_name,
+                status='sent',
+                message_id='TEST_MODE',
+                template_variables=variables,  # Guardar variables para reintentos
+                response=f"🧪 TEST MODE: '{template_name}' → {variables}"
+            )
+            logger.info(f"🧪 TEST MODE: WhatsApp '{template_name}' a {recipient_number}")
+            logger.info(f"   Variables: {variables}")
+            return log
+
         # Limpiar y formatear número
         clean_number = WhatsAppService.format_phone_number(recipient_number)
         

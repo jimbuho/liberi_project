@@ -2,7 +2,6 @@ from celery import shared_task
 from django.utils import timezone
 from django.conf import settings
 from datetime import timedelta
-import json
 import logging
 
 logger = logging.getLogger(__name__)
@@ -11,7 +10,6 @@ logger = logging.getLogger(__name__)
 # IMPORTS DE MODELOS
 # ============================================
 from core.models import Booking
-from whatsapp_notifications.models import WhatsAppLog
 from whatsapp_notifications.services import WhatsAppService
 
 
@@ -22,14 +20,17 @@ from whatsapp_notifications.services import WhatsAppService
 @shared_task
 def send_service_reminders():
     """
-    Envía recordatorios WhatsApp 1 hora antes del servicio
-    Se ejecuta cada 15 minutos vía Celery Beat
-    CORREGIDO: Ahora incluye la URL de booking como tercera variable
+    Envía recordatorios WhatsApp 1 hora antes del servicio.
+    Se ejecuta cada 15 minutos vía Celery Beat.
+    
+    IMPORTANTE: Incluye 3 variables para el template 'reminder':
+    1. Nombre del servicio
+    2. Hora del servicio
+    3. URL del booking
     """
     logger.info("🔔 Iniciando tarea de recordatorios WhatsApp...")
     
     now = timezone.now()
-    # Buscar servicios en los próximos 15 minutos a 1 hora 15 minutos
     time_window_start = now + timedelta(minutes=45)
     time_window_end = now + timedelta(minutes=75)
     
@@ -49,66 +50,69 @@ def send_service_reminders():
     
     for booking in pending_reminders:
         try:
-            # Obtener datos
+            # ============================================
+            # DATOS DEL BOOKING
+            # ============================================
             customer_phone = booking.customer.profile.phone
             provider_phone = booking.provider.profile.phone
             
-            # Obtener nombre del servicio
+            # Nombre del servicio
             if booking.service_list and len(booking.service_list) > 0:
                 service_name = booking.service_list[0].get('name', 'Servicio')
             else:
                 service_name = 'Servicio'
             
-            # Obtener hora formateada
+            # Hora formateada
             scheduled_time = booking.scheduled_time
             time_str = scheduled_time.strftime("%H:%M")
             
-            # CORREGIDO: Construir URL de booking
+            # IMPORTANTE: URL del booking (3era variable)
             booking_identifier = booking.slug if booking.slug else str(booking.id)[:8]
             booking_url = f"{settings.BASE_URL}/bookings/{booking_identifier}/"
             
-            logger.info(f"🔗 URL de booking: {booking_url}")
-            
-            whatsapp_service = WhatsAppService()
+            logger.info(f"📅 Booking {booking.id}: {service_name} a las {time_str}")
+            logger.info(f"🔗 URL: {booking_url}")
             
             # ============================================
             # RECORDATORIO PARA EL CLIENTE
             # ============================================
-            logger.info(f"📱 Enviando recordatorio a cliente: {customer_phone}")
-            
-            try:
-                whatsapp_service.send_message(
-                    phone=customer_phone,
-                    template_type='reminder',
-                    # CORREGIDO: Ahora son 3 variables
-                    variables=[service_name, time_str, booking_url]
-                )
-                logger.info(f"✅ Recordatorio cliente enviado: {customer_phone}")
-                sent_count += 1
-            except Exception as e:
-                logger.error(f"❌ Error enviando recordatorio a cliente: {e}")
+            if customer_phone:
+                logger.info(f"📱 Enviando recordatorio a cliente: {customer_phone}")
+                try:
+                    send_whatsapp_message.delay(
+                        phone=customer_phone,
+                        template_type='reminder',
+                        variables=[service_name, time_str, booking_url]
+                    )
+                    logger.info(f"✅ Recordatorio cliente encolado")
+                    sent_count += 1
+                except Exception as e:
+                    logger.error(f"❌ Error con recordatorio a cliente: {e}")
+            else:
+                logger.warning(f"⚠️ Cliente sin teléfono")
             
             # ============================================
             # RECORDATORIO PARA EL PROVEEDOR
             # ============================================
-            logger.info(f"📱 Enviando recordatorio a proveedor: {provider_phone}")
-            
-            try:
-                whatsapp_service.send_message(
-                    phone=provider_phone,
-                    template_type='reminder',
-                    # CORREGIDO: Ahora son 3 variables
-                    variables=[service_name, time_str, booking_url]
-                )
-                logger.info(f"✅ Recordatorio proveedor enviado: {provider_phone}")
-                sent_count += 1
-            except Exception as e:
-                logger.error(f"❌ Error enviando recordatorio a proveedor: {e}")
+            if provider_phone:
+                logger.info(f"📱 Enviando recordatorio a proveedor: {provider_phone}")
+                try:
+                    send_whatsapp_message.delay(
+                        phone=provider_phone,
+                        template_type='reminder',
+                        variables=[service_name, time_str, booking_url]
+                    )
+                    logger.info(f"✅ Recordatorio proveedor encolado")
+                    sent_count += 1
+                except Exception as e:
+                    logger.error(f"❌ Error con recordatorio a proveedor: {e}")
+            else:
+                logger.warning(f"⚠️ Proveedor sin teléfono")
                 
         except Exception as e:
-            logger.error(f"❌ Error procesando booking {booking.id}: {e}")
+            logger.error(f"❌ Error procesando booking {booking.id}: {e}", exc_info=True)
     
-    logger.info(f"✅ Tarea completada. Total enviados: {sent_count}")
+    logger.info(f"✅ Recordatorios encolados: {sent_count}")
     return {'sent': sent_count, 'total_pending': pending_reminders.count()}
 
 
@@ -117,34 +121,49 @@ def send_service_reminders():
 # ============================================
 
 @shared_task
-def send_whatsapp_message(phone, template_type, variables=None):
+def send_whatsapp_message(phone=None, template_type=None, variables=None, 
+                         recipient=None, template_name=None):
     """
-    Envía un mensaje WhatsApp usando un template
+    Envía un mensaje WhatsApp usando un template.
     
-    Args:
-        phone: Número de teléfono (ej: 593998981436)
-        template_type: Tipo de template (booking_created, booking_accepted, reminder, etc)
-        variables: Lista de variables para el template [var1, var2, var3, ...]
+    FLEXIBLE: Acepta múltiples nombres de parámetros para compatibilidad:
+    - phone o recipient (número de teléfono)
+    - template_type o template_name (tipo de template)
     
-    Returns:
-        dict con status del envío
+    Formas de llamada soportadas:
+    1. send_whatsapp_message(phone='...', template_type='reminder', variables=[...])
+    2. send_whatsapp_message(recipient='...', template_name='reminder', variables=[...])
+    3. send_whatsapp_message(phone='...', template_name='reminder', variables=[...])
     """
-    logger.info(f"📱 Enviando WhatsApp: {template_type} a {phone}")
+    # Normalizar parámetros
+    phone_number = phone or recipient
+    template = template_type or template_name
+    
+    if not phone_number or not template:
+        logger.error(f"❌ Parámetros incompletos: phone={phone_number}, template={template}")
+        return {'success': False, 'error': 'Parámetros requeridos: phone/recipient y template_type/template_name'}
+    
+    logger.info(f"📱 Enviando WhatsApp '{template}' a {phone_number}")
     
     try:
+        # Llamar al servicio con los nombres CORRECTOS esperados por services.py
         whatsapp_service = WhatsAppService()
-        
         result = whatsapp_service.send_message(
-            phone=phone,
-            template_type=template_type,
+            recipient_number=phone_number,
+            template_name=template,
             variables=variables or []
         )
         
-        logger.info(f"✅ Mensaje enviado: {result}")
-        return {'success': True, **result}
+        logger.info(f"✅ WhatsApp enviado exitosamente (Log ID: {result.id})")
+        return {
+            'success': True,
+            'status': 'sent',
+            'log_id': result.id,
+            'message_id': result.message_id if hasattr(result, 'message_id') else None
+        }
         
     except Exception as e:
-        logger.error(f"❌ Error enviando WhatsApp: {e}")
+        logger.error(f"❌ Error al enviar WhatsApp: {e}", exc_info=True)
         return {'success': False, 'error': str(e)}
 
 
@@ -155,15 +174,16 @@ def send_whatsapp_message(phone, template_type, variables=None):
 @shared_task
 def retry_failed_messages():
     """
-    Reintenta enviar mensajes WhatsApp que fallaron
+    Reintenta enviar mensajes que fallaron usando variables guardadas.
     """
-    logger.info("🔄 Iniciando reintento de mensajes fallidos...")
+    from whatsapp_notifications.models import WhatsAppLog
     
-    # Obtener mensajes con error
+    logger.info("🔄 Reintentando mensajes fallidos...")
+    
     failed_logs = WhatsAppLog.objects.filter(
-        status='error',
-        retry_count__lt=3
-    ).select_related('booking')[:10]
+        status='failed',
+        template_variables__isnull=False
+    )[:10]
     
     logger.info(f"📋 Mensajes para reintentar: {failed_logs.count()}")
     
@@ -171,22 +191,18 @@ def retry_failed_messages():
     
     for log in failed_logs:
         try:
-            if log.booking and log.template_variables:
-                phone = log.recipient_phone
-                template_type = log.template_name
-                variables = log.template_variables
-                
-                # Reintentar
-                send_whatsapp_message.delay(phone, template_type, variables)
-                
-                log.retry_count += 1
-                log.save()
-                
-                logger.info(f"🔄 Mensaje reintentado: {log.id}")
-                retried_count += 1
-                
+            logger.info(f"🔄 Reintentando Log {log.id}: {log.message_type} → {log.recipient}")
+            
+            send_whatsapp_message.delay(
+                phone=log.recipient,
+                template_type=log.message_type,
+                variables=log.template_variables
+            )
+            
+            retried_count += 1
+            
         except Exception as e:
-            logger.error(f"❌ Error reintentando mensaje {log.id}: {e}")
+            logger.error(f"❌ Error reintentando Log {log.id}: {e}")
     
-    logger.info(f"✅ Reintento completado. Total reintentados: {retried_count}")
+    logger.info(f"✅ {retried_count} mensaje(s) encolado(s) para reintento")
     return {'retried': retried_count}
