@@ -166,7 +166,7 @@
         </div>
     </div>
 
-    <!-- Navbar -->
+    <!-- Navbar CORREGIDO -->
     <nav class="navbar navbar-expand-lg navbar-light bg-white shadow-sm">
         <div class="container">
             <a class="navbar-brand d-flex align-items-center" href="{% url 'home' %}">
@@ -188,16 +188,34 @@
                         </a>
                     </li>
                     {% if user.is_authenticated %}
-                    <li class="nav-item">
-                        <a class="nav-link position-relative" href="#">
+                    <!-- NOTIFICACIONES - DROPDOWN CORREGIDO -->
+                    <li class="nav-item dropdown">
+                        <a class="nav-link position-relative" href="#" id="notificationsDropdown" role="button" 
+                           data-bs-toggle="dropdown" aria-expanded="false">
                             <i class="fas fa-bell"></i>
-                            {% if unread_notifications_count > 0 %}
-                            <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">
-                                {{ unread_notifications_count }}
+                            <span id="notificationCount" class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger" style="display: none;">
+                                0
                             </span>
-                            {% endif %}
                         </a>
+                        <ul class="dropdown-menu dropdown-menu-end shadow-sm" aria-labelledby="notificationsDropdown" style="min-width: 350px; max-height: 500px; overflow-y: auto;">
+                            <li class="dropdown-header">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <strong>Notificaciones</strong>
+                                    <a href="#" id="markAllRead" class="text-decoration-none small" style="display: none;">
+                                        <i class="fas fa-check-double"></i> Marcar todo como leído
+                                    </a>
+                                </div>
+                            </li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li id="notificationsList">
+                                <div class="text-center py-4 text-muted">
+                                    <i class="fas fa-spinner fa-spin me-2"></i>Cargando...
+                                </div>
+                            </li>
+                        </ul>
                     </li>
+
+                    <!-- USUARIO - DROPDOWN EXISTENTE -->
                     <li class="nav-item dropdown">
                         <a class="nav-link dropdown-toggle" href="#" id="userDropdown" role="button" 
                         data-bs-toggle="dropdown" aria-expanded="false">
@@ -288,7 +306,6 @@
     <!-- Bootstrap JS -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     
-    <!-- Loader Global Script -->
     <!-- Loader Global Script -->
     <script>
         const loader = document.getElementById('globalLoader');
@@ -383,22 +400,60 @@
     </script>
     
     {% if user.is_authenticated %}
-    <!-- Notificaciones Script -->
+    <!-- Notificaciones Script CORREGIDO -->
     <script>
-        // Cargar notificaciones al abrir el dropdown
-        document.getElementById('notificationsDropdown').addEventListener('click', function(e) {
-            loadNotifications();
+        // Variables globales
+        let notificationsDropdown = null;
+        
+        // Esperar a que el DOM esté listo
+        document.addEventListener('DOMContentLoaded', function() {
+            notificationsDropdown = document.getElementById('notificationsDropdown');
+            
+            if (!notificationsDropdown) {
+                console.warn('Elemento #notificationsDropdown no encontrado');
+                return;
+            }
+            
+            // Cargar notificaciones cuando se abre el dropdown
+            notificationsDropdown.addEventListener('click', function(e) {
+                e.preventDefault();
+                loadNotifications();
+            });
+            
+            // Cargar contador inicial
+            loadNotificationsCount();
+            
+            // Cargar notificaciones cada 30 segundos
+            setInterval(loadNotificationsCount, 30000);
+            
+            // Marcar todo como leído - setup
+            const markAllReadBtn = document.getElementById('markAllRead');
+            if (markAllReadBtn) {
+                markAllReadBtn.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    
+                    fetch('/api/notifications/mark-all-read/', {
+                        method: 'POST',
+                        headers: {
+                            'X-CSRFToken': getCookie('csrftoken'),
+                            'Content-Type': 'application/json'
+                        }
+                    }).then(() => {
+                        loadNotifications();
+                    }).catch(error => {
+                        console.error('Error marking all as read:', error);
+                    });
+                });
+            }
         });
-        
-        // Cargar notificaciones cada 30 segundos
-        setInterval(loadNotificationsCount, 30000);
-        
-        // Cargar contador inicial
-        loadNotificationsCount();
         
         function loadNotifications() {
             fetch('/api/notifications/')
-                .then(response => response.json())
+                .then(response => {
+                    if (!response.ok) throw new Error('Error en response');
+                    return response.json();
+                })
                 .then(data => {
                     updateNotificationsList(data.notifications);
                     const unreadCount = data.notifications.filter(n => !n.is_read).length;
@@ -417,7 +472,10 @@
         
         function loadNotificationsCount() {
             fetch('/api/notifications/count/')
-                .then(response => response.json())
+                .then(response => {
+                    if (!response.ok) throw new Error('Error en response');
+                    return response.json();
+                })
                 .then(data => {
                     updateNotificationCount(data.count);
                 })
@@ -451,7 +509,7 @@
                 
                 html += `
                     <li>
-                        <a href="#" class="dropdown-item ${unreadClass} py-2" 
+                        <a href="#" class="dropdown-item py-2 ${unreadClass}" 
                            onclick="handleNotificationClick(event, ${notif.id}, '${notif.action_url || ''}')">
                             <div class="d-flex justify-content-between align-items-start">
                                 <div class="flex-grow-1">
@@ -466,7 +524,7 @@
             });
             
             container.innerHTML = html;
-            document.getElementById('markAllRead').style.display = hasUnread ? 'block' : 'none';
+            document.getElementById('markAllRead').style.display = hasUnread ? 'inline-block' : 'none';
         }
         
         function updateNotificationCount(count) {
@@ -489,7 +547,7 @@
                     'Content-Type': 'application/json'
                 }
             }).then(() => {
-                if (actionUrl && actionUrl !== '' && actionUrl !== 'None') {
+                if (actionUrl && actionUrl !== '' && actionUrl !== 'None' && actionUrl !== '#') {
                     window.location.href = actionUrl;
                 } else {
                     loadNotifications();
@@ -514,23 +572,6 @@
             }
             return cookieValue;
         }
-        
-        document.getElementById('markAllRead').addEventListener('click', function(e) {
-            e.preventDefault();
-            e.stopPropagation();
-            
-            fetch('/api/notifications/mark-all-read/', {
-                method: 'POST',
-                headers: {
-                    'X-CSRFToken': getCookie('csrftoken'),
-                    'Content-Type': 'application/json'
-                }
-            }).then(() => {
-                loadNotifications();
-            }).catch(error => {
-                console.error('Error marking all as read:', error);
-            });
-        });
     </script>
     {% endif %}
     

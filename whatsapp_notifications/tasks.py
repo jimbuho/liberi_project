@@ -57,6 +57,7 @@ def send_service_reminders():
     de servicios que están próximos a ocurrir (1 hora antes)
     """
     from core.models import Booking
+    from django.conf import settings as django_settings
     
     logger.info("🔔 Ejecutando tarea de recordatorios de servicios...")
     
@@ -86,28 +87,32 @@ def send_service_reminders():
             service_name = booking.get_services_display()
             time_str = booking.scheduled_time.strftime('%H:%M')
             
+            # Obtener URL del booking (tercera variable requerida por el template)
+            booking_identifier = getattr(booking, 'slug', booking.id)
+            booking_url = f"{django_settings.BASE_URL}/bookings/{booking_identifier}"
+            
             # Obtener números de teléfono
             customer_phone = getattr(booking.customer.profile, 'phone', None)
             provider_phone = getattr(booking.provider.profile, 'phone', None)
             
-            # Enviar recordatorio al cliente
+            # Enviar recordatorio al cliente (3 variables: servicio, hora, booking_url)
             if customer_phone:
                 send_whatsapp_message.delay(
                     recipient=customer_phone,
                     template_name='reminder',
-                    variables=[service_name, time_str]
+                    variables=[service_name, time_str, booking_url]
                 )
                 logger.info(f"📨 Recordatorio enviado al cliente {booking.customer.username}")
                 reminders_sent += 1
             else:
                 logger.warning(f"⚠️ Cliente {booking.customer.username} no tiene teléfono registrado")
             
-            # Enviar recordatorio al proveedor
+            # Enviar recordatorio al proveedor (3 variables: servicio, hora, booking_url)
             if provider_phone:
                 send_whatsapp_message.delay(
                     recipient=provider_phone,
                     template_name='reminder',
-                    variables=[service_name, time_str]
+                    variables=[service_name, time_str, booking_url]
                 )
                 logger.info(f"📨 Recordatorio enviado al proveedor {booking.provider.username}")
                 reminders_sent += 1
