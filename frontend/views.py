@@ -28,7 +28,8 @@ from core.models import (
     PaymentMethod, BankAccount, PaymentProof,
     ProviderZoneCost, SystemConfig, Notification, Payment,
     WithdrawalRequest, ProviderBankAccount, Bank,
-    EmailVerificationToken, City, PasswordResetToken
+    EmailVerificationToken, City, PasswordResetToken,
+    ProviderLocation
 )
 from legal.models import LegalDocument, LegalAcceptance
 from legal.views import get_client_ip, get_user_agent
@@ -117,7 +118,6 @@ def set_current_city(request, city):
         request.user.profile.current_city = city
         request.user.profile.save(update_fields=['current_city'])
 
-@login_required
 def services_list(request):
     """Listado de servicios con filtros mejorados por ciudad y zona"""
     services = Service.objects.filter(available=True).select_related('provider')
@@ -154,6 +154,11 @@ def services_list(request):
             current_zone = last_location.zone
             request.session['current_zone_id'] = current_zone.id
     
+    # NUEVO: Obtener modalidad seleccionada
+    service_mode = request.GET.get('service_mode', 'home')
+    if service_mode not in ['home', 'local']:
+        service_mode = 'home'
+    
     # Filtros
     category_id = request.GET.get('category')
     search = request.GET.get('search')
@@ -177,6 +182,33 @@ def services_list(request):
             provider__provider_profile__is_active=True,
             provider__provider_profile__status='approved'
         )
+    
+    # NUEVO: FILTRAR POR MODALIDAD + UBICACIONES
+    if current_zone:
+        from core.models import ProviderLocation
+        
+        if service_mode == 'home':
+            providers_with_base = ProviderLocation.objects.filter(
+                location_type='base',
+                zone=current_zone
+            ).values_list('provider_id', flat=True).distinct()
+            
+            services = services.filter(
+                provider__provider_profile__service_mode__in=['home', 'both'],
+                provider_id__in=providers_with_base
+            )
+        
+        elif service_mode == 'local':
+            providers_with_locations = ProviderLocation.objects.filter(
+                location_type='local',
+                zone=current_zone,
+                is_verified=True
+            ).values_list('provider_id', flat=True).distinct()
+            
+            services = services.filter(
+                provider__provider_profile__service_mode__in=['local', 'both'],
+                provider_id__in=providers_with_locations
+            )
     
     # FILTRO SECUNDARIO: Por zona específica
     if current_zone:
@@ -235,8 +267,9 @@ def services_list(request):
         'categories': get_active_categories(),
         'zones': zones,
         'current_zone': current_zone,
-        'current_city': current_city,  # NUEVO
-        'cities': City.objects.filter(active=True).order_by('display_order'),  # NUEVO
+        'current_city': current_city,
+        'service_mode': service_mode,  # NUEVO
+        'cities': City.objects.filter(active=True).order_by('display_order'),
         'selected_category': Category.objects.filter(id=category_id).first() if category_id else None,
         'show_zone_warning': not current_zone and current_city,
     }
@@ -277,6 +310,28 @@ def service_detail(request, service_code):
     # Obtener zona actual
     current_zone_id = request.session.get('current_zone_id')
     current_zone = Zone.objects.filter(id=current_zone_id).first() if current_zone_id else None
+    
+    # NUEVO: Obtener modalidad de la URL
+    selected_mode = request.GET.get('service_mode', 'home')
+    
+    # NUEVO: Obtener ubicaciones disponibles
+    from core.models import ProviderLocation
+    available_locations = []
+    
+    if current_zone:
+        if selected_mode == 'home':
+            available_locations = ProviderLocation.objects.filter(
+                provider=service.provider,
+                zone=current_zone,
+                location_type='base'
+            )
+        elif selected_mode == 'local':
+            available_locations = ProviderLocation.objects.filter(
+                provider=service.provider,
+                zone=current_zone,
+                location_type='local',
+                is_verified=True
+            )
     
     # Verificar si el proveedor cubre la zona actual
     can_book = False
@@ -335,7 +390,6 @@ def service_detail(request, service_code):
     # Meta tags
     meta_image = request.build_absolute_uri(service.image.url) if service.image else None
     
-    
     context = {
         'service': service,
         'meta_image': meta_image,
@@ -352,6 +406,8 @@ def service_detail(request, service_code):
         'current_zone': current_zone,
         'can_book': can_book,
         'zone_not_covered': zone_not_covered,
+        'available_locations': available_locations,  # NUEVO
+        'selected_mode': selected_mode,  # NUEVO
     }
     return render(request, 'services/detail.html', context)
 
@@ -1313,12 +1369,29 @@ def booking_create(request):
     selected_date = request.POST.get('selected_date')
     selected_time = request.POST.get('selected_time')
     notes = request.POST.get('notes', '')
+    provider_location_id = request.POST.get('provider_location_id')  # NUEVO
     
-    logger.info(f"📝 Intentando crear reserva: service_id={service_id}, provider_id={provider_id}, date={selected_date}, time={selected_time}")
+    logger.info(f"📝 Intentando crear reserva: service_id={service_id}, provider_id={provider_id}")
     
     service = get_object_or_404(Service, id=service_id)
     provider = get_object_or_404(User, id=provider_id)
     location = get_object_or_404(Location, id=location_id, customer=request.user)
+    
+    # NUEVO: Obtener ubicación del proveedor si se especificó
+    provider_location = None
+    if provider_location_id:
+        from core.models import ProviderLocation
+        try:
+            provider_location = ProviderLocation.objects.get(
+                id=provider_location_id,
+                provider=provider
+            )
+            if provider_location.location_type == 'local' and not provider_location.is_verified:
+                messages.error(request, 'Ubicación no verificada')
+                return redirect('service_detail', service_code=service.service_code)
+        except ProviderLocation.DoesNotExist:
+            messages.error(request, 'Ubicación inválida')
+            return redirect('service_detail', service_code=service.service_code)
     
     # VALIDACIÓN CRÍTICA: Verificar zona
     if not location.zone:
@@ -1359,16 +1432,9 @@ def booking_create(request):
         )
         return redirect('service_detail', service_code=service.service_code)
     
-    # ============================================
-    # CAMBIO #2: Validar que NO tenga otra reserva del MISMO SERVICIO ese DÍA
-    # ============================================
+    # Validar que NO tenga otra reserva del MISMO SERVICIO ese DÍA
     logger.info(f"🔍 Buscando reservas duplicadas...")
-    logger.info(f"   Cliente: {request.user.id}")
-    logger.info(f"   Proveedor: {provider.id}")
-    logger.info(f"   Fecha: {scheduled_datetime.date()}")
-    logger.info(f"   Servicio a reservar: {service_id} - {service.name}")
     
-    # Obtener todas las reservas activas del cliente ese día
     bookings_that_day = Booking.objects.filter(
         customer=request.user,
         provider=provider,
@@ -1377,25 +1443,18 @@ def booking_create(request):
         payment_status__in=['pending', 'pending_validation', 'paid']
     ).values_list('id', 'service_list')
     
-    logger.info(f"   Reservas encontradas ese día: {bookings_that_day.count()}")
-    
-    # Verificar si alguna tiene el mismo servicio
     for booking_id, service_list in bookings_that_day:
-        logger.info(f"   Analizando booking {booking_id}: {service_list}")
-        
         if service_list and isinstance(service_list, list):
             for service_item in service_list:
                 item_service_id = service_item.get('service_id')
-                logger.info(f"      - Servicio en booking: {item_service_id}, buscando: {service_id}")
                 
-                # Comparar como integers
                 if int(item_service_id) == int(service_id):
-                    error_msg = f'Ya tienes una reserva del servicio "{service.name}" para el {scheduled_datetime.strftime("%d/%m")}. Por favor selecciona otro horario o fecha.'
+                    error_msg = f'Ya tienes una reserva del servicio "{service.name}" para el {scheduled_datetime.strftime("%d/%m")}.'
                     logger.warning(f"❌ DUPLICADO DETECTADO: {error_msg}")
                     messages.error(request, error_msg)
                     return redirect('service_detail', service_code=service.service_code)
     
-    logger.info(f"✅ No hay duplicados. Continuando con creación de reserva...")
+    logger.info(f"✅ No hay duplicados. Continuando...")
     
     # Verificar horarios disponibles
     available_slots = get_available_time_slots(
@@ -1436,7 +1495,7 @@ def booking_create(request):
 
     total_cost = sub_total_cost + travel_cost + tax
     
-    # Crear reserva
+    # Crear reserva CON provider_location
     booking = Booking.objects.create(
         customer=request.user,
         provider=provider,
@@ -1447,6 +1506,7 @@ def booking_create(request):
         total_cost=total_cost,
         travel_cost=travel_cost,
         location=location,
+        provider_location=provider_location,  # NUEVO
         scheduled_time=scheduled_datetime,
         notes=notes,
         status='pending',
@@ -4089,3 +4149,341 @@ def google_provider_signup(request):
     
     # Redirigir a Google
     return HttpResponseRedirect(google_login_url)
+
+# ============================================
+# PROVIDER LOCATION MANAGEMENT VIEWS
+# ============================================
+
+@login_required
+def provider_locations_list(request):
+    """Listado de ubicaciones del proveedor"""
+    if request.user.profile.role != 'provider':
+        messages.error(request, 'Solo los proveedores pueden acceder')
+        return redirect('dashboard')
+
+    locations = ProviderLocation.objects.filter(provider=request.user).select_related('city', 'zone').order_by('-created_at')
+    base_location = locations.filter(location_type='base').first()
+    local_locations = locations.filter(location_type='local')
+
+    context = {
+        'base_location': base_location,
+        'local_locations': local_locations,
+        'total_locations': locations.count(),
+        'provider_profile': request.user.provider_profile,
+    }
+    return render(request, 'providers/locations_list.html', context)
+
+
+@login_required
+def provider_location_create(request, loc_type=None):
+    """Crear nueva ubicación (domicilio base o local)"""
+    if request.user.profile.role != 'provider':
+        messages.error(request, 'Solo los proveedores pueden crear ubicaciones')
+        return redirect('dashboard')
+
+    if loc_type == 'base':
+        if ProviderLocation.objects.filter(provider=request.user, location_type='base').exists():
+            messages.error(request, 'Ya tienes un domicilio base registrado')
+            return redirect('provider_locations_list')
+
+    if request.method == 'POST':
+        form = ProviderLocationForm(request.POST, request.FILES, provider=request.user, location_type=loc_type)
+        if form.is_valid():
+            location = form.save(commit=False)
+            location.provider = request.user
+            location.save()
+            messages.success(request, f'✅ Ubicación "{location.label}" creada exitosamente.')
+            return redirect('provider_locations_list')
+    else:
+        form = ProviderLocationForm(provider=request.user, location_type=loc_type)
+
+    context = {
+        'form': form,
+        'location_type': loc_type or 'local',
+        'type_display': 'Domicilio Base' if loc_type == 'base' else 'Local / Sucursal',
+    }
+    return render(request, 'providers/location_form.html', context)
+
+
+@login_required
+def provider_location_edit(request, loc_id):
+    """Editar una ubicación"""
+    location = get_object_or_404(ProviderLocation, id=loc_id, provider=request.user)
+
+    if request.method == 'POST':
+        form = ProviderLocationForm(request.POST, request.FILES, instance=location, provider=request.user)
+        if form.is_valid():
+            location = form.save()
+            messages.success(request, f'✅ Ubicación actualizada.')
+            return redirect('provider_locations_list')
+    else:
+        form = ProviderLocationForm(instance=location, provider=request.user)
+
+    context = {
+        'form': form,
+        'location': location,
+        'type_display': location.get_location_type_display(),
+    }
+    return render(request, 'providers/location_form.html', context)
+
+
+@login_required
+def provider_location_delete(request, loc_id):
+    """Eliminar una ubicación"""
+    location = get_object_or_404(ProviderLocation, id=loc_id, provider=request.user)
+
+    if request.method == 'POST':
+        active_bookings = Booking.objects.filter(
+            provider=request.user,
+            provider_location=location,
+            status__in=['pending', 'accepted']
+        ).count()
+
+        if active_bookings > 0:
+            messages.error(request, f'No puedes eliminar esta ubicación porque tienes {active_bookings} reserva(s) activa(s).')
+            return redirect('provider_locations_list')
+
+        location_label = location.label
+        location.delete()
+        messages.success(request, f'✅ Ubicación "{location_label}" eliminada.')
+        return redirect('provider_locations_list')
+
+    context = {'location': location}
+    return render(request, 'providers/location_confirm_delete.html', context)
+
+
+@login_required
+def api_get_zones_by_city(request):
+    """API AJAX: Obtener zonas por ciudad"""
+    if request.method != 'POST':
+        return JsonResponse({'error': 'Método no permitido'}, status=405)
+
+    city_id = request.POST.get('city_id')
+    if not city_id:
+        return JsonResponse({'error': 'city_id requerido'}, status=400)
+
+    try:
+        city = City.objects.get(id=city_id, active=True)
+        zones = Zone.objects.filter(city=city, active=True).order_by('name')
+        data = {
+            'success': True,
+            'zones': [{'id': zone.id, 'name': zone.name} for zone in zones]
+        }
+        return JsonResponse(data)
+    except City.DoesNotExist:
+        return JsonResponse({'error': 'Ciudad no encontrada'}, status=404)
+
+# ============================================
+# NUEVAS VISTAS PARA UBICACIONES
+# ============================================
+
+@login_required
+def provider_locations_list(request):
+    """Lista todas las ubicaciones del proveedor"""
+    if request.user.profile.role != 'provider':
+        messages.error(request, 'Solo proveedores')
+        return redirect('dashboard')
+    
+    from core.models import ProviderLocation
+    
+    locations = ProviderLocation.objects.filter(
+        provider=request.user
+    ).select_related('city', 'zone').order_by('location_type')
+    
+    base_location = locations.filter(location_type='base').first()
+    local_locations = locations.filter(location_type='local')
+    
+    context = {
+        'base_location': base_location,
+        'local_locations': local_locations,
+        'all_locations': locations,
+    }
+    return render(request, 'providers/locations_list.html', context)
+
+
+@login_required
+def provider_location_create(request, loc_type=None):
+    """Crear nueva ubicación"""
+    if request.user.profile.role != 'provider':
+        messages.error(request, 'Solo proveedores')
+        return redirect('dashboard')
+    
+    from core.models import ProviderLocation
+    from frontend.forms import ProviderLocationForm
+    
+    if loc_type == 'base':
+        if ProviderLocation.objects.filter(provider=request.user, location_type='base').exists():
+            messages.error(request, 'Ya tienes domicilio base')
+            return redirect('provider_locations_list')
+    
+    if request.method == 'POST':
+        form = ProviderLocationForm(
+            request.POST,
+            provider=request.user,
+            location_type=loc_type
+        )
+        if form.is_valid():
+            location = form.save(commit=False)
+            location.provider = request.user
+            location.save()
+            messages.success(request, f'✅ {location.label} creado')
+            return redirect('provider_locations_list')
+    else:
+        form = ProviderLocationForm(provider=request.user, location_type=loc_type)
+    
+    type_name = 'Domicilio Base' if loc_type == 'base' else 'Local/Sucursal'
+    context = {
+        'form': form,
+        'location_type': loc_type,
+        'type_display': type_name
+    }
+    return render(request, 'providers/location_form.html', context)
+
+
+@login_required
+def provider_location_edit(request, loc_id):
+    """Editar ubicación"""
+    from core.models import ProviderLocation
+    from frontend.forms import ProviderLocationForm
+    
+    location = get_object_or_404(ProviderLocation, id=loc_id, provider=request.user)
+    
+    if request.method == 'POST':
+        form = ProviderLocationForm(
+            request.POST,
+            instance=location,
+            provider=request.user
+        )
+        if form.is_valid():
+            form.save()
+            messages.success(request, '✅ Actualizado')
+            return redirect('provider_locations_list')
+    else:
+        form = ProviderLocationForm(instance=location, provider=request.user)
+    
+    context = {'form': form, 'location': location}
+    return render(request, 'providers/location_form.html', context)
+
+
+@login_required
+def provider_location_delete(request, loc_id):
+    """Eliminar ubicación"""
+    from core.models import ProviderLocation
+    
+    location = get_object_or_404(ProviderLocation, id=loc_id, provider=request.user)
+    
+    if request.method == 'POST':
+        active_bookings = Booking.objects.filter(
+            provider=request.user,
+            provider_location=location,
+            status__in=['pending', 'accepted']
+        ).count()
+        
+        if active_bookings > 0:
+            messages.error(request, f'❌ {active_bookings} reserva(s) activa(s)')
+            return redirect('provider_locations_list')
+        
+        location_label = location.label
+        location.delete()
+        messages.success(request, f'✅ {location_label} eliminado')
+        return redirect('provider_locations_list')
+    
+    context = {'location': location}
+    return render(request, 'providers/location_confirm_delete.html', context)
+
+
+@login_required
+def provider_settings_service_mode(request):
+    """Configurar modalidad de atención"""
+    if request.user.profile.role != 'provider':
+        messages.error(request, 'Solo proveedores')
+        return redirect('dashboard')
+    
+    from frontend.forms import ProviderProfileServiceModeForm
+    
+    provider_profile = request.user.provider_profile
+    
+    if request.method == 'POST':
+        form = ProviderProfileServiceModeForm(request.POST, instance=provider_profile)
+        if form.is_valid():
+            form.save()
+            messages.success(request, '✅ Modalidad configurada')
+            return redirect('provider_locations_list')
+    else:
+        form = ProviderProfileServiceModeForm(instance=provider_profile)
+    
+    context = {'form': form}
+    return render(request, 'providers/service_mode_form.html', context)
+
+
+# ============================================
+# APIS AJAX
+# ============================================
+
+@login_required
+def api_get_service_locations(request):
+    """Obtiene ubicaciones para un servicio"""
+    from core.models import ProviderLocation
+    
+    service_id = request.GET.get('service_id')
+    zone_id = request.GET.get('zone_id')
+    service_mode = request.GET.get('service_mode', 'home')
+    
+    if not service_id:
+        return JsonResponse({'error': 'service_id requerido'}, status=400)
+    
+    try:
+        service = Service.objects.get(id=service_id, available=True)
+    except Service.DoesNotExist:
+        return JsonResponse({'error': 'No encontrado'}, status=404)
+    
+    provider = service.provider
+    locations = ProviderLocation.objects.filter(provider=provider)
+    
+    if zone_id:
+        locations = locations.filter(zone_id=zone_id)
+    
+    if service_mode == 'home':
+        locations = locations.filter(location_type='base')
+    elif service_mode == 'local':
+        locations = locations.filter(location_type='local', is_verified=True)
+    
+    locations = locations.select_related('zone', 'city')
+    
+    data = {
+        'success': True,
+        'count': locations.count(),
+        'locations': [
+            {
+                'id': loc.id,
+                'label': loc.label,
+                'address': loc.address,
+                'type': loc.get_location_type_display(),
+            }
+            for loc in locations
+        ]
+    }
+    return JsonResponse(data)
+
+
+@login_required
+def api_get_zones_by_city(request):
+    """Obtiene zonas por ciudad (para formulario de ubicaciones)"""
+    if request.method != 'POST':
+        return JsonResponse({'error': 'POST requerido'}, status=405)
+    
+    city_id = request.POST.get('city_id')
+    if not city_id:
+        return JsonResponse({'error': 'city_id requerido'}, status=400)
+    
+    try:
+        city = City.objects.get(id=city_id, active=True)
+        zones = Zone.objects.filter(city=city, active=True).order_by('name')
+        
+        data = {
+            'success': True,
+            'zones': [{'id': z.id, 'name': z.name} for z in zones]
+        }
+        return JsonResponse(data)
+    except City.DoesNotExist:
+        return JsonResponse({'error': 'No encontrada'}, status=404)

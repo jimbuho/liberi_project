@@ -109,5 +109,16 @@ urlpatterns = [
     # Google OAuth para proveedores
     path('auth/google/provider/', views.google_provider_signup, name='google_provider_signup'),
     path('provider/complete-profile-google/', views.complete_provider_profile_google, name='complete_provider_profile_google'),
+
+    # Provider Location Management
+    path('provider/locations/', views.provider_locations_list, name='provider_locations_list'),
+    path('provider/locations/create/', views.provider_location_create, name='provider_location_create'),
+    path('provider/locations/create/base/', lambda r: views.provider_location_create(r, loc_type='base'), name='provider_location_create_base'),
+    path('provider/locations/create/local/', lambda r: views.provider_location_create(r, loc_type='local'), name='provider_location_create_local'),
+    path('provider/locations/<int:loc_id>/edit/', views.provider_location_edit, name='provider_location_edit'),
+    path('provider/locations/<int:loc_id>/delete/', views.provider_location_delete, name='provider_location_delete'),
+    path('provider/settings/service-mode/', views.provider_settings_service_mode, name='provider_settings_service_mode'),
+    path('api/zones-by-city/', views.api_get_zones_by_city, name='api_get_zones_by_city'),
+    path('api/service-locations/', views.api_get_service_locations, name='api_get_service_locations'),
     
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

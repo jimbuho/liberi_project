@@ -8,7 +8,8 @@
         <ol class="breadcrumb">
             <li class="breadcrumb-item"><a href="{% url 'home' %}">Inicio</a></li>
             <li class="breadcrumb-item"><a href="{% url 'services_list' %}">Servicios</a></li>
-            <li class="breadcrumb-item"><a href="{% url 'service_detail' service.service_code %}">{{ service.name }}</a></li>
+            <li class="breadcrumb-item"><a href="{% url 'service_detail' service.service_code %}">{{ service.name }}</a>
+            </li>
             <li class="breadcrumb-item active">Agendar</li>
         </ol>
     </nav>
@@ -41,8 +42,8 @@
                             <select class="form-select form-select-lg" id="dateSelect" name="date">
                                 <option value="">Selecciona una fecha...</option>
                                 {% for date in available_dates %}
-                                <option value="{{ date|date:'Y-m-d' }}" 
-                                        {% if selected_date == date|date:'Y-m-d' %}selected{% endif %}>
+                                <option value="{{ date|date:'Y-m-d' }}" {% if selected_date==date|date:'Y-m-d'
+                                    %}selected{% endif %}>
                                     {{ date|date:'l, d \d\e F \d\e Y' }}
                                 </option>
                                 {% endfor %}
@@ -60,15 +61,13 @@
                     {% if selected_date %}
                     <div class="mb-4">
                         <label class="form-label"><strong>Paso 2: Elige la hora</strong></label>
-                        
+
                         {% if available_slots %}
                         <div class="row g-2">
                             {% for slot in available_slots %}
                             <div class="col-md-3 col-6">
-                                <button type="button" 
-                                        class="btn btn-outline-primary w-100 time-slot"
-                                        data-time="{{ slot.time }}"
-                                        onclick="selectTimeSlot(this, '{{ slot.time }}')">
+                                <button type="button" class="btn btn-outline-primary w-100 time-slot"
+                                    data-time="{{ slot.time }}" onclick="selectTimeSlot(this, '{{ slot.time }}')">
                                     <i class="far fa-clock"></i> {{ slot.display }}
                                 </button>
                             </div>
@@ -92,29 +91,46 @@
                         <input type="hidden" name="selected_time" id="selected_time">
 
                         <div class="mb-4">
-                            <label class="form-label"><strong>Paso 3: Ubicación</strong></label>
+                            <label class="form-label"><strong>Paso 3: Ubicación de Atención</strong></label>
+
+                            <!-- NUEVO: Mostrar modalidad del proveedor -->
+                            <div class="alert alert-info mb-3">
+                                <i class="fas fa-info-circle"></i>
+                                <strong>Modalidad de atención:</strong>
+                                {% if selected_mode == 'home' %}
+                                <span class="badge bg-success">El proveedor atiende en tu domicilio</span>
+                                {% elif selected_mode == 'local' %}
+                                <span class="badge bg-info">Debes ir al local del proveedor</span>
+                                {% else %}
+                                <span class="badge bg-warning">Puedes elegir dónde</span>
+                                {% endif %}
+                            </div>
+
+                            <!-- Tu ubicación para atención a domicilio -->
+                            {% if selected_mode == 'home' or selected_mode == 'both' %}
+                            <h6 class="mb-2">Tu Ubicación (donde te atenderá):</h6>
                             {% if user_locations %}
                             <div class="row">
                                 {% for location in user_locations %}
-                                    {% if location.zone in provider.provider_profile.coverage_zones.all %}
-                                    <div class="col-md-6 mb-2">
-                                        <div class="card location-card" onclick="selectLocation({{ location.id }}, this)">
-                                            <div class="card-body p-3">
-                                                <h6 class="mb-1">
-                                                    <i class="fas fa-map-marker-alt"></i> {{ location.label|title }}
-                                                </h6>
-                                                <small class="text-muted d-block">
-                                                    {{ location.zone.name }}
-                                                </small>
-                                                <small class="text-muted d-block">
-                                                    {{ location.address|truncatewords:5 }}
-                                                </small>
-                                                <input type="radio" name="location_id" value="{{ location.id }}" 
-                                                    style="display: none;" id="loc_{{ location.id }}" required>
-                                            </div>
+                                {% if location.zone in provider.provider_profile.coverage_zones.all %}
+                                <div class="col-md-6 mb-2">
+                                    <div class="card location-card" onclick="selectLocation({{ location.id }}, this)">
+                                        <div class="card-body p-3">
+                                            <h6 class="mb-1">
+                                                <i class="fas fa-map-marker-alt"></i> {{ location.label|title }}
+                                            </h6>
+                                            <small class="text-muted d-block">
+                                                {{ location.zone.name }}
+                                            </small>
+                                            <small class="text-muted d-block">
+                                                {{ location.address|truncatewords:5 }}
+                                            </small>
+                                            <input type="radio" name="location_id" value="{{ location.id }}"
+                                                style="display: none;" id="loc_{{ location.id }}" required>
                                         </div>
                                     </div>
-                                    {% endif %}
+                                </div>
+                                {% endif %}
                                 {% endfor %}
                             </div>
                             {% else %}
@@ -126,12 +142,53 @@
                                 </a>
                             </div>
                             {% endif %}
+                            {% endif %}
+
+                            <!-- Ubicación del proveedor para atención en local -->
+                            {% if selected_mode == 'local' or selected_mode == 'both' %}
+                            <h6 class="mb-2 mt-3">Ubicación del Proveedor:</h6>
+                            {% if available_locations %}
+                            <div class="row">
+                                {% for loc in available_locations %}
+                                <div class="col-md-6 mb-2">
+                                    <div class="card location-card"
+                                        onclick="selectProviderLocation({{ loc.id }}, this)">
+                                        <div class="card-body p-3">
+                                            <h6 class="mb-1">
+                                                <i class="fas fa-store"></i> {{ loc.label }}
+                                            </h6>
+                                            <small class="text-muted d-block">
+                                                {{ loc.zone.name }}
+                                            </small>
+                                            <small class="text-muted d-block">
+                                                {{ loc.address|truncatewords:5 }}
+                                            </small>
+                                            {% if loc.is_verified %}
+                                            <small class="text-success d-block">
+                                                <i class="fas fa-check-circle"></i> Verificada
+                                            </small>
+                                            {% endif %}
+                                            <input type="radio" name="provider_location_id" value="{{ loc.id }}"
+                                                style="display: none;" id="ploc_{{ loc.id }}">
+                                        </div>
+                                    </div>
+                                </div>
+                                {% endfor %}
+                            </div>
+                            {% else %}
+                            <div class="alert alert-info">
+                                <i class="fas fa-info-circle"></i>
+                                El proveedor no tiene locales disponibles en tu zona en este momento.
+                            </div>
+                            {% endif %}
+                            {% endif %}
+                            <!-- FIN NUEVO -->
                         </div>
 
                         <div class="mb-3">
                             <label class="form-label">Notas adicionales (opcional)</label>
                             <textarea class="form-control" name="notes" rows="3"
-                                      placeholder="Instrucciones especiales, preferencias, alergias, etc."></textarea>
+                                placeholder="Instrucciones especiales, preferencias, alergias, etc."></textarea>
                         </div>
 
                         <div class="alert alert-success">
@@ -170,17 +227,18 @@
                     <hr>
                     <p class="mb-1"><strong>{{ provider.get_full_name }}</strong></p>
                     <p class="text-muted mb-2">{{ provider.provider_profile.category.name }}</p>
-                    
+
                     {% if provider.provider_profile.coverage_zones.all %}
                     <p class="mb-2">
                         <strong><i class="fas fa-map-marker-alt"></i> Zonas:</strong><br>
                         {% for zone in provider.provider_profile.coverage_zones.all %}
-                            <span class="badge bg-secondary">{{ zone.name }}</span>
+                        <span class="badge bg-secondary">{{ zone.name }}</span>
                         {% endfor %}
                     </p>
                     {% endif %}
-                    
-                    <a href="{% url 'provider_profile' provider.provider_profile.slug %}" class="btn btn-sm btn-outline-primary w-100">
+
+                    <a href="{% url 'provider_profile' provider.provider_profile.slug %}"
+                        class="btn btn-sm btn-outline-primary w-100">
                         Ver Perfil Completo
                     </a>
                 </div>
@@ -204,79 +262,99 @@
 </div>
 
 <script>
-// Activar loader cuando se selecciona fecha
-document.getElementById('dateSelect').addEventListener('change', function() {
-    if (this.value) {
-        const loader = document.getElementById('globalLoader');
-        loader.classList.add('active');
-        
-        setTimeout(() => {
-            document.getElementById('dateForm').submit();
-        }, 300);
+    // Activar loader cuando se selecciona fecha
+    document.getElementById('dateSelect').addEventListener('change', function () {
+        if (this.value) {
+            const loader = document.getElementById('globalLoader');
+            loader.classList.add('active');
+
+            setTimeout(() => {
+                document.getElementById('dateForm').submit();
+            }, 300);
+        }
+    });
+
+    let selectedTime = null;
+
+    function selectTimeSlot(button, time) {
+        // Remover selección previa
+        document.querySelectorAll('.time-slot').forEach(btn => {
+            btn.classList.remove('btn-primary');
+            btn.classList.add('btn-outline-primary');
+        });
+
+        // Seleccionar este botón
+        button.classList.remove('btn-outline-primary');
+        button.classList.add('btn-primary');
+
+        // Guardar tiempo seleccionado
+        selectedTime = time;
+        document.getElementById('selected_time').value = time;
+
+        // Actualizar resumen
+        const date = '{{ selected_date }}';
+        const dateObj = new Date(date + 'T' + time);
+        const formattedDate = dateObj.toLocaleDateString('es-EC', {
+            weekday: 'long',
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit'
+        });
+
+        document.getElementById('booking-summary').textContent = formattedDate;
+
+        // Mostrar formulario
+        document.getElementById('bookingForm').style.display = 'block';
+
+        // Scroll suave al formulario
+        document.getElementById('bookingForm').scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
-});
 
-let selectedTime = null;
+    function selectLocation(locationId, element) {
+        document.querySelectorAll('.location-card').forEach(card => {
+            card.classList.remove('border-primary', 'bg-light');
+            card.style.borderColor = '';
+        });
 
-function selectTimeSlot(button, time) {
-    // Remover selección previa
-    document.querySelectorAll('.time-slot').forEach(btn => {
-        btn.classList.remove('btn-primary');
-        btn.classList.add('btn-outline-primary');
-    });
-    
-    // Seleccionar este botón
-    button.classList.remove('btn-outline-primary');
-    button.classList.add('btn-primary');
-    
-    // Guardar tiempo seleccionado
-    selectedTime = time;
-    document.getElementById('selected_time').value = time;
-    
-    // Actualizar resumen
-    const date = '{{ selected_date }}';
-    const dateObj = new Date(date + 'T' + time);
-    const formattedDate = dateObj.toLocaleDateString('es-EC', {
-        weekday: 'long',
-        year: 'numeric',
-        month: 'long',
-        day: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit'
-    });
-    
-    document.getElementById('booking-summary').textContent = formattedDate;
-    
-    // Mostrar formulario
-    document.getElementById('bookingForm').style.display = 'block';
-    
-    // Scroll suave al formulario
-    document.getElementById('bookingForm').scrollIntoView({ behavior: 'smooth', block: 'start' });
-}
+        element.classList.add('border-primary', 'bg-light');
+        element.style.borderColor = '#0d6efd';
+        element.style.borderWidth = '2px';
 
-function selectLocation(locationId, element) {
-    document.querySelectorAll('.location-card').forEach(card => {
-        card.classList.remove('border-primary', 'bg-light');
-        card.style.borderColor = '';
-    });
-    
-    element.classList.add('border-primary', 'bg-light');
-    element.style.borderColor = '#0d6efd';
-    element.style.borderWidth = '2px';
-    
-    document.getElementById('loc_' + locationId).checked = true;
-}
+        document.getElementById('loc_' + locationId).checked = true;
+    }
+
+    // NUEVA FUNCIÓN para seleccionar ubicación del proveedor
+    function selectProviderLocation(locationId, element) {
+        document.querySelectorAll('[id^="ploc_"]').forEach(radio => {
+            radio.checked = false;
+        });
+
+        document.querySelectorAll('.location-card').forEach(card => {
+            if (card !== element) {
+                card.classList.remove('border-primary', 'bg-light');
+                card.style.borderColor = '';
+            }
+        });
+
+        element.classList.add('border-primary', 'bg-light');
+        element.style.borderColor = '#0d6efd';
+        element.style.borderWidth = '2px';
+
+        document.getElementById('ploc_' + locationId).checked = true;
+    }
 </script>
 <style>
-.location-card {
-    cursor: pointer;
-    border: 2px solid #e8e8e8;
-    transition: all 0.3s ease;
-}
+    .location-card {
+        cursor: pointer;
+        border: 2px solid #e8e8e8;
+        transition: all 0.3s ease;
+    }
 
-.location-card:hover {
-    border-color: #0d6efd;
-    box-shadow: 0 2px 8px rgba(13, 110, 253, 0.1);
-}
+    .location-card:hover {
+        border-color: #0d6efd;
+        box-shadow: 0 2px 8px rgba(13, 110, 253, 0.1);
+    }
 </style>
 {% endblock %}

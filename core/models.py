@@ -11,6 +11,12 @@ from .validators import validate_image_size_5mb, validate_ecuador_phone
 import secrets
 import uuid
 
+SERVICE_MODE_CHOICES = [
+    ('home', 'Solo a domicilio'),
+    ('local', 'Solo en local'),
+    ('both', 'En local y a domicilio'),
+]
+
 # Extender el User de Django con un Profile
 class Profile(models.Model):
     ROLE_CHOICES = [
@@ -146,6 +152,14 @@ class ProviderProfile(models.Model):
     profile_photo = SmartImageField('Foto de Perfil', upload_to='profiles/', blank=True,
                                       help_text='Foto de perfil (puede ser comercial)', max_length=255, 
                                       validators=[validate_image_size_5mb])
+
+    service_mode = models.CharField(
+        'Modalidad de atención',
+        max_length=10,
+        choices=SERVICE_MODE_CHOICES,
+        default='home',
+        help_text='¿Atiende en domicilio, local, o ambos?'
+    )
     # FIN NUEVOS CAMPOS
     
     coverage_zones = models.ManyToManyField('Zone', verbose_name='Zonas de cobertura',
@@ -219,6 +233,161 @@ class ProviderProfile(models.Model):
         if self.business_name:
             return f"{self.business_name} ({self.user.get_full_name()})"
         return self.user.get_full_name()
+
+    def can_publish_services(self):
+        """Determina si el proveedor puede publicar servicios según modalidad."""
+        if self.service_mode == 'home':
+            return ProviderLocation.objects.filter(
+                provider=self.user, 
+                location_type='base'
+            ).exists()
+        
+        if self.service_mode == 'local':
+            return ProviderLocation.objects.filter(
+                provider=self.user, 
+                location_type='local', 
+                is_verified=True
+            ).exists()
+        
+        if self.service_mode == 'both':
+            has_base = ProviderLocation.objects.filter(
+                provider=self.user, 
+                location_type='base'
+            ).exists()
+            has_local = ProviderLocation.objects.filter(
+                provider=self.user, 
+                location_type='local', 
+                is_verified=True
+            ).exists()
+            return has_base or has_local
+        
+        return False
+    
+    def get_service_locations_by_zone(self, zone, location_type=None):
+        """Retorna ubicaciones del proveedor en una zona específica."""
+        qs = ProviderLocation.objects.filter(provider=self.user, zone=zone)
+        
+        if location_type:
+            qs = qs.filter(location_type=location_type)
+        
+        if location_type == 'local':
+            qs = qs.filter(is_verified=True)
+        
+        return qs
+
+# ============================================
+# NUEVO MODELO - AGREGAR DESPUÉS DE ProviderProfile
+# ============================================
+
+class ProviderLocation(models.Model):
+    """Ubicaciones del proveedor: domicilio base o locales."""
+    
+    LOCATION_TYPE_CHOICES = [
+        ('base', 'Domicilio base del proveedor'),
+        ('local', 'Local / Sucursal del proveedor'),
+    ]
+
+    provider = models.ForeignKey(
+        User, 
+        on_delete=models.CASCADE, 
+        related_name='provider_locations',
+        verbose_name='Proveedor'
+    )
+    location_type = models.CharField(
+        'Tipo de ubicación', 
+        max_length=10, 
+        choices=LOCATION_TYPE_CHOICES
+    )
+    city = models.ForeignKey(
+        'City', 
+        on_delete=models.SET_NULL, 
+        null=True, 
+        blank=True,
+        verbose_name='Ciudad'
+    )
+    zone = models.ForeignKey(
+        'Zone', 
+        on_delete=models.SET_NULL, 
+        null=True, 
+        blank=True,
+        verbose_name='Zona'
+    )
+    label = models.CharField(
+        'Nombre de la ubicación', 
+        max_length=100,
+        help_text='Ej: Domicilio, Sucursal Norte, Oficina Centro'
+    )
+    address = models.TextField('Dirección completa')
+    reference = models.CharField(
+        'Referencia adicional', 
+        max_length=255, 
+        blank=True,
+        help_text='Ej: Frente a farmacia, Pasaje interno'
+    )
+    latitude = models.DecimalField(
+        'Latitud', 
+        max_digits=9, 
+        decimal_places=6, 
+        null=True, 
+        blank=True
+    )
+    longitude = models.DecimalField(
+        'Longitud', 
+        max_digits=9, 
+        decimal_places=6, 
+        null=True, 
+        blank=True
+    )
+    whatsapp_number = models.CharField(
+        'Número de WhatsApp para esta ubicación', 
+        max_length=13, 
+        blank=True,
+        validators=[validate_ecuador_phone],
+        help_text='Opcional: número específico para notificaciones'
+    )
+    document_proof = SmartImageField(
+        'Comprobante de servicios básicos', 
+        upload_to='provider_locations/docs/', 
+        null=True, 
+        blank=True,
+        validators=[validate_image_size_5mb],
+        help_text='Para locales: foto de pago de servicio básico'
+    )
+    is_verified = models.BooleanField(
+        'Verificada por admin', 
+        default=False,
+        help_text='Solo locales verificados pueden recibir bookings'
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'provider_locations'
+        verbose_name = 'Ubicación de proveedor'
+        verbose_name_plural = 'Ubicaciones de proveedores'
+        indexes = [models.Index(fields=['provider', 'city', 'location_type'])]
+        ordering = ['location_type', 'label']
+
+    def __str__(self):
+        return f"{self.provider.username} - {self.label}"
+
+    def clean(self):
+        from django.core.exceptions import ValidationError
+        
+        if self.location_type == 'base':
+            qs = ProviderLocation.objects.filter(
+                provider=self.provider, 
+                location_type='base'
+            ).exclude(pk=self.pk)
+            
+            if qs.exists():
+                raise ValidationError("Solo un domicilio base permitido")
+
+    def save(self, *args, **kwargs):
+        if self.location_type == 'base':
+            self.is_verified = True
+        super().save(*args, **kwargs)
+
 
 class Service(models.Model):
     provider = models.ForeignKey(User, on_delete=models.CASCADE, related_name='services',
@@ -324,6 +493,15 @@ class Booking(models.Model):
                                 verbose_name='Cliente')
     provider = models.ForeignKey(User, on_delete=models.CASCADE, related_name='provider_bookings',
                                 verbose_name='Proveedor')
+    provider_location = models.ForeignKey(
+        'ProviderLocation', 
+        null=True, 
+        blank=True, 
+        on_delete=models.SET_NULL,
+        verbose_name='Ubicación del proveedor',
+        help_text='Dónde se realizará el servicio',
+        related_name='bookings'
+    )
     service_list = models.JSONField('Lista de servicios', default=list)
     sub_total_cost = models.DecimalField('Subtotal', max_digits=10, decimal_places=2, default=0.0)
     total_cost = models.DecimalField('Costo total', max_digits=10, decimal_places=2)
@@ -457,6 +635,25 @@ class Booking(models.Model):
         hours_until = time_until.total_seconds() / 3600
         
         return hours_until <= 2
+
+    def get_service_location_display(self):
+        """Retorna display de dónde se realizará el servicio"""
+        if self.provider_location:
+            if self.provider_location.location_type == 'base':
+                return f"A domicilio: {self.provider_location.address}"
+            else:
+                return f"En local: {self.provider_location.label} - {self.provider_location.address}"
+        return "Sin ubicación especificada"
+
+    def get_notification_whatsapp(self):
+        """Retorna el número de WhatsApp para notificaciones."""
+        if self.provider_location and self.provider_location.whatsapp_number:
+            return self.provider_location.whatsapp_number
+        
+        if hasattr(self.provider, 'profile') and self.provider.profile.phone:
+            return self.provider.profile.phone
+        
+        return None
 
 
 class Review(models.Model):

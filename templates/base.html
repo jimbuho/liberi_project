@@ -1,20 +1,21 @@
 {% load static %}
 <!DOCTYPE html>
 <html lang="es">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}Liberi - Servicios a domicilio{% endblock %}</title>
-    
+
     <!-- Favicon -->
     <link rel="icon" type="image/svg+xml" href="{% static 'images/liberi_favicon.svg' %}">
-    
+
     <!-- Bootstrap CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    
+
     <!-- Font Awesome -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    
+
     <!-- Custom CSS -->
     <link rel="stylesheet" href="{% static 'css/liberi.css' %}?v=3.1">
 
@@ -23,10 +24,12 @@
     <meta property="og:url" content="{% block og_url %}{{ request.build_absolute_uri }}{% endblock %}">
     <meta property="og:title" content="{% block og_title %}Liberi{% endblock %}">
     <meta property="og:description" content="{% block og_description %}Servicios verificados{% endblock %}">
-    {% block og_image %}<meta property="og:image" content="{% if meta_image %}{{ meta_image }}{% endif %}">{% endblock %}
+    {% block og_image %}
+    <meta property="og:image" content="{% if meta_image %}{{ meta_image }}{% endif %}">{% endblock %}
     <meta name="twitter:card" content="summary_large_image">
     <meta name="twitter:title" content="{% block twitter_title %}Liberi{% endblock %}">
-    <meta name="twitter:image" content="{% block twitter_image %}{% if meta_image %}{{ meta_image }}{% endif %}{% endblock %}">
+    <meta name="twitter:image"
+        content="{% block twitter_image %}{% if meta_image %}{{ meta_image }}{% endif %}{% endblock %}">
 
     <style>
         /* Loader Global */
@@ -64,7 +67,9 @@
         }
 
         @keyframes spin {
-            to { transform: rotate(360deg); }
+            to {
+                transform: rotate(360deg);
+            }
         }
 
         .loader-text {
@@ -85,14 +90,14 @@
             border-radius: 12px;
             padding: 20px;
             text-align: center;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
             transition: transform 0.3s ease, box-shadow 0.3s ease;
             border: 2px solid transparent;
         }
 
         .category-card-compact:hover {
             transform: translateY(-5px);
-            box-shadow: 0 5px 20px rgba(0,0,0,0.15);
+            box-shadow: 0 5px 20px rgba(0, 0, 0, 0.15);
             border-color: #5DADE2;
         }
 
@@ -157,6 +162,7 @@
 
     {% block extra_css %}{% endblock %}
 </head>
+
 <body>
     <!-- Loader Global -->
     <div id="globalLoader">
@@ -171,7 +177,7 @@
         <div class="container">
             <a class="navbar-brand d-flex align-items-center" href="{% url 'home' %}">
                 <img src="{% static 'images/logo-liberi.png' %}" alt="Liberi" style="height: 40px;">
-            </a>    
+            </a>
             <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
                 <span class="navbar-toggler-icon"></span>
             </button>
@@ -190,23 +196,29 @@
                     {% if user.is_authenticated %}
                     <!-- NOTIFICACIONES - DROPDOWN CORREGIDO -->
                     <li class="nav-item dropdown">
-                        <a class="nav-link position-relative" href="#" id="notificationsDropdown" role="button" 
-                           data-bs-toggle="dropdown" aria-expanded="false">
+                        <a class="nav-link position-relative" href="#" id="notificationsDropdown" role="button"
+                            data-bs-toggle="dropdown" aria-expanded="false">
                             <i class="fas fa-bell"></i>
-                            <span id="notificationCount" class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger" style="display: none;">
+                            <span id="notificationCount"
+                                class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger"
+                                style="display: none;">
                                 0
                             </span>
                         </a>
-                        <ul class="dropdown-menu dropdown-menu-end shadow-sm" aria-labelledby="notificationsDropdown" style="min-width: 350px; max-height: 500px; overflow-y: auto;">
+                        <ul class="dropdown-menu dropdown-menu-end shadow-sm" aria-labelledby="notificationsDropdown"
+                            style="min-width: 350px; max-height: 500px; overflow-y: auto;">
                             <li class="dropdown-header">
                                 <div class="d-flex justify-content-between align-items-center">
                                     <strong>Notificaciones</strong>
-                                    <a href="#" id="markAllRead" class="text-decoration-none small" style="display: none;">
+                                    <a href="#" id="markAllRead" class="text-decoration-none small"
+                                        style="display: none;">
                                         <i class="fas fa-check-double"></i> Marcar todo como leído
                                     </a>
                                 </div>
                             </li>
-                            <li><hr class="dropdown-divider"></li>
+                            <li>
+                                <hr class="dropdown-divider">
+                            </li>
                             <li id="notificationsList">
                                 <div class="text-center py-4 text-muted">
                                     <i class="fas fa-spinner fa-spin me-2"></i>Cargando...
@@ -217,8 +229,8 @@
 
                     <!-- USUARIO - DROPDOWN EXISTENTE -->
                     <li class="nav-item dropdown">
-                        <a class="nav-link dropdown-toggle" href="#" id="userDropdown" role="button" 
-                        data-bs-toggle="dropdown" aria-expanded="false">
+                        <a class="nav-link dropdown-toggle" href="#" id="userDropdown" role="button"
+                            data-bs-toggle="dropdown" aria-expanded="false">
                             <i class="fas fa-user"></i> {{ user.first_name|default:user.username }}
                         </a>
                         <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="userDropdown">
@@ -233,11 +245,13 @@
                                 </a>
                             </li>
                             <li>
-                            <a class="dropdown-item" href="{% url 'change_password' %}">
-                                <i class="fas fa-lock"></i> Cambiar Contraseña
-                            </a>
+                                <a class="dropdown-item" href="{% url 'change_password' %}">
+                                    <i class="fas fa-lock"></i> Cambiar Contraseña
+                                </a>
                             </li>
-                            <li><hr class="dropdown-divider"></li>
+                            <li>
+                                <hr class="dropdown-divider">
+                            </li>
                             <li>
                                 <a class="dropdown-item" href="{% url 'logout' %}">
                                     <i class="fas fa-sign-out-alt"></i> Cerrar Sesión
@@ -257,14 +271,14 @@
 
     <!-- Messages -->
     {% if messages %}
-        <div class="container mt-3">
-            {% for message in messages %}
-                <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
-                    {{ message }}
-                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-                </div>
-            {% endfor %}
+    <div class="container mt-3">
+        {% for message in messages %}
+        <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+            {{ message }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
         </div>
+        {% endfor %}
+    </div>
     {% endif %}
 
     <!-- Content -->
@@ -285,14 +299,15 @@
                         <li><a href="{% url 'providers_list' %}" class="text-white-50">Proveedores</a></li>
                         <li><a href="{% url 'register_provider' %}" class="text-white-50">Ser Proveedor</a></li>
                         <li><a href="{% url 'legal:terms_user' %}" class="text-white-50">Términos de Uso</a></li>
-                        <li><a href="{% url 'legal:privacy_user' %}" class="text-white-50">Política de Privacidad</a></li>
+                        <li><a href="{% url 'legal:privacy_user' %}" class="text-white-50">Política de Privacidad</a>
+                        </li>
                     </ul>
                 </div>
                 <div class="col-md-4">
                     <h5>Contacto</h5>
                     <p class="text-white-50">
                         <i class="fas fa-envelope"></i> liberiservices@gmail.com<br>
-                        <i class="fas fa-phone"></i> +593 99 898 1436
+                        <i class="fas fa-phone"></i> +593 95 884 0107
                     </p>
                 </div>
             </div>
@@ -305,13 +320,13 @@
 
     <!-- Bootstrap JS -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-    
+
     <!-- Loader Global Script -->
     <script>
         const loader = document.getElementById('globalLoader');
-        
+
         // Mostrar loader en envío de formularios
-        document.addEventListener('submit', function(e) {
+        document.addEventListener('submit', function (e) {
             const form = e.target;
             // No mostrar loader en formularios GET (búsqueda/filtros) o con clase no-loader
             if (form.method.toLowerCase() === 'post' && !form.classList.contains('no-loader')) {
@@ -320,77 +335,77 @@
         });
 
         // Mostrar loader en clics de botones y enlaces
-        document.addEventListener('click', function(e) {
+        document.addEventListener('click', function (e) {
             // Buscar el elemento clickeado o su padre más cercano que sea un botón/enlace
             const target = e.target.closest('a, button');
-            
+
             if (!target) return;
-            
+
             // No mostrar loader si tiene la clase no-loader
             if (target.classList.contains('no-loader')) return;
-            
+
             // No mostrar loader en enlaces de dropdown o navegación del navbar
             if (target.closest('.dropdown-menu') || target.closest('.navbar-nav')) return;
-            
+
             // No mostrar loader en botones de cerrar (btn-close)
             if (target.classList.contains('btn-close')) return;
-            
+
             // No mostrar loader en enlaces con # (modales, tabs, etc)
             if (target.tagName === 'A' && target.getAttribute('href') === '#') return;
-            
+
             // No mostrar loader en enlaces con data-bs-toggle (Bootstrap components)
             if (target.hasAttribute('data-bs-toggle')) return;
-            
+
             // MOSTRAR LOADER EN:
-            
+
             // 1. Enlaces con clase btn (navegación a otra página)
             if (target.tagName === 'A' && target.classList.contains('btn')) {
                 loader.classList.add('active');
                 return;
             }
-            
+
             // 2. Enlaces con clases específicas de acción
             if (target.tagName === 'A' && (
-                target.classList.contains('btn-hero') || 
-                target.classList.contains('btn-book') || 
+                target.classList.contains('btn-hero') ||
+                target.classList.contains('btn-book') ||
                 target.classList.contains('btn-category') ||
                 target.classList.contains('btn-category-compact') ||
                 target.classList.contains('btn-search'))) {
                 loader.classList.add('active');
                 return;
             }
-            
+
             // 3. Botones que NO son type="submit" con clases específicas
             // (para acciones AJAX u otras que no sean submit de formulario)
-            if (target.tagName === 'BUTTON' && target.type !== 'submit' && 
-                (target.classList.contains('ajax-action') || 
-                target.classList.contains('load-action'))) {
+            if (target.tagName === 'BUTTON' && target.type !== 'submit' &&
+                (target.classList.contains('ajax-action') ||
+                    target.classList.contains('load-action'))) {
                 loader.classList.add('active');
                 return;
             }
-            
+
             // NOTA: Los botones type="submit" NO muestran loader aquí
             // El loader se mostrará cuando el evento 'submit' se dispare (arriba)
             // Esto garantiza que solo se muestre si la validación es exitosa
         });
 
         // Ocultar loader cuando la página se carga completamente
-        window.addEventListener('load', function() {
+        window.addEventListener('load', function () {
             loader.classList.remove('active');
         });
 
         // Ocultar loader si hay error o la página se recarga
-        window.addEventListener('pageshow', function() {
+        window.addEventListener('pageshow', function () {
             loader.classList.remove('active');
         });
 
         // Ocultar loader después de 8 segundos como fallback
         let loaderTimeout;
-        const observer = new MutationObserver(function(mutations) {
-            mutations.forEach(function(mutation) {
+        const observer = new MutationObserver(function (mutations) {
+            mutations.forEach(function (mutation) {
                 if (mutation.target.classList.contains('active')) {
                     clearTimeout(loaderTimeout);
-                    loaderTimeout = setTimeout(function() {
+                    loaderTimeout = setTimeout(function () {
                         loader.classList.remove('active');
                     }, 8000);
                 }
@@ -398,41 +413,41 @@
         });
         observer.observe(loader, { attributes: true, attributeFilter: ['class'] });
     </script>
-    
+
     {% if user.is_authenticated %}
     <!-- Notificaciones Script CORREGIDO -->
     <script>
         // Variables globales
         let notificationsDropdown = null;
-        
+
         // Esperar a que el DOM esté listo
-        document.addEventListener('DOMContentLoaded', function() {
+        document.addEventListener('DOMContentLoaded', function () {
             notificationsDropdown = document.getElementById('notificationsDropdown');
-            
+
             if (!notificationsDropdown) {
                 console.warn('Elemento #notificationsDropdown no encontrado');
                 return;
             }
-            
+
             // Cargar notificaciones cuando se abre el dropdown
-            notificationsDropdown.addEventListener('click', function(e) {
+            notificationsDropdown.addEventListener('click', function (e) {
                 e.preventDefault();
                 loadNotifications();
             });
-            
+
             // Cargar contador inicial
             loadNotificationsCount();
-            
+
             // Cargar notificaciones cada 30 segundos
             setInterval(loadNotificationsCount, 30000);
-            
+
             // Marcar todo como leído - setup
             const markAllReadBtn = document.getElementById('markAllRead');
             if (markAllReadBtn) {
-                markAllReadBtn.addEventListener('click', function(e) {
+                markAllReadBtn.addEventListener('click', function (e) {
                     e.preventDefault();
                     e.stopPropagation();
-                    
+
                     fetch('/api/notifications/mark-all-read/', {
                         method: 'POST',
                         headers: {
@@ -447,7 +462,7 @@
                 });
             }
         });
-        
+
         function loadNotifications() {
             fetch('/api/notifications/')
                 .then(response => {
@@ -469,7 +484,7 @@
                     `;
                 });
         }
-        
+
         function loadNotificationsCount() {
             fetch('/api/notifications/count/')
                 .then(response => {
@@ -483,10 +498,10 @@
                     console.error('Error loading notification count:', error);
                 });
         }
-        
+
         function updateNotificationsList(notifications) {
             const container = document.getElementById('notificationsList');
-            
+
             if (!notifications || notifications.length === 0) {
                 container.innerHTML = `
                     <div class="text-center py-4">
@@ -497,16 +512,16 @@
                 document.getElementById('markAllRead').style.display = 'none';
                 return;
             }
-            
+
             let html = '';
             let hasUnread = false;
-            
+
             notifications.forEach(notif => {
                 const unreadClass = notif.is_read ? '' : 'bg-light';
                 const unreadIcon = notif.is_read ? '' : '<span class="badge bg-primary me-2">Nueva</span>';
-                
+
                 if (!notif.is_read) hasUnread = true;
-                
+
                 html += `
                     <li>
                         <a href="#" class="dropdown-item py-2 ${unreadClass}" 
@@ -522,11 +537,11 @@
                     </li>
                 `;
             });
-            
+
             container.innerHTML = html;
             document.getElementById('markAllRead').style.display = hasUnread ? 'inline-block' : 'none';
         }
-        
+
         function updateNotificationCount(count) {
             const badge = document.getElementById('notificationCount');
             if (count > 0) {
@@ -536,10 +551,10 @@
                 badge.style.display = 'none';
             }
         }
-        
+
         function handleNotificationClick(event, notificationId, actionUrl) {
             event.preventDefault();
-            
+
             fetch(`/api/notifications/${notificationId}/mark-read/`, {
                 method: 'POST',
                 headers: {
@@ -557,7 +572,7 @@
                 loadNotifications();
             });
         }
-        
+
         function getCookie(name) {
             let cookieValue = null;
             if (document.cookie && document.cookie !== '') {
@@ -574,7 +589,8 @@
         }
     </script>
     {% endif %}
-    
+
     {% block extra_js %}{% endblock %}
 </body>
+
 </html>

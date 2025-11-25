@@ -19,7 +19,7 @@
             <div class="card mb-4">
                 <div class="card-header bg-primary text-white">
                     <h4 class="mb-0">
-                        <i class="fas fa-calendar-check"></i> 
+                        <i class="fas fa-calendar-check"></i>
                         Reserva #{{ booking.booking_id }}
                     </h4>
                 </div>
@@ -27,13 +27,15 @@
                     <div class="row mb-3">
                         <div class="col-md-6">
                             <strong>Estado:</strong>
-                            <span class="badge bg-{% if booking.status == 'pending' %}warning{% elif booking.status == 'accepted' %}info{% elif booking.status == 'completed' %}success{% elif booking.status == 'cancelled' %}danger{% else %}secondary{% endif %} fs-6">
+                            <span
+                                class="badge bg-{% if booking.status == 'pending' %}warning{% elif booking.status == 'accepted' %}info{% elif booking.status == 'completed' %}success{% elif booking.status == 'cancelled' %}danger{% else %}secondary{% endif %} fs-6">
                                 {{ booking.get_status_display }}
                             </span>
                         </div>
                         <div class="col-md-6">
                             <strong>Estado de Pago:</strong>
-                            <span class="badge bg-{% if booking.payment_status == 'paid' %}success{% elif booking.payment_status == 'pending' %}warning{% else %}secondary{% endif %} fs-6">
+                            <span
+                                class="badge bg-{% if booking.payment_status == 'paid' %}success{% elif booking.payment_status == 'pending' %}warning{% else %}secondary{% endif %} fs-6">
                                 {{ booking.get_payment_status_display }}
                             </span>
                         </div>
@@ -61,7 +63,8 @@
                             <i class="fas fa-key"></i> Código de Finalización
                         </h5>
                         <p class="mb-2">
-                            Entrega este código al proveedor <strong>solo cuando hayas recibido el servicio completo</strong>:
+                            Entrega este código al proveedor <strong>solo cuando hayas recibido el servicio
+                                completo</strong>:
                         </p>
                         <div class="text-center my-3">
                             <h1 class="display-3 font-monospace fw-bold text-primary">
@@ -72,7 +75,8 @@
                         <p class="mb-0">
                             <i class="fas fa-info-circle"></i>
                             <small>
-                                Este código confirma que recibiste el servicio. No lo compartas hasta estar seguro de que todo esté completo y correcto.
+                                Este código confirma que recibiste el servicio. No lo compartas hasta estar seguro de
+                                que todo esté completo y correcto.
                             </small>
                         </p>
                     </div>
@@ -80,7 +84,8 @@
                     {% endif %}
 
                     <!-- NUEVO: Formulario para Proveedor - Ingresar Código -->
-                    {% if user.profile.role == 'provider' and booking.status == 'accepted' and booking.payment_status == 'paid' %}
+                    {% if user.profile.role == 'provider' and booking.status == 'accepted' and booking.payment_status ==
+                    'paid' %}
                     <div class="card bg-light mb-4">
                         <div class="card-body">
                             <h5 class="card-title">
@@ -92,13 +97,9 @@
                             <form method="post" action="{% url 'booking_complete_with_code' booking.id %}">
                                 {% csrf_token %}
                                 <div class="input-group input-group-lg mb-3">
-                                    <input type="text" 
-                                           name="completion_code" 
-                                           class="form-control text-center font-monospace fw-bold" 
-                                           placeholder="000000"
-                                           maxlength="6"
-                                           pattern="[0-9]{6}"
-                                           required>
+                                    <input type="text" name="completion_code"
+                                        class="form-control text-center font-monospace fw-bold" placeholder="000000"
+                                        maxlength="6" pattern="[0-9]{6}" required>
                                     <button type="submit" class="btn btn-success">
                                         <i class="fas fa-check"></i> Verificar y Completar
                                     </button>
@@ -112,7 +113,8 @@
                     {% endif %}
 
                     <!-- NUEVO: Opción para Cliente - Reportar Incidencia -->
-                    {% if user.profile.role == 'customer' and booking.status == 'accepted' and booking.payment_status == 'paid' and not booking.incident_reported %}
+                    {% if user.profile.role == 'customer' and booking.status == 'accepted' and booking.payment_status ==
+                    'paid' and not booking.incident_reported %}
                     <div class="card border-danger mb-4">
                         <div class="card-body">
                             <h5 class="card-title text-danger">
@@ -121,7 +123,8 @@
                             <p class="text-muted">
                                 Si el proveedor no asistió o hubo algún problema, repórtalo aquí:
                             </p>
-                            <button type="button" class="btn btn-danger" data-bs-toggle="modal" data-bs-target="#reportIncidentModal">
+                            <button type="button" class="btn btn-danger" data-bs-toggle="modal"
+                                data-bs-target="#reportIncidentModal">
                                 <i class="fas fa-flag"></i> Reportar Incidencia
                             </button>
                         </div>
@@ -136,11 +139,13 @@
                         </h5>
                         <p><strong>Descripción:</strong> {{ booking.incident_description }}</p>
                         <p class="mb-0">
-                            <small><i class="fas fa-clock"></i> Reportado: {{ booking.incident_reported_at|date:"d/m/Y H:i" }}</small>
+                            <small><i class="fas fa-clock"></i> Reportado: {{ booking.incident_reported_at|date:"d/m/Y
+                                H:i" }}</small>
                         </p>
                         <hr>
                         <p class="mb-0">
-                            <i class="fas fa-info-circle"></i> Nuestro equipo está revisando el caso y te contactará pronto.
+                            <i class="fas fa-info-circle"></i> Nuestro equipo está revisando el caso y te contactará
+                            pronto.
                         </p>
                     </div>
                     <hr>
@@ -152,30 +157,41 @@
                     <div class="card bg-light mb-3">
                         <div class="card-body">
                             <h6>{{ booking.provider.get_full_name }}</h6>
-                            
+
+                            <!-- NUEVO: Mostrar ubicación del proveedor donde se hizo el servicio -->
+                            {% if booking.provider_location %}
+                            <div class="alert alert-info py-2 mb-2">
+                                <strong>📍 Ubicación del Servicio:</strong><br>
+                                {{ booking.provider_location.label }}<br>
+                                <small>{{ booking.provider_location.address }}</small>
+                            </div>
+                            {% endif %}
+                            <!-- FIN NUEVO -->
+
                             <!-- CAMBIO #1: Arreglar WhatsApp - usar booking.provider.profile.phone -->
                             {% if can_contact %}
-                                <p class="mb-1">
-                                    <i class="fas fa-phone"></i> {{ booking.provider.profile.phone }}
-                                </p>
-                                <p class="mb-1">
-                                    <i class="fas fa-envelope"></i> {{ booking.provider.email }}
-                                </p>
-                                <!-- CAMBIO #1 y #2: Arreglar WhatsApp y eliminar botón llamar -->
-                                <a href="https://wa.me/593{{ booking.provider.profile.phone|slice:'1:' }}" 
-                                   target="_blank" 
-                                   class="btn btn-success btn-sm mt-2">
-                                    <i class="fab fa-whatsapp"></i> Contactar por WhatsApp
-                                </a>
+                            <p class="mb-1">
+                                <i class="fas fa-phone"></i> {{ booking.provider.profile.phone }}
+                            </p>
+                            <p class="mb-1">
+                                <i class="fas fa-envelope"></i> {{ booking.provider.email }}
+                            </p>
+                            <!-- CAMBIO #1 y #2: Arreglar WhatsApp y eliminar botón llamar -->
+                            <a href="https://wa.me/593{{ booking.provider.profile.phone|slice:'1:' }}" target="_blank"
+                                class="btn btn-success btn-sm mt-2">
+                                <i class="fab fa-whatsapp"></i> Contactar por WhatsApp
+                            </a>
                             {% else %}
-                                <div class="alert alert-{% if booking.payment_status == 'paid' %}info{% else %}warning{% endif %} mt-2 mb-0">
-                                    <i class="fas fa-{% if booking.payment_status == 'paid' %}clock{% else %}lock{% endif %}"></i>
-                                    <small>{{ contact_message }}</small>
-                                </div>
+                            <div
+                                class="alert alert-{% if booking.payment_status == 'paid' %}info{% else %}warning{% endif %} mt-2 mb-0">
+                                <i
+                                    class="fas fa-{% if booking.payment_status == 'paid' %}clock{% else %}lock{% endif %}"></i>
+                                <small>{{ contact_message }}</small>
+                            </div>
                             {% endif %}
-                            
-                            <a href="{% url 'provider_profile' booking.provider.provider_profile.slug %}" 
-                               class="btn btn-sm btn-outline-primary mt-2">
+
+                            <a href="{% url 'provider_profile' booking.provider.provider_profile.slug %}"
+                                class="btn btn-sm btn-outline-primary mt-2">
                                 Ver Perfil Completo
                             </a>
                         </div>
@@ -185,24 +201,23 @@
                     <div class="card bg-light mb-3">
                         <div class="card-body">
                             <h6>{{ booking.customer.get_full_name }}</h6>
-                            
+
                             {% if can_contact %}
-                                <p class="mb-1">
-                                    <i class="fas fa-phone"></i> {{ booking.customer.profile.phone }}
-                                </p>
-                                <p class="mb-0">
-                                    <i class="fas fa-envelope"></i> {{ booking.customer.email }}
-                                </p>
-                                <a href="https://wa.me/593{{ booking.customer.profile.phone|slice:'1:' }}" 
-                                   target="_blank" 
-                                   class="btn btn-success btn-sm mt-2">
-                                    <i class="fab fa-whatsapp"></i> Contactar por WhatsApp
-                                </a>
+                            <p class="mb-1">
+                                <i class="fas fa-phone"></i> {{ booking.customer.profile.phone }}
+                            </p>
+                            <p class="mb-0">
+                                <i class="fas fa-envelope"></i> {{ booking.customer.email }}
+                            </p>
+                            <a href="https://wa.me/593{{ booking.customer.profile.phone|slice:'1:' }}" target="_blank"
+                                class="btn btn-success btn-sm mt-2">
+                                <i class="fab fa-whatsapp"></i> Contactar por WhatsApp
+                            </a>
                             {% else %}
-                                <div class="alert alert-info mt-2 mb-0">
-                                    <i class="fas fa-clock"></i>
-                                    <small>{{ contact_message }}</small>
-                                </div>
+                            <div class="alert alert-info mt-2 mb-0">
+                                <i class="fas fa-clock"></i>
+                                <small>{{ contact_message }}</small>
+                            </div>
                             {% endif %}
                         </div>
                     </div>
@@ -232,18 +247,18 @@
                             <hr>
 
                             {% if booking.location.latitude and booking.location.longitude %}
-                                <div class="text-center">
-                                    {% localize off %}
-                                        <a href="https://www.google.com/maps/search/?api=1&query={{ booking.location.latitude }},{{ booking.location.longitude }}" 
-                                        target="_blank" class="btn btn-outline-primary btn-lg">
-                                            <i class="fas fa-map-location-dot"></i> Ver en Google Maps
-                                        </a>
-                                    {% endlocalize %}
-                                </div>
+                            <div class="text-center">
+                                {% localize off %}
+                                <a href="https://www.google.com/maps/search/?api=1&query={{ booking.location.latitude }},{{ booking.location.longitude }}"
+                                    target="_blank" class="btn btn-outline-primary btn-lg">
+                                    <i class="fas fa-map-location-dot"></i> Ver en Google Maps
+                                </a>
+                                {% endlocalize %}
+                            </div>
                             {% else %}
-                                <div class="alert alert-warning">
-                                    <small>No hay coordenadas disponibles para mostrar la ubicación.</small>
-                                </div>
+                            <div class="alert alert-warning">
+                                <small>No hay coordenadas disponibles para mostrar la ubicación.</small>
+                            </div>
                             {% endif %}
                         </div>
                     </div>
@@ -290,8 +305,8 @@
                         </form>
                         <form method="post" action="{% url 'booking_reject' booking.id %}" class="d-inline">
                             {% csrf_token %}
-                            <button type="submit" class="btn btn-danger btn-lg w-100" 
-                                    onclick="return confirm('¿Estás seguro de rechazar esta reserva?')">
+                            <button type="submit" class="btn btn-danger btn-lg w-100"
+                                onclick="return confirm('¿Estás seguro de rechazar esta reserva?')">
                                 <i class="fas fa-times"></i> Rechazar Reserva
                             </button>
                         </form>
@@ -302,37 +317,36 @@
 
             <!-- Review Section (if completed) -->
             {% if booking.status == 'completed' %}
-                {% if booking.review %}
-                <div class="card">
-                    <div class="card-body">
-                        <h5><i class="fas fa-star"></i> Reseña del Cliente</h5>
-                        <hr>
-                        <div class="rating mb-2">
-                            {% for i in "12345" %}
-                                {% if forloop.counter <= booking.review.rating %}
-                                    <i class="fas fa-star"></i>
-                                {% else %}
-                                    <i class="far fa-star"></i>
-                                {% endif %}
+            {% if booking.review %}
+            <div class="card">
+                <div class="card-body">
+                    <h5><i class="fas fa-star"></i> Reseña del Cliente</h5>
+                    <hr>
+                    <div class="rating mb-2">
+                        {% for i in "12345" %}
+                        {% if forloop.counter <= booking.review.rating %} <i class="fas fa-star"></i>
+                            {% else %}
+                            <i class="far fa-star"></i>
+                            {% endif %}
                             {% endfor %}
-                        </div>
-                        {% if booking.review.comment %}
-                        <p>{{ booking.review.comment }}</p>
-                        {% endif %}
-                        <small class="text-muted">{{ booking.review.created_at|date:"d/m/Y" }}</small>
                     </div>
+                    {% if booking.review.comment %}
+                    <p>{{ booking.review.comment }}</p>
+                    {% endif %}
+                    <small class="text-muted">{{ booking.review.created_at|date:"d/m/Y" }}</small>
                 </div>
-                {% elif user.profile.role == 'customer' %}
-                <div class="card">
-                    <div class="card-body text-center">
-                        <h5><i class="fas fa-star"></i> ¿Cómo fue tu experiencia?</h5>
-                        <p class="text-muted">Ayuda a otros usuarios dejando tu opinión</p>
-                        <a href="{% url 'review_create' booking.id %}" class="btn btn-warning btn-lg">
-                            <i class="fas fa-star"></i> Dejar Reseña
-                        </a>
-                    </div>
+            </div>
+            {% elif user.profile.role == 'customer' %}
+            <div class="card">
+                <div class="card-body text-center">
+                    <h5><i class="fas fa-star"></i> ¿Cómo fue tu experiencia?</h5>
+                    <p class="text-muted">Ayuda a otros usuarios dejando tu opinión</p>
+                    <a href="{% url 'review_create' booking.id %}" class="btn btn-warning btn-lg">
+                        <i class="fas fa-star"></i> Dejar Reseña
+                    </a>
                 </div>
-                {% endif %}
+            </div>
+            {% endif %}
             {% endif %}
         </div>
 
@@ -376,28 +390,28 @@
 
             <!-- Payment Action - Solo si está ACEPTADA -->
             {% if user.profile.role == 'customer' and booking.payment_status == 'pending' %}
-                {% if booking.status == 'accepted' %}
-                    <div class="card border-primary">
-                        <div class="card-body text-center">
-                            <h5 class="text-primary">
-                                <i class="fas fa-credit-card"></i> Pago Pendiente
-                            </h5>
-                            <p class="text-muted">El proveedor ha aceptado tu reserva. Completa el pago para confirmar.</p>
-                            <a href="{% url 'payment_process' booking.id %}" class="btn btn-primary btn-lg w-100">
-                                <i class="fas fa-credit-card"></i> Pagar Ahora
-                            </a>
-                        </div>
-                    </div>
-                {% elif booking.status == 'pending' %}
-                    <div class="card border-warning">
-                        <div class="card-body text-center">
-                            <h5 class="text-warning">
-                                <i class="fas fa-hourglass-half"></i> Esperando Confirmación
-                            </h5>
-                            <p class="text-muted small">El proveedor debe aceptar tu reserva antes de que puedas pagar.</p>
-                        </div>
-                    </div>
-                {% endif %}
+            {% if booking.status == 'accepted' %}
+            <div class="card border-primary">
+                <div class="card-body text-center">
+                    <h5 class="text-primary">
+                        <i class="fas fa-credit-card"></i> Pago Pendiente
+                    </h5>
+                    <p class="text-muted">El proveedor ha aceptado tu reserva. Completa el pago para confirmar.</p>
+                    <a href="{% url 'payment_process' booking.id %}" class="btn btn-primary btn-lg w-100">
+                        <i class="fas fa-credit-card"></i> Pagar Ahora
+                    </a>
+                </div>
+            </div>
+            {% elif booking.status == 'pending' %}
+            <div class="card border-warning">
+                <div class="card-body text-center">
+                    <h5 class="text-warning">
+                        <i class="fas fa-hourglass-half"></i> Esperando Confirmación
+                    </h5>
+                    <p class="text-muted small">El proveedor debe aceptar tu reserva antes de que puedas pagar.</p>
+                </div>
+            </div>
+            {% endif %}
             {% endif %}
 
             <!-- Contact Options Card -->
@@ -409,17 +423,17 @@
                     </h5>
                     <hr>
                     {% if user.profile.role == 'customer' %}
-                        <p class="mb-2">Contacta al proveedor:</p>
-                        <a href="https://wa.me/593{{ booking.provider.profile.phone|slice:'1:' }}" target="_blank" 
-                           class="btn btn-success w-100">
-                            <i class="fab fa-whatsapp"></i> WhatsApp
-                        </a>
+                    <p class="mb-2">Contacta al proveedor:</p>
+                    <a href="https://wa.me/593{{ booking.provider.profile.phone|slice:'1:' }}" target="_blank"
+                        class="btn btn-success w-100">
+                        <i class="fab fa-whatsapp"></i> WhatsApp
+                    </a>
                     {% else %}
-                        <p class="mb-2">Contacta al cliente:</p>
-                        <a href="https://wa.me/593{{ booking.customer.profile.phone|slice:'1:' }}" target="_blank" 
-                           class="btn btn-success w-100">
-                            <i class="fab fa-whatsapp"></i> WhatsApp
-                        </a>
+                    <p class="mb-2">Contacta al cliente:</p>
+                    <a href="https://wa.me/593{{ booking.customer.profile.phone|slice:'1:' }}" target="_blank"
+                        class="btn btn-success w-100">
+                        <i class="fab fa-whatsapp"></i> WhatsApp
+                    </a>
                     {% endif %}
                 </div>
             </div>
@@ -429,8 +443,10 @@
 </div>
 
 <!-- Modal para Reportar Incidencia -->
-{% if user.profile.role == 'customer' and booking.status == 'accepted' and booking.payment_status == 'paid' and not booking.incident_reported %}
-<div class="modal fade" id="reportIncidentModal" tabindex="-1" aria-labelledby="reportIncidentModalLabel" aria-hidden="true">
+{% if user.profile.role == 'customer' and booking.status == 'accepted' and booking.payment_status == 'paid' and not
+booking.incident_reported %}
+<div class="modal fade" id="reportIncidentModal" tabindex="-1" aria-labelledby="reportIncidentModalLabel"
+    aria-hidden="true">
     <div class="modal-dialog">
         <div class="modal-content">
             <form method="post" action="{% url 'booking_report_incident' booking.id %}">
@@ -439,15 +455,14 @@
                     <h5 class="modal-title" id="reportIncidentModalLabel">
                         <i class="fas fa-flag"></i> Reportar Incidencia
                     </h5>
-                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"
+                        aria-label="Close"></button>
                 </div>
                 <div class="modal-body">
                     <p>Por favor describe qué sucedió:</p>
-                    <textarea name="incident_description" 
-                              class="form-control" 
-                              rows="5" 
-                              placeholder="Ej: El proveedor no asistió a la cita / El servicio no se completó / Hubo un problema con..."
-                              required></textarea>
+                    <textarea name="incident_description" class="form-control" rows="5"
+                        placeholder="Ej: El proveedor no asistió a la cita / El servicio no se completó / Hubo un problema con..."
+                        required></textarea>
                     <div class="alert alert-info mt-3">
                         <small>
                             <i class="fas fa-info-circle"></i>

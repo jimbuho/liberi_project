@@ -23,30 +23,29 @@
                     <div class="d-flex align-items-start mb-3">
                         <div class="flex-shrink-0">
                             {% if provider_profile.profile_photo %}
-                                <img src="{{ provider_profile.profile_photo.url }}" 
-                                     alt="{{ provider_profile.get_display_name }}"
-                                     class="rounded-circle"
-                                     style="width: 80px; height: 80px; object-fit: cover;">
+                            <img src="{{ provider_profile.profile_photo.url }}"
+                                alt="{{ provider_profile.get_display_name }}" class="rounded-circle"
+                                style="width: 80px; height: 80px; object-fit: cover;">
                             {% else %}
-                                <div class="bg-primary text-white rounded-circle d-flex align-items-center justify-content-center"
-                                     style="width: 80px; height: 80px; font-size: 36px;">
-                                    <i class="fas fa-user"></i>
-                                </div>
+                            <div class="bg-primary text-white rounded-circle d-flex align-items-center justify-content-center"
+                                style="width: 80px; height: 80px; font-size: 36px;">
+                                <i class="fas fa-user"></i>
+                            </div>
                             {% endif %}
                         </div>
                         <div class="flex-grow-1 ms-4">
                             {# CAMBIO #1: Mostrar nombre comercial prominentemente #}
                             {% if provider_profile.business_name %}
-                                <h2>{{ provider_profile.business_name }}</h2>
-                                <p class="text-muted mb-1" style="font-size: 0.9rem;">
-                                    {{ provider.get_full_name }}
-                                </p>
+                            <h2>{{ provider_profile.business_name }}</h2>
+                            <p class="text-muted mb-1" style="font-size: 0.9rem;">
+                                {{ provider.get_full_name }}
+                            </p>
                             {% else %}
-                                <h2>{{ provider.get_full_name }}</h2>
+                            <h2>{{ provider.get_full_name }}</h2>
                             {% endif %}
-                            
+
                             <p class="text-muted mb-2">
-                                {{ provider_profile.category.icon }} 
+                                {{ provider_profile.category.icon }}
                                 {{ provider_profile.category.name }}
                             </p>
                             {% if provider_profile.status == 'approved' %}
@@ -64,13 +63,69 @@
 
                     <hr>
 
+                    <!-- NUEVO: Mostrar Modalidad de Atención y Ubicaciones -->
+                    {% if provider_profile.service_mode %}
+                    <div class="alert alert-info mb-3">
+                        <h5 class="alert-heading mb-2">
+                            <i class="fas fa-cogs"></i> Modalidad de Atención
+                        </h5>
+                        {% if provider_profile.service_mode == 'home' %}
+                        <i class="fas fa-car"></i> <strong>Atiende a domicilio</strong> - El proveedor va a tu casa
+                        {% elif provider_profile.service_mode == 'local' %}
+                        <i class="fas fa-store"></i> <strong>Atiende en local</strong> - Debes ir a su ubicación
+                        {% else %}
+                        <i class="fas fa-arrows-alt"></i> <strong>Atiende en ambas modalidades</strong> - Tú eliges
+                        {% endif %}
+                    </div>
+
+                    <!-- Mostrar ubicaciones del proveedor -->
+                    {% if provider_locations %}
+                    <div class="card mb-3">
+                        <div class="card-header bg-light">
+                            <h5 class="mb-0">
+                                <i class="fas fa-map-marker-alt"></i> Ubicaciones
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            {% for location in provider_locations %}
+                            <div class="mb-2 pb-2 {% if not forloop.last %}border-bottom{% endif %}">
+                                <h6 class="mb-1">
+                                    {% if location.location_type == 'base' %}
+                                    <i class="fas fa-home text-success"></i>
+                                    {% else %}
+                                    <i class="fas fa-store text-info"></i>
+                                    {% endif %}
+                                    {{ location.label }}
+                                </h6>
+                                <p class="mb-1 small text-muted">
+                                    {{ location.address }}
+                                </p>
+                                {% if location.reference %}
+                                <p class="mb-1 small text-muted">
+                                    <i class="fas fa-lightbulb"></i> {{ location.reference }}
+                                </p>
+                                {% endif %}
+                                {% if location.zone %}
+                                <p class="mb-0 small">
+                                    <strong>Zona:</strong> <span class="badge bg-secondary">{{ location.zone.name
+                                        }}</span>
+                                </p>
+                                {% endif %}
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    {% endif %}
+                    {% endif %}
+                    <!-- FIN NUEVO -->
+
                     <div class="row">
                         <div class="col-md-6">
                             <h5><i class="fas fa-map-marker-alt"></i> Zonas de Cobertura</h5>
                             {% for zone in provider_profile.coverage_zones.all %}
-                                <span class="badge bg-secondary me-1 mb-1">{{ zone }}</span>
+                            <span class="badge bg-secondary me-1 mb-1">{{ zone }}</span>
                             {% empty %}
-                                <p class="text-muted">No especificadas</p>
+                            <p class="text-muted">No especificadas</p>
                             {% endfor %}
                         </div>
                         {% if provider_profile.avg_travel_cost > 0 %}
@@ -88,7 +143,7 @@
                 <div class="card-body">
                     <h4><i class="fas fa-concierge-bell"></i> Servicios Ofrecidos</h4>
                     <hr>
-                    
+
                     {% if services %}
                     <div class="row">
                         {% for service in services %}
@@ -96,17 +151,15 @@
                             <div class="card h-100">
                                 {# CAMBIO #2: Agregar imagen del servicio #}
                                 {% if service.image %}
-                                <img src="{{ service.image.url }}" 
-                                     class="card-img-top" 
-                                     alt="{{ service.name }}"
-                                     style="height: 200px; object-fit: cover;">
+                                <img src="{{ service.image.url }}" class="card-img-top" alt="{{ service.name }}"
+                                    style="height: 200px; object-fit: cover;">
                                 {% else %}
                                 <div class="card-img-top bg-light d-flex align-items-center justify-content-center"
-                                     style="height: 200px;">
+                                    style="height: 200px;">
                                     <i class="fas fa-image fa-3x text-muted"></i>
                                 </div>
                                 {% endif %}
-                                
+
                                 <div class="card-body d-flex flex-column">
                                     <h5 class="card-title">{{ service.name }}</h5>
                                     <p class="card-text text-muted flex-grow-1">
@@ -119,7 +172,7 @@
                                         </span>
                                     </div>
                                     <a href="{% url 'service_detail' service.service_code %}"
-                                       class="btn btn-primary w-100">
+                                        class="btn btn-primary w-100">
                                         Ver Detalles
                                     </a>
                                 </div>
@@ -129,7 +182,7 @@
                     </div>
                     {% else %}
                     <div class="alert alert-info">
-                        <i class="fas fa-info-circle"></i> 
+                        <i class="fas fa-info-circle"></i>
                         Este proveedor aún no ha agregado servicios
                     </div>
                     {% endif %}
@@ -142,7 +195,7 @@
                 <div class="card-body">
                     <h4><i class="fas fa-star"></i> Reseñas de Clientes</h4>
                     <hr>
-                    
+
                     {% for review in reviews %}
                     <div class="mb-3 {% if not forloop.last %}border-bottom pb-3{% endif %}">
                         <div class="d-flex justify-content-between">
@@ -150,12 +203,11 @@
                                 <strong>{{ review.customer.get_full_name }}</strong>
                                 <div class="rating text-warning">
                                     {% for i in "12345" %}
-                                        {% if forloop.counter <= review.rating %}
-                                            <i class="fas fa-star"></i>
+                                    {% if forloop.counter <= review.rating %} <i class="fas fa-star"></i>
                                         {% else %}
-                                            <i class="far fa-star"></i>
+                                        <i class="far fa-star"></i>
                                         {% endif %}
-                                    {% endfor %}
+                                        {% endfor %}
                                 </div>
                             </div>
                             <small class="text-muted">{{ review.created_at|date:"d/m/Y" }}</small>
@@ -179,12 +231,11 @@
                         <div class="display-4 text-warning">{{ rating_avg }}</div>
                         <div class="rating text-warning">
                             {% for i in "12345" %}
-                                {% if forloop.counter <= rating_avg %}
-                                    <i class="fas fa-star"></i>
+                            {% if forloop.counter <= rating_avg %} <i class="fas fa-star"></i>
                                 {% else %}
-                                    <i class="far fa-star"></i>
+                                <i class="far fa-star"></i>
                                 {% endif %}
-                            {% endfor %}
+                                {% endfor %}
                         </div>
                         <p class="text-muted">{{ total_reviews }} reseña{{ total_reviews|pluralize }}</p>
                     </div>
@@ -199,13 +250,13 @@
 
                     <div class="mb-3">
                         <h5>{{ completed_bookings }}</h5>
-                        <p class="text-muted mb-0">Trabajo{{ completed_bookings|pluralize }} completado{{ completed_bookings|pluralize }}</p>
+                        <p class="text-muted mb-0">Trabajo{{ completed_bookings|pluralize }} completado{{
+                            completed_bookings|pluralize }}</p>
                     </div>
 
                     <hr>
 
-                    <a href="{% url 'services_list' %}?provider={{ provider.id }}" 
-                       class="btn btn-primary w-100">
+                    <a href="{% url 'services_list' %}?provider={{ provider.id }}" class="btn btn-primary w-100">
                         <i class="fas fa-calendar-check"></i> Ver Servicios
                     </a>
                 </div>
@@ -220,21 +271,21 @@
         display: flex;
         flex-direction: column;
     }
-    
+
     .card.h-100 .card-body {
         display: flex;
         flex-direction: column;
     }
-    
+
     /* Hover effect en las imágenes de servicios */
     .card-img-top {
         transition: transform 0.3s ease;
     }
-    
+
     .card:hover .card-img-top {
         transform: scale(1.05);
     }
-    
+
     /* Overflow hidden para el efecto hover */
     .card {
         overflow: hidden;

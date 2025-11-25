@@ -1,0 +1,94 @@
+{% extends 'base.html' %}
+{% block title %}Mis Ubicaciones - Liberi{% endblock %}
+{% block content %}
+<div class="container mt-4 mb-5">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2><i class="fas fa-map-marker-alt"></i> Mis Ubicaciones</h2>
+        <a href="{% url 'dashboard' %}" class="btn btn-outline-secondary">
+            <i class="fas fa-arrow-left"></i> Volver
+        </a>
+    </div>
+
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="btn-group">
+                {% if not base_location %}
+                <a href="{% url 'provider_location_create_base' %}" class="btn btn-primary">
+                    <i class="fas fa-home"></i> Domicilio Base
+                </a>
+                {% endif %}
+                <a href="{% url 'provider_location_create_local' %}" class="btn btn-success">
+                    <i class="fas fa-store"></i> Agregar Local
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Domicilio Base -->
+    {% if base_location %}
+    <div class="card mb-4 border-primary">
+        <div class="card-header bg-primary text-white">
+            <h5 class="mb-0"><i class="fas fa-home"></i> Domicilio Base</h5>
+        </div>
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-8">
+                    <p><strong>{{ base_location.label }}</strong></p>
+                    <p class="text-muted">{{ base_location.address }}</p>
+                    {% if base_location.zone %}
+                    <p class="text-muted">{{ base_location.zone.name }} - {{ base_location.city.name }}</p>
+                    {% endif %}
+                </div>
+                <div class="col-md-4 text-end">
+                    <a href="{% url 'provider_location_edit' base_location.id %}"
+                        class="btn btn-sm btn-outline-primary">
+                        <i class="fas fa-edit"></i> Editar
+                    </a>
+                    <a href="{% url 'provider_location_delete' base_location.id %}"
+                        class="btn btn-sm btn-outline-danger">
+                        <i class="fas fa-trash"></i> Eliminar
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Locales -->
+    {% if local_locations %}
+    <div class="mb-4">
+        <h5 class="mb-3"><i class="fas fa-store"></i> Locales ({{ local_locations.count }})</h5>
+        <div class="row">
+            {% for location in local_locations %}
+            <div class="col-md-6 mb-3">
+                <div class="card h-100">
+                    <div class="card-body">
+                        <h6 class="card-title">{{ location.label }}</h6>
+                        {% if location.is_verified %}
+                        <span class="badge bg-success"><i class="fas fa-check-circle"></i> Verificado</span>
+                        {% else %}
+                        <span class="badge bg-warning"><i class="fas fa-hourglass-half"></i> Pendiente</span>
+                        {% endif %}
+                        <p class="text-muted small mt-2">{{ location.address }}</p>
+                        {% if location.zone %}
+                        <p class="text-muted small">{{ location.zone.name }}</p>
+                        {% endif %}
+                        <div class="d-flex gap-2">
+                            <a href="{% url 'provider_location_edit' location.id %}"
+                                class="btn btn-sm btn-outline-primary">
+                                <i class="fas fa-edit"></i> Editar
+                            </a>
+                            <a href="{% url 'provider_location_delete' location.id %}"
+                                class="btn btn-sm btn-outline-danger">
+                                <i class="fas fa-trash"></i> Eliminar
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
