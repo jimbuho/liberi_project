@@ -113,8 +113,7 @@ class ProviderProfileServiceModeForm(forms.ModelForm):
         fields = ['service_mode']
         widgets = {
             'service_mode': forms.RadioSelect(
-                attrs={'class': 'form-check-input'},
-                choices=SERVICE_MODE_CHOICES
+                attrs={'class': 'form-check-input'}
             )
         }
     

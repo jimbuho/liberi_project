@@ -31,6 +31,10 @@ from core.models import (
     EmailVerificationToken, City, PasswordResetToken,
     ProviderLocation
 )
+
+from frontend.forms import (
+    ProviderLocationForm, ProviderProfileServiceModeForm
+)
 from legal.models import LegalDocument, LegalAcceptance
 from legal.views import get_client_ip, get_user_agent
 
@@ -4187,15 +4191,24 @@ def provider_location_create(request, loc_type=None):
             return redirect('provider_locations_list')
 
     if request.method == 'POST':
-        form = ProviderLocationForm(request.POST, request.FILES, provider=request.user, location_type=loc_type)
+        form = ProviderLocationForm(
+            request.POST, 
+            request.FILES, 
+            provider=request.user,  # ← Solo pasar provider como argumento
+            location_type=loc_type
+        )
+        
         if form.is_valid():
-            location = form.save(commit=False)
-            location.provider = request.user
-            location.save()
+            location = form.save(commit=False)  # ← No guardar aún
+            location.provider = request.user     # ← Asignar provider AQUÍ
+            location.save()                      # ← Ahora sí guardar
             messages.success(request, f'✅ Ubicación "{location.label}" creada exitosamente.')
             return redirect('provider_locations_list')
     else:
-        form = ProviderLocationForm(provider=request.user, location_type=loc_type)
+        form = ProviderLocationForm(
+            provider=request.user, 
+            location_type=loc_type
+        )
 
     context = {
         'form': form,
@@ -4307,10 +4320,7 @@ def provider_location_create(request, loc_type=None):
     if request.user.profile.role != 'provider':
         messages.error(request, 'Solo proveedores')
         return redirect('dashboard')
-    
-    from core.models import ProviderLocation
-    from frontend.forms import ProviderLocationForm
-    
+        
     if loc_type == 'base':
         if ProviderLocation.objects.filter(provider=request.user, location_type='base').exists():
             messages.error(request, 'Ya tienes domicilio base')
@@ -4343,8 +4353,6 @@ def provider_location_create(request, loc_type=None):
 @login_required
 def provider_location_edit(request, loc_id):
     """Editar ubicación"""
-    from core.models import ProviderLocation
-    from frontend.forms import ProviderLocationForm
     
     location = get_object_or_404(ProviderLocation, id=loc_id, provider=request.user)
     
@@ -4398,8 +4406,6 @@ def provider_settings_service_mode(request):
     if request.user.profile.role != 'provider':
         messages.error(request, 'Solo proveedores')
         return redirect('dashboard')
-    
-    from frontend.forms import ProviderProfileServiceModeForm
     
     provider_profile = request.user.provider_profile
     

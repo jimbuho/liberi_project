@@ -1,5 +1,6 @@
 from django.db import models
 from django.contrib.auth.models import User
+from django.forms import ValidationError
 from django.utils import timezone
 from datetime import timedelta
 from django.conf import settings
@@ -372,16 +373,38 @@ class ProviderLocation(models.Model):
         return f"{self.provider.username} - {self.label}"
 
     def clean(self):
-        from django.core.exceptions import ValidationError
+        """Validaciones a nivel de modelo"""
+        super().clean()
         
+        # ✅ VERIFICAR SI PROVIDER EXISTE ANTES DE USARLO
+        if not self.provider_id:
+            # Si no hay provider asignado, saltamos las validaciones
+            # (El formulario ya se encarga de esto)
+            return
+        
+        # Validar límite de locales por ciudad
+        if self.location_type == 'local' and self.city:
+            max_per_city = int(SystemConfig.get_config('max_provider_locations_per_city', 3))
+            qs = ProviderLocation.objects.filter(
+                provider=self.provider,
+                city=self.city,
+                location_type='local'
+            )
+            if self.pk:
+                qs = qs.exclude(pk=self.pk)
+            if qs.count() >= max_per_city:
+                raise ValidationError(f'Límite de {max_per_city} locales por ciudad alcanzado')
+        
+        # Validar que solo haya un domicilio base
         if self.location_type == 'base':
             qs = ProviderLocation.objects.filter(
-                provider=self.provider, 
+                provider=self.provider,
                 location_type='base'
-            ).exclude(pk=self.pk)
-            
+            )
+            if self.pk:
+                qs = qs.exclude(pk=self.pk)
             if qs.exists():
-                raise ValidationError("Solo un domicilio base permitido")
+                raise ValidationError('Solo puede tener un domicilio base')
 
     def save(self, *args, **kwargs):
         if self.location_type == 'base':
