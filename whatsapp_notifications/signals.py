@@ -73,7 +73,6 @@ def booking_whatsapp_notifications(sender, instance, created, **kwargs):
                 provider_name = instance.provider.get_full_name() or instance.provider.username
                 service_name = instance.get_services_display()
                 booking_identifier = getattr(instance, 'slug', instance.id)
-                booking_url = f"{settings.BASE_URL}/bookings/{booking_identifier}"
                 
                 send_whatsapp_message.delay(
                     recipient=customer_phone,
@@ -81,7 +80,7 @@ def booking_whatsapp_notifications(sender, instance, created, **kwargs):
                     variables=[
                         provider_name,
                         service_name,
-                        booking_url
+                        booking_identifier
                     ]
                 )
                 

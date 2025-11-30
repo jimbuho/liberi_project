@@ -68,10 +68,8 @@ def send_service_reminders():
             
             # IMPORTANTE: URL del booking (3era variable)
             booking_identifier = booking.slug if booking.slug else str(booking.id)[:8]
-            booking_url = f"{settings.BASE_URL}/bookings/{booking_identifier}/"
             
             logger.info(f"📅 Booking {booking.id}: {service_name} a las {time_str}")
-            logger.info(f"🔗 URL: {booking_url}")
             
             # ============================================
             # RECORDATORIO PARA EL CLIENTE
@@ -82,7 +80,7 @@ def send_service_reminders():
                     send_whatsapp_message.delay(
                         phone=customer_phone,
                         template_type='reminder',
-                        variables=[service_name, time_str, booking_url]
+                        variables=[service_name, time_str, booking_identifier]
                     )
                     logger.info(f"✅ Recordatorio cliente encolado")
                     sent_count += 1
@@ -100,7 +98,7 @@ def send_service_reminders():
                     send_whatsapp_message.delay(
                         phone=provider_phone,
                         template_type='reminder',
-                        variables=[service_name, time_str, booking_url]
+                        variables=[service_name, time_str, booking_identifier]
                     )
                     logger.info(f"✅ Recordatorio proveedor encolado")
                     sent_count += 1
