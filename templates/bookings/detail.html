@@ -84,8 +84,7 @@
                     {% endif %}
 
                     <!-- NUEVO: Formulario para Proveedor - Ingresar Código -->
-                    {% if user.profile.role == 'provider' and booking.status == 'accepted' and booking.payment_status ==
-                    'paid' %}
+                    {% if user.profile.role == 'provider' and booking.status == 'accepted' and booking.payment_status == 'paid' %}
                     <div class="card bg-light mb-4">
                         <div class="card-body">
                             <h5 class="card-title">
@@ -113,8 +112,7 @@
                     {% endif %}
 
                     <!-- NUEVO: Opción para Cliente - Reportar Incidencia -->
-                    {% if user.profile.role == 'customer' and booking.status == 'accepted' and booking.payment_status ==
-                    'paid' and not booking.incident_reported %}
+                    {% if user.profile.role == 'customer' and booking.status == 'accepted' and booking.payment_status == 'paid' and not booking.incident_reported %}
                     <div class="card border-danger mb-4">
                         <div class="card-body">
                             <h5 class="card-title text-danger">
@@ -443,8 +441,7 @@
 </div>
 
 <!-- Modal para Reportar Incidencia -->
-{% if user.profile.role == 'customer' and booking.status == 'accepted' and booking.payment_status == 'paid' and not
-booking.incident_reported %}
+{% if user.profile.role == 'customer' and booking.status == 'accepted' and booking.payment_status == 'paid' and not booking.incident_reported %}
 <div class="modal fade" id="reportIncidentModal" tabindex="-1" aria-labelledby="reportIncidentModalLabel"
     aria-hidden="true">
     <div class="modal-dialog">

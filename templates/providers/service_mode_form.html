@@ -10,7 +10,7 @@
             <!-- Breadcrumbs -->
             <nav aria-label="breadcrumb" class="mb-4">
                 <ol class="breadcrumb">
-                    <li class="breadcrumb-item"><a href="{% url 'provider_dashboard' %}">Dashboard</a></li>
+                    <li class="breadcrumb-item"><a href="{% url 'dashboard' %}">Dashboard</a></li>
                     <li class="breadcrumb-item"><a href="{% url 'provider_locations_list' %}">Mis Ubicaciones</a></li>
                     <li class="breadcrumb-item active">Modalidad de Atención</li>
                 </ol>
@@ -25,6 +25,26 @@
             <!-- Formulario -->
             <form method="post" id="serviceModeForm">
                 {% csrf_token %}
+
+                <!-- Alertas de ubicaciones existentes -->
+                {% if has_base or has_locals %}
+                <div class="alert alert-warning mb-4">
+                    <h6 class="mb-2"><i class="fas fa-exclamation-triangle"></i> Ubicaciones Registradas</h6>
+                    <p class="mb-2">Actualmente tienes:</p>
+                    <ul class="mb-2">
+                        {% if has_base %}
+                        <li><strong>Domicilio Base</strong> registrado</li>
+                        {% endif %}
+                        {% if has_locals %}
+                        <li><strong>Local(es)</strong> registrado(s)</li>
+                        {% endif %}
+                    </ul>
+                    <p class="mb-0 small">
+                        <strong>Nota:</strong> Si seleccionas una modalidad incompatible con tus ubicaciones actuales, 
+                        deberás eliminar las ubicaciones que no correspondan antes de cambiar.
+                    </p>
+                </div>
+                {% endif %}
 
                 <!-- Opciones -->
                 <div class="row g-3 mb-5">
@@ -163,38 +183,81 @@
         const cards = document.querySelectorAll('.option-card');
         const form = document.getElementById('serviceModeForm');
 
+        // Variables de ubicaciones existentes
+        const hasBase = {{ has_base|yesno:"true,false" }};
+        const hasLocals = {{ has_locals|yesno:"true,false" }};
+
         // Cargar modo guardado
         const savedMode = '{{ form.instance.service_mode }}';
         if (savedMode) {
             selectMode(savedMode);
         }
 
+        // Deshabilitar opciones incompatibles
+        if (hasLocals && !hasBase) {
+            // Tiene locales pero no domicilio base → deshabilitar "Solo a Domicilio"
+            disableCard('home', 'No puedes seleccionar esta opción porque tienes locales registrados. Elimínalos primero.');
+        }
+        
+        if (hasBase && !hasLocals) {
+            // Tiene domicilio base pero no locales → deshabilitar "Solo en Local"
+            disableCard('local', 'No puedes seleccionar esta opción porque tienes domicilio base registrado. Elimínalo primero.');
+        }
+
         // Click en cards
         cards.forEach(card => {
             card.addEventListener('click', function () {
+                if (this.classList.contains('disabled-card')) {
+                    return; // No hacer nada si está deshabilitada
+                }
                 const mode = this.dataset.mode;
                 selectMode(mode);
             });
         });
 
+        function disableCard(mode, reason) {
+            const card = document.querySelector(`[data-mode="${mode}"]`);
+            if (card) {
+                card.classList.add('disabled-card');
+                card.style.opacity = '0.5';
+                card.style.cursor = 'not-allowed';
+                
+                // Agregar mensaje de error
+                const errorDiv = document.createElement('div');
+                errorDiv.className = 'alert alert-danger mt-2 mb-0 small';
+                errorDiv.innerHTML = '<i class="fas fa-ban"></i> ' + reason;
+                card.querySelector('.card-body').appendChild(errorDiv);
+                
+                // Deshabilitar radio
+                const radio = card.querySelector('input[type="radio"]');
+                if (radio) {
+                    radio.disabled = true;
+                }
+            }
+        }
+
         function selectMode(mode) {
             // Deseleccionar todos
             cards.forEach(card => {
-                card.classList.remove('border-success', 'border-2');
-                card.querySelector('.mode-indicator').classList.add('d-none');
+                if (!card.classList.contains('disabled-card')) {
+                    card.classList.remove('border-success', 'border-2');
+                    card.querySelector('.mode-indicator').classList.add('d-none');
+                }
             });
 
             // Seleccionar el elegido
             const selectedCard = document.querySelector(`[data-mode="${mode}"]`);
-            selectedCard.classList.add('border-success', 'border-2');
-            selectedCard.querySelector('.mode-indicator').classList.remove('d-none');
-            selectedCard.style.backgroundColor = 'rgba(40, 167, 69, 0.05)';
+            if (selectedCard && !selectedCard.classList.contains('disabled-card')) {
+                selectedCard.classList.add('border-success', 'border-2');
+                selectedCard.querySelector('.mode-indicator').classList.remove('d-none');
+                selectedCard.style.backgroundColor = 'rgba(40, 167, 69, 0.05)';
 
-            // Seleccionar radio
-            document.getElementById(`mode_${mode}`).checked = true;
+                // Seleccionar radio
+                document.getElementById(`mode_${mode}`).checked = true;
 
-            // Actualizar requisitos
-            updateRequirements(mode);
+                // Actualizar requisitos
+                updateRequirements(mode);
+            }
         }
 
         function updateRequirements(mode) {
@@ -266,6 +329,17 @@
     .option-card.border-success {
         border-color: #28a745 !important;
         background-color: rgba(40, 167, 69, 0.05);
+    }
+
+    .option-card.disabled-card {
+        opacity: 0.5;
+        cursor: not-allowed !important;
+        pointer-events: all;
+    }
+
+    .option-card.disabled-card:hover {
+        box-shadow: none;
+        border-color: #ddd;
     }
 
     .mode-indicator {

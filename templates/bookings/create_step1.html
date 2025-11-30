@@ -22,28 +22,57 @@
                         <i class="fas fa-calendar-alt"></i> Selecciona Fecha y Hora
                     </h3>
 
-                    <!-- Resumen del Servicio -->
+                    <!-- Resumen del Servicio CON MODALIDAD -->
                     <div class="alert alert-info">
                         <div class="row align-items-center">
                             <div class="col-md-8">
                                 <strong>{{ service.name }}</strong><br>
                                 <small>{{ provider.get_full_name }} • {{ service.duration_minutes }} minutos</small>
+                                <br>
+                                <!-- ✅ MOSTRAR MODALIDAD SELECCIONADA -->
+                                {% if service_mode == 'home' %}
+                                    <span class="badge bg-success mt-1">
+                                        <i class="fas fa-home"></i> Servicio a Domicilio
+                                    </span>
+                                {% elif service_mode == 'local' and provider_location %}
+                                    <span class="badge bg-info mt-1">
+                                        <i class="fas fa-building"></i> En Local: {{ provider_location.label }}
+                                    </span>
+                                {% endif %}
                             </div>
                             <div class="col-md-4 text-end">
                                 <h4 class="text-primary mb-0">${{ service.base_price }}</h4>
                             </div>
                         </div>
+                        
+                        <!-- ✅ INFO DEL LOCAL SI ES MODO LOCAL -->
+                        {% if service_mode == 'local' and provider_location %}
+                        <hr>
+                        <div class="mt-2">
+                            <small class="text-muted">
+                                <i class="fas fa-map-marker-alt"></i> <strong>Ubicación:</strong> {{ provider_location.address }}
+                                {% if provider_location.reference %}
+                                <br><em>Ref: {{ provider_location.reference }}</em>
+                                {% endif %}
+                            </small>
+                        </div>
+                        {% endif %}
                     </div>
 
                     <!-- Selector de Fecha -->
                     <form method="get" id="dateForm" class="no-loader">
+                        <!-- ✅ PRESERVAR service_mode Y location_id EN FORM -->
+                        <input type="hidden" name="service_mode" value="{{ service_mode }}">
+                        {% if provider_location %}
+                        <input type="hidden" name="location_id" value="{{ provider_location.id }}">
+                        {% endif %}
+                        
                         <div class="mb-4">
                             <label class="form-label"><strong>Paso 1: Elige el día</strong></label>
                             <select class="form-select form-select-lg" id="dateSelect" name="date">
                                 <option value="">Selecciona una fecha...</option>
                                 {% for date in available_dates %}
-                                <option value="{{ date|date:'Y-m-d' }}" {% if selected_date==date|date:'Y-m-d'
-                                    %}selected{% endif %}>
+                                <option value="{{ date|date:'Y-m-d' }}" {% if selected_date == date|date:'Y-m-d' %}selected{% endif %}>
                                     {{ date|date:'l, d \d\e F \d\e Y' }}
                                 </option>
                                 {% endfor %}
@@ -89,25 +118,28 @@
                         <input type="hidden" name="provider_id" value="{{ provider.id }}">
                         <input type="hidden" name="selected_date" value="{{ selected_date }}">
                         <input type="hidden" name="selected_time" id="selected_time">
+                        <!-- ✅ PASAR MODALIDAD Y UBICACIÓN DEL PROVEEDOR -->
+                        <input type="hidden" name="service_mode" value="{{ service_mode }}">
+                        {% if provider_location %}
+                        <input type="hidden" name="provider_location_id" value="{{ provider_location.id }}">
+                        {% endif %}
 
                         <div class="mb-4">
                             <label class="form-label"><strong>Paso 3: Ubicación de Atención</strong></label>
 
-                            <!-- NUEVO: Mostrar modalidad del proveedor -->
-                            <div class="alert alert-info mb-3">
+                            <!-- ✅ MOSTRAR INFO DE MODALIDAD -->
+                            <div class="alert {% if service_mode == 'home' %}alert-success{% else %}alert-info{% endif %} mb-3">
                                 <i class="fas fa-info-circle"></i>
                                 <strong>Modalidad de atención:</strong>
-                                {% if selected_mode == 'home' %}
+                                {% if service_mode == 'home' %}
                                 <span class="badge bg-success">El proveedor atiende en tu domicilio</span>
-                                {% elif selected_mode == 'local' %}
+                                {% elif service_mode == 'local' %}
                                 <span class="badge bg-info">Debes ir al local del proveedor</span>
-                                {% else %}
-                                <span class="badge bg-warning">Puedes elegir dónde</span>
                                 {% endif %}
                             </div>
 
-                            <!-- Tu ubicación para atención a domicilio -->
-                            {% if selected_mode == 'home' or selected_mode == 'both' %}
+                            <!-- ✅ UBICACIÓN DEL USUARIO (solo modo home) -->
+                            {% if service_mode == 'home' %}
                             <h6 class="mb-2">Tu Ubicación (donde te atenderá):</h6>
                             {% if user_locations %}
                             <div class="row">
@@ -144,51 +176,33 @@
                             {% endif %}
                             {% endif %}
 
-                            <!-- Ubicación del proveedor para atención en local -->
-                            {% if selected_mode == 'local' or selected_mode == 'both' %}
-                            <h6 class="mb-2 mt-3">Ubicación del Proveedor:</h6>
-                            {% if available_locations %}
-                            <div class="row">
-                                {% for loc in available_locations %}
-                                <div class="col-md-6 mb-2">
-                                    <div class="card location-card"
-                                        onclick="selectProviderLocation({{ loc.id }}, this)">
-                                        <div class="card-body p-3">
-                                            <h6 class="mb-1">
-                                                <i class="fas fa-store"></i> {{ loc.label }}
-                                            </h6>
-                                            <small class="text-muted d-block">
-                                                {{ loc.zone.name }}
-                                            </small>
-                                            <small class="text-muted d-block">
-                                                {{ loc.address|truncatewords:5 }}
-                                            </small>
-                                            {% if loc.is_verified %}
-                                            <small class="text-success d-block">
-                                                <i class="fas fa-check-circle"></i> Verificada
-                                            </small>
-                                            {% endif %}
-                                            <input type="radio" name="provider_location_id" value="{{ loc.id }}"
-                                                style="display: none;" id="ploc_{{ loc.id }}">
-                                        </div>
-                                    </div>
+                            <!-- ✅ UBICACIÓN DEL PROVEEDOR (solo modo local) -->
+                            {% if service_mode == 'local' and provider_location %}
+                            <h6 class="mb-2">Ubicación del Proveedor (donde debes ir):</h6>
+                            <div class="card border-info">
+                                <div class="card-body">
+                                    <h6 class="mb-1">
+                                        <i class="fas fa-building text-info"></i> {{ provider_location.label }}
+                                    </h6>
+                                    <p class="mb-1 text-muted">{{ provider_location.address }}</p>
+                                    {% if provider_location.reference %}
+                                    <p class="mb-1 text-muted small"><em>Ref: {{ provider_location.reference }}</em></p>
+                                    {% endif %}
+                                    {% if provider_location.whatsapp_number %}
+                                    <p class="mb-0 small">
+                                        <i class="fab fa-whatsapp text-success"></i> {{ provider_location.whatsapp_number }}
+                                    </p>
+                                    {% endif %}
                                 </div>
-                                {% endfor %}
-                            </div>
-                            {% else %}
-                            <div class="alert alert-info">
-                                <i class="fas fa-info-circle"></i>
-                                El proveedor no tiene locales disponibles en tu zona en este momento.
                             </div>
                             {% endif %}
-                            {% endif %}
-                            <!-- FIN NUEVO -->
                         </div>
 
-                        <div class="mb-3">
-                            <label class="form-label">Notas adicionales (opcional)</label>
+                        <!-- Notas (opcional) -->
+                        <div class="mb-4">
+                            <label class="form-label">Notas (opcional)</label>
                             <textarea class="form-control" name="notes" rows="3"
-                                placeholder="Instrucciones especiales, preferencias, alergias, etc."></textarea>
+                                placeholder="Instrucciones especiales, preferencias, etc."></textarea>
                         </div>
 
                         <div class="alert alert-success">
@@ -200,7 +214,11 @@
                                 <div class="text-end">
                                     <strong>Total:</strong><br>
                                     <h4 class="text-primary mb-0">
+                                        {% if service_mode == 'home' %}
                                         ${{ service.base_price|add:provider.provider_profile.avg_travel_cost }}
+                                        {% else %}
+                                        ${{ service.base_price }}
+                                        {% endif %}
                                     </h4>
                                 </div>
                             </div>
@@ -251,7 +269,12 @@
                     <hr>
                     <ul class="small mb-0">
                         <li>Reserva con al menos 1 hora de anticipación</li>
+                        {% if service_mode == 'home' %}
                         <li>Verifica que tu ubicación esté en la zona del proveedor</li>
+                        {% else %}
+                        <li>Anota la dirección del local para no perderte</li>
+                        <li>Llega unos minutos antes de tu cita</li>
+                        {% endif %}
                         <li>Agrega notas importantes para el servicio</li>
                         <li>El proveedor confirmará tu reserva pronto</li>
                     </ul>
@@ -266,7 +289,9 @@
     document.getElementById('dateSelect').addEventListener('change', function () {
         if (this.value) {
             const loader = document.getElementById('globalLoader');
-            loader.classList.add('active');
+            if (loader) {
+                loader.classList.add('active');
+            }
 
             setTimeout(() => {
                 document.getElementById('dateForm').submit();
@@ -323,26 +348,6 @@
         element.style.borderWidth = '2px';
 
         document.getElementById('loc_' + locationId).checked = true;
-    }
-
-    // NUEVA FUNCIÓN para seleccionar ubicación del proveedor
-    function selectProviderLocation(locationId, element) {
-        document.querySelectorAll('[id^="ploc_"]').forEach(radio => {
-            radio.checked = false;
-        });
-
-        document.querySelectorAll('.location-card').forEach(card => {
-            if (card !== element) {
-                card.classList.remove('border-primary', 'bg-light');
-                card.style.borderColor = '';
-            }
-        });
-
-        element.classList.add('border-primary', 'bg-light');
-        element.style.borderColor = '#0d6efd';
-        element.style.borderWidth = '2px';
-
-        document.getElementById('ploc_' + locationId).checked = true;
     }
 </script>
 <style>

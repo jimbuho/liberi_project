@@ -1,9 +1,6 @@
 {% extends 'base.html' %}
 
 {% block title %}{{ service.name }} - Liberi{% endblock %}
-{% block og_title %}{{ service.name }} | Liberi{% endblock %}
-{% block og_description %}{{ meta_description }}{% endblock %}
-{% block twitter_title %}{{ service.name }} | Liberi{% endblock %}
 
 {% block content %}
 <div class="container mt-4 mb-5">
@@ -14,6 +11,14 @@
             <li class="breadcrumb-item active">{{ service.name }}</li>
         </ol>
     </nav>
+
+    <!-- ALERT: Sin modalidad configurada -->
+    {% if not provider_service_mode %}
+    <div class="alert alert-danger">
+        <h5><i class="fas fa-exclamation-triangle"></i> Proveedor sin Modalidad Configurada</h5>
+        <p class="mb-0">Este proveedor aún no ha configurado su modalidad de atención. Por favor contacta al soporte.</p>
+    </div>
+    {% endif %}
 
     <!-- Alerta de zona no cubierta -->
     {% if zone_not_covered and current_zone %}
@@ -74,52 +79,136 @@
                         </div>
                     </div>
 
-                    <!-- Zonas de cobertura -->
-                    <div class="alert alert-info">
-                        <strong><i class="fas fa-map-marker-alt"></i> Zonas de Cobertura:</strong><br>
-                        {% for zone in service.provider.provider_profile.coverage_zones.all %}
-                            <span class="badge bg-primary me-1">{{ zone.name }}</span>
-                        {% endfor %}
+                    <!-- Modalidad del proveedor -->
+                    <div class="alert alert-info mb-3">
+                        <strong><i class="fas fa-cog"></i> Modalidad de Atención:</strong>
+                        {% if provider_service_mode == 'home' %}
+                        <span class="badge bg-success"><i class="fas fa-home"></i> Solo a Domicilio</span>
+                        {% elif provider_service_mode == 'local' %}
+                        <span class="badge bg-info"><i class="fas fa-store"></i> Solo en Local</span>
+                        {% elif provider_service_mode == 'both' %}
+                        <span class="badge bg-primary"><i class="fas fa-check-double"></i> Domicilio y Local</span>
+                        {% else %}
+                        <span class="badge bg-warning">Sin configurar</span>
+                        {% endif %}
                     </div>
-                </div>
-            </div>
 
-            <!-- Provider Info -->
-            <div class="card mb-4">
-                <div class="card-body">
-                    <h4><i class="fas fa-building"></i> Sobre el Proveedor</h4>
-                    <hr>
-                    
-                    <div class="row">
-                        <div class="col-md-8">
-                            {% if service.provider.provider_profile.business_name %}
-                                <h5>{{ service.provider.provider_profile.business_name }}</h5>
-                            {% else %}
-                                <h5>{{ service.provider.get_full_name }}</h5>
-                            {% endif %}
+                    <!-- ✅ MOSTRAR LOCALES cuando modo='local' Y hay locales -->
+                    {% if selected_mode == 'local' and available_provider_locations %}
+                    <div class="card mb-3 border-primary">
+                        <div class="card-header bg-primary text-white">
+                            <h6 class="mb-0">
+                                <i class="fas fa-map-marker-alt"></i> 
+                                Locales Disponibles{% if current_city %} en {{ current_city.name }}{% endif %}
+                            </h6>
                         </div>
-                        
-                        <div class="col-md-4 text-center">
-                            {% if provider_rating %}
-                            <div class="mb-3">
-                                <div class="display-4 text-warning">{{ provider_rating }}</div>
-                                <div class="rating">
-                                    {% for i in "12345" %}
-                                        {% if forloop.counter <= provider_rating %}
-                                            <i class="fas fa-star"></i>
-                                        {% else %}
-                                            <i class="far fa-star"></i>
-                                        {% endif %}
-                                    {% endfor %}
+                        <div class="card-body">
+                            <p class="text-muted small mb-3">
+                                <i class="bi bi-info-circle"></i> 
+                                Este proveedor tiene {{ available_provider_locations|length }} local{% if available_provider_locations|length > 1 %}es{% endif %}{% if current_city %} en {{ current_city.name }}{% endif %}. 
+                                Selecciona uno para continuar con tu reserva.
+                            </p>
+                            {% for loc in available_provider_locations %}
+                            <div class="card mb-2 location-option {% if selected_provider_location and selected_provider_location.id == loc.id %}border-primary bg-light{% endif %}" 
+                                 onclick="selectProviderLocationDetail({{ loc.id }})"
+                                 style="cursor: pointer;">
+                                <div class="card-body p-3">
+                                    <div class="d-flex justify-content-between align-items-start">
+                                        <div class="flex-grow-1">
+                                            <h6 class="mb-1">
+                                                <i class="fas fa-building text-primary"></i> {{ loc.label }}
+                                            </h6>
+                                            <p class="mb-1 text-muted small">
+                                                <i class="bi bi-geo-alt"></i> {{ loc.address }}
+                                            </p>
+                                            <p class="mb-1">
+                                                <span class="badge bg-secondary">{{ loc.zone.name }}</span>
+                                            </p>
+                                            {% if loc.reference %}
+                                            <p class="mb-0 text-muted small"><em>Ref: {{ loc.reference }}</em></p>
+                                            {% endif %}
+                                            {% if loc.whatsapp_number %}
+                                            <p class="mb-0 small text-success mt-1">
+                                                <i class="fab fa-whatsapp"></i> {{ loc.whatsapp_number }}
+                                            </p>
+                                            {% endif %}
+                                        </div>
+                                        <div class="text-end ms-3">
+                                            {% if selected_provider_location and selected_provider_location.id == loc.id %}
+                                            <span class="badge bg-primary px-3 py-2">
+                                                <i class="fas fa-check"></i> Seleccionado
+                                            </span>
+                                            {% else %}
+                                            <span class="badge bg-light text-dark px-3 py-2">
+                                                Click para seleccionar
+                                            </span>
+                                            {% endif %}
+                                        </div>
+                                    </div>
                                 </div>
-                                <small class="text-muted">({{ total_reviews }} reseñas)</small>
                             </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    <!-- Información del Proveedor -->
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="mb-0">
+                                <i class="fas fa-user-tie"></i> Sobre el Proveedor
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="d-flex align-items-start mb-3">
+                                {% if service.provider.provider_profile.profile_photo %}
+                                <img src="{{ service.provider.provider_profile.profile_photo }}" 
+                                     alt="{{ service.provider.get_full_name }}"
+                                     class="rounded-circle me-3"
+                                     style="width: 80px; height: 80px; object-fit: cover;">
+                                {% else %}
+                                <div class="rounded-circle me-3 bg-secondary d-flex align-items-center justify-content-center"
+                                     style="width: 80px; height: 80px;">
+                                    <i class="fas fa-user fa-2x text-white"></i>
+                                </div>
+                                {% endif %}
+                                
+                                <div>
+                                    <h5 class="mb-1">
+                                        <a href="{% url 'provider_profile' service.provider.provider_profile.slug %}">
+                                            {% if service.provider.provider_profile.business_name %}
+                                                {{ service.provider.provider_profile.business_name }}
+                                            {% else %}
+                                                {{ service.provider.get_full_name }}
+                                            {% endif %}
+                                        </a>
+                                    </h5>
+                                    <p class="text-muted mb-1">{{ service.provider.provider_profile.category.name }}</p>
+                                    <div class="mb-2">
+                                        {% if provider_rating > 0 %}
+                                        <span class="text-warning">
+                                            {% for i in "12345" %}
+                                                {% if forloop.counter <= provider_rating %}★{% else %}☆{% endif %}
+                                            {% endfor %}
+                                        </span>
+                                        <span class="text-muted">({{ provider_rating }}/5 - {{ total_reviews }} reseñas)</span>
+                                        {% else %}
+                                        <span class="text-muted">Sin reseñas aún</span>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            {% if service.provider.provider_profile.description %}
+                            <p class="mb-2">{{ service.provider.provider_profile.description }}</p>
                             {% endif %}
                             
-                            <a href="{% url 'provider_profile' service.provider.provider_profile.slug %}" 
-                               class="btn btn-outline-primary">
-                                <i class="fas fa-user"></i> Ver Perfil
-                            </a>
+                            <div class="mb-2">
+                                <strong><i class="fas fa-map-marker-alt"></i> Zonas de Cobertura:</strong><br>
+                                {% for zone in service.provider.provider_profile.coverage_zones.all %}
+                                    <span class="badge bg-secondary">{{ zone.name }}</span>
+                                {% endfor %}
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -128,29 +217,27 @@
             <!-- Reviews -->
             {% if reviews %}
             <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-star"></i> Reseñas de Clientes
+                    </h5>
+                </div>
                 <div class="card-body">
-                    <h4><i class="fas fa-star"></i> Reseñas</h4>
-                    <hr>
-                    
                     {% for review in reviews %}
                     <div class="mb-3 {% if not forloop.last %}border-bottom pb-3{% endif %}">
-                        <div class="d-flex justify-content-between">
+                        <div class="d-flex justify-content-between align-items-start">
                             <div>
-                                <strong>{{ review.customer.get_full_name }}</strong>
-                                <div class="rating">
+                                <strong>{{ review.customer.first_name }}</strong>
+                                <div class="text-warning">
                                     {% for i in "12345" %}
-                                        {% if forloop.counter <= review.rating %}
-                                            <i class="fas fa-star"></i>
-                                        {% else %}
-                                            <i class="far fa-star"></i>
-                                        {% endif %}
+                                        {% if forloop.counter <= review.rating %}★{% else %}☆{% endif %}
                                     {% endfor %}
                                 </div>
                             </div>
                             <small class="text-muted">{{ review.created_at|date:"d/m/Y" }}</small>
                         </div>
                         {% if review.comment %}
-                        <p class="mt-2 mb-0">{{ review.comment }}</p>
+                        <p class="mb-0 mt-2">{{ review.comment }}</p>
                         {% endif %}
                     </div>
                     {% endfor %}
@@ -161,15 +248,16 @@
 
         <!-- Booking Sidebar -->
         <div class="col-md-4">
-            <div class="card sticky-top" style="top: 20px;">
+            <div class="card sticky-top" style="top: 80px;">
                 <div class="card-body">
-                    <h4 class="card-title">Reservar Servicio</h4>
-                    <hr>
+                    <h5 class="mb-3">
+                        <i class="fas fa-calendar-check"></i> Reservar Servicio
+                    </h5>
                     
                     {% if user.is_authenticated %}
                         {% if user.profile.role == 'customer' %}
-                            {% if zone_not_covered %}
-                                <!-- No puede reservar - zona no cubierta -->
+                            {% if zone_not_covered and current_zone %}
+                                <!-- No cubre zona -->
                                 <div class="alert alert-danger text-center">
                                     <i class="fas fa-ban fa-3x mb-3"></i>
                                     <p><strong>No disponible en tu zona</strong></p>
@@ -180,22 +268,21 @@
                                 <a href="{% url 'services_list' %}" class="btn btn-outline-primary w-100">
                                     <i class="fas fa-search"></i> Buscar Otros Servicios
                                 </a>
-                            {% elif not can_book and not current_zone %}
-                                <!-- No hay zona seleccionada -->
+                            {% elif not current_zone %}
+                                <!-- Sin zona -->
                                 <div class="alert alert-warning text-center">
                                     <i class="fas fa-map-marker-alt fa-3x mb-3"></i>
                                     <p><strong>Selecciona tu zona</strong></p>
-                                    <p class="small mb-0">Para reservar, primero indica dónde te encuentras</p>
                                 </div>
                                 <a href="{% url 'services_list' %}" class="btn btn-primary w-100">
                                     <i class="fas fa-map-marked-alt"></i> Seleccionar Zona
                                 </a>
                             {% else %}
                                 <!-- PUEDE RESERVAR -->
-                                {% if not valid_locations %}
+                                {% if selected_mode == 'home' and not valid_locations %}
                                 <div class="alert alert-warning">
                                     <i class="fas fa-exclamation-triangle"></i>
-                                    No tienes ubicaciones en las zonas que cubre este proveedor.
+                                    No tienes ubicaciones en zonas del proveedor.
                                     <a href="{% url 'location_create' %}?next={{ request.path }}" class="alert-link">
                                         Agregar ubicación
                                     </a>
@@ -203,28 +290,78 @@
                                 {% endif %}
 
                                 <div class="mb-3">
-                                    <label class="form-label">
+                                    <label class="form-label fw-semibold">
                                         <i class="fas fa-map-marker-alt"></i> Zona Actual
                                     </label>
-                                    <div class="alert alert-success mb-0">
+                                    <div class="alert alert-success mb-0 py-2">
                                         <strong>{{ current_zone.name }}</strong>
                                     </div>
                                 </div>
 
+                                <!-- ✅ Selector de modalidad en sidebar -->
+                                {% if user_can_choose %}
                                 <div class="mb-3">
-                                    <label class="form-label">Costo de Servicio</label>
+                                    <label class="form-label fw-semibold">Modalidad</label>
+                                    <div class="btn-group w-100" role="group">
+                                        <input type="radio" class="btn-check" name="service_mode" id="mode_home" value="home" 
+                                               {% if selected_mode == 'home' %}checked{% endif %}>
+                                        <label class="btn btn-outline-success btn-sm" for="mode_home" onclick="window.location.href='?service_mode=home'">
+                                            <i class="bi bi-house-fill"></i> Domicilio
+                                        </label>
+                                        
+                                        <input type="radio" class="btn-check" name="service_mode" id="mode_location" value="local"
+                                               {% if selected_mode == 'local' %}checked{% endif %}>
+                                        <label class="btn btn-outline-primary btn-sm" for="mode_location" onclick="window.location.href='?service_mode=local'">
+                                            <i class="bi bi-shop"></i> Local
+                                        </label>
+                                    </div>
+                                </div>
+                                {% else %}
+                                <div class="mb-3">
+                                    <label class="form-label fw-semibold">Modalidad</label>
+                                    <div class="alert {% if selected_mode == 'home' %}alert-success{% else %}alert-info{% endif %} mb-0 py-2">
+                                        {% if selected_mode == 'home' %}
+                                        <i class="fas fa-home"></i> <strong>A Domicilio</strong>
+                                        {% else %}
+                                        <i class="fas fa-store"></i> <strong>En Local</strong>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                                {% endif %}
+
+                                <!-- ✅ Mostrar local seleccionado si hay -->
+                                {% if selected_mode == 'local' and selected_provider_location %}
+                                <div class="mb-3">
+                                    <label class="form-label fw-semibold">
+                                        <i class="bi bi-geo-alt-fill text-primary"></i> Local Seleccionado
+                                    </label>
+                                    <div class="alert alert-primary mb-0 py-2">
+                                        <strong>{{ selected_provider_location.label }}</strong><br>
+                                        <small>{{ selected_provider_location.address }}</small><br>
+                                        <small><span class="badge bg-white text-primary">{{ selected_provider_location.zone.name }}</span></small>
+                                    </div>
+                                    <small class="text-muted d-block mt-1">
+                                        <i class="fas fa-info-circle"></i> Puedes cambiar el local en la lista de arriba
+                                    </small>
+                                </div>
+                                {% endif %}
+
+                                <div class="mb-3">
+                                    <label class="form-label fw-semibold">Costo del Servicio</label>
                                     <div class="d-flex justify-content-between">
                                         <span>Servicio:</span>
                                         <strong>${{ service.base_price }}</strong>
                                     </div>
                                 </div>
                                 
+                                {% if selected_mode == 'home' %}
                                 <div class="mb-3">
                                     <div class="d-flex justify-content-between">
-                                        <span>Traslado a {{ current_zone.name }}:</span>
+                                        <span>Traslado:</span>
                                         <strong>${{ travel_cost }}</strong>
                                     </div>
                                 </div>
+                                {% endif %}
                                 
                                 <hr>
                                 
@@ -235,17 +372,23 @@
                                     </h4>
                                 </div>
                                 
-                                {% if valid_locations %}
-                                <a href="{% url 'booking_create_step1' service.id %}{% if current_zone %}?zone={{ current_zone.id }}{% endif %}" 
+                                {% if selected_mode == 'home' and valid_locations or selected_mode == 'local' and selected_provider_location %}
+                                <a href="{% url 'booking_create_step1' service.id %}?service_mode={{ selected_mode }}{% if selected_mode == 'local' and selected_provider_location %}&location_id={{ selected_provider_location.id }}{% endif %}" 
                                    class="btn btn-primary w-100 btn-lg">
                                     <i class="fas fa-calendar-check"></i> Reservar Ahora
                                 </a>
                                 {% else %}
-                                <button type="button" class="btn btn-primary w-100 btn-lg" disabled>
-                                    <i class="fas fa-ban"></i> Reservar Ahora
+                                <button type="button" class="btn btn-secondary w-100 btn-lg" disabled>
+                                    <i class="fas fa-ban"></i> No Disponible
                                 </button>
                                 <small class="text-danger d-block text-center mt-2">
+                                    {% if selected_mode == 'home' %}
                                     Agrega una ubicación para continuar
+                                    {% elif selected_mode == 'local' and not available_provider_locations %}
+                                    El proveedor no tiene locales{% if current_city %} en {{ current_city.name }}{% endif %}
+                                    {% else %}
+                                    Selecciona un local arriba para continuar
+                                    {% endif %}
                                 </small>
                                 {% endif %}
                             {% endif %}
@@ -273,4 +416,32 @@
         </div>
     </div>
 </div>
+
+<script>
+function selectProviderLocationDetail(locationId) {
+    const url = new URL(window.location.href);
+    url.searchParams.set('service_mode', 'local');
+    url.searchParams.set('location_id', locationId);
+    window.location.href = url.toString();
+}
+</script>
+
+<style>
+.location-option {
+    cursor: pointer;
+    transition: all 0.2s ease;
+    border: 2px solid #dee2e6;
+}
+
+.location-option:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    border-color: #0d6efd;
+}
+
+.location-option.border-primary {
+    border-color: #0d6efd !important;
+    box-shadow: 0 2px 8px rgba(13, 110, 253, 0.25);
+}
+</style>
 {% endblock %}

@@ -4,7 +4,8 @@
 
 {% block content %}
 <div class="container mt-4">
-    <!-- NUEVO: Selector de Ciudad Estilo Mercado Libre -->
+    <!-- ✅ NUEVO: Selector de Modalidad de Atención -->
+    {% if current_zone %}
     <div class="card mb-4 border-0 shadow-sm">
         <div class="card-body p-3 bg-light rounded">
             <div class="row align-items-center">
@@ -19,7 +20,12 @@
                     </h5>
                     <small class="text-muted">
                         {% if current_city and current_zone %}
-                            Zona seleccionada: <strong>{{ current_zone.name }}</strong>
+                            Zona: <strong>{{ current_zone.name }}</strong> • 
+                            {% if service_mode == 'home' %}
+                                <i class="fas fa-home text-success"></i> A Domicilio
+                            {% else %}
+                                <i class="fas fa-store text-info"></i> En Local
+                            {% endif %}
                         {% elif current_city %}
                             Mostrando servicios disponibles en {{ current_city.name }}
                         {% else %}
@@ -28,12 +34,9 @@
                     </small>
                 </div>
                 <div class="col-md-4 text-end">
-                    <!-- Botón cambiar ciudad -->
                     <button type="button" class="btn btn-outline-primary btn-sm" data-bs-toggle="modal" data-bs-target="#cityModal">
                         <i class="fas fa-exchange-alt"></i> ¿Otra ciudad?
                     </button>
-                    
-                    <!-- Botón cambiar zona -->
                     {% if current_city %}
                     <button type="button" class="btn btn-outline-secondary btn-sm ms-2" data-bs-toggle="modal" data-bs-target="#zoneModal">
                         <i class="fas fa-map-marked-alt"></i> Cambiar Zona
@@ -43,6 +46,42 @@
             </div>
         </div>
     </div>
+    {% else %}
+    <!-- Selector de Ciudad -->
+    <div class="card mb-4 border-0 shadow-sm">
+        <div class="card-body p-3 bg-light rounded">
+            <div class="row align-items-center">
+                <div class="col-md-8">
+                    <h5 class="mb-1">
+                        <i class="fas fa-map-marker-alt text-danger"></i>
+                        {% if current_city %}
+                            <strong>Estás en {{ current_city.name }}</strong>
+                        {% else %}
+                            <span class="text-muted">Selecciona tu ciudad</span>
+                        {% endif %}
+                    </h5>
+                    <small class="text-muted">
+                        {% if current_city %}
+                            Mostrando servicios disponibles en {{ current_city.name }}
+                        {% else %}
+                            Cambia de ciudad para ver servicios disponibles
+                        {% endif %}
+                    </small>
+                </div>
+                <div class="col-md-4 text-end">
+                    <button type="button" class="btn btn-outline-primary btn-sm" data-bs-toggle="modal" data-bs-target="#cityModal">
+                        <i class="fas fa-exchange-alt"></i> ¿Otra ciudad?
+                    </button>
+                    {% if current_city %}
+                    <button type="button" class="btn btn-outline-secondary btn-sm ms-2" data-bs-toggle="modal" data-bs-target="#zoneModal">
+                        <i class="fas fa-map-marked-alt"></i> Cambiar Zona
+                    </button>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
 
     <!-- Alerta si no hay zona seleccionada -->
     {% if show_zone_warning %}
@@ -66,6 +105,11 @@
                 </div>
                 <div class="card-body">
                     <form method="get" id="filterForm" class="no-loader">
+                        <!-- Campos hidden para preservar parámetros -->
+                        {% if current_zone %}
+                        <input type="hidden" name="zone" value="{{ current_zone.id }}">
+                        {% endif %}
+                        
                         <!-- Categoría -->
                         <div class="mb-3">
                             <label class="form-label fw-bold">Categoría</label>
@@ -89,6 +133,38 @@
                                 </label>
                             </div>
                         </div>
+
+                        <hr>
+
+                        <!-- ✅ Modalidad de Atención -->
+                        {% if current_zone %}
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">¿Cómo quieres ser atendido?</label>
+                            <div class="form-check">
+                                <input class="form-check-input mode-filter" type="radio" 
+                                    name="service_mode" value="home" id="modeHome"
+                                    {% if service_mode == 'home' %}checked{% endif %}>
+                                <label class="form-check-label" for="modeHome">
+                                    <i class="fas fa-home text-success"></i> A Domicilio
+                                </label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input mode-filter" type="radio" 
+                                    name="service_mode" value="local" id="modeLocal"
+                                    {% if service_mode == 'local' %}checked{% endif %}>
+                                <label class="form-check-label" for="modeLocal">
+                                    <i class="fas fa-store text-info"></i> En Local
+                                </label>
+                            </div>
+                            <small class="text-muted d-block mt-2">
+                                {% if service_mode == 'home' %}
+                                <i class="fas fa-info-circle"></i> Se aplica costo de traslado
+                                {% else %}
+                                <i class="fas fa-info-circle"></i> Sin costo de traslado
+                                {% endif %}
+                            </small>
+                        </div>
+                        {% endif %}
 
                         <hr>
 
@@ -117,12 +193,13 @@
                                 value="{{ request.GET.search }}">
                         </div>
 
-                        <!-- Mantener zona actual en filtros -->
+                        <!-- Mantener zona y modo en filtros -->
                         {% if current_zone %}
                         <input type="hidden" name="zone" value="{{ current_zone.id }}">
                         {% endif %}
+                        <input type="hidden" name="service_mode" value="{{ service_mode }}">
 
-                        <button type="submit" class="btn btn-primary w-100" id="submitBtn">
+                        <button type="submit" class="btn btn-primary w-100">
                             <i class="fas fa-search"></i> Buscar
                         </button>
                         <a href="{% url 'services_list' %}" class="btn btn-outline-secondary w-100 mt-2">
@@ -195,7 +272,7 @@
                                 <div class="d-flex justify-content-between align-items-center mt-2">
                                     <div>
                                         <span class="service-price">${{ service.base_price }}</span>
-                                        {% if service.travel_cost %}
+                                        {% if service_mode == 'home' and service.travel_cost %}
                                         <br><small class="text-muted">+ ${{ service.travel_cost }} traslado</small>
                                         {% endif %}
                                     </div>
@@ -204,7 +281,8 @@
                                     </span>
                                 </div>
                                 
-                                <a href="{% url 'service_detail' service.service_code %}"
+                                <!-- ✅ Pasar service_mode al detalle del servicio -->
+                                <a href="{% url 'service_detail' service.service_code %}?service_mode={{ service_mode }}{% if current_zone %}&zone={{ current_zone.id }}{% endif %}"
                                    class="btn btn-primary w-100 mt-3">
                                     Ver Detalles <i class="fas fa-arrow-right"></i>
                                 </a>
@@ -215,16 +293,21 @@
                 </div>
             {% else %}
                 <div class="alert alert-info text-center">
-                    <i class="fas fa-info-circle fa-3x mb-3"></i>
-                    <h4>No se encontraron servicios</h4>
+                    <i class="fas fa-info-circle fa-2x mb-3"></i>
+                    <h5>No se encontraron servicios</h5>
                     {% if current_zone %}
-                    <p>No hay servicios disponibles en <strong>{{ current_zone.name }}</strong></p>
-                    <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#zoneModal">
-                        <i class="fas fa-map-marked-alt"></i> Cambiar de Zona
-                    </button>
+                    <p class="mb-2">No hay servicios disponibles para <strong>{% if service_mode == 'home' %}Atención a Domicilio{% else %}Atención en Local{% endif %}</strong> en <strong>{{ current_zone.name }}</strong></p>
+                    <div class="btn-group mt-2" role="group">
+                        <button type="button" class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#zoneModal">
+                            <i class="fas fa-map-marked-alt"></i> Cambiar Zona
+                        </button>
+                        <a href="?zone={{ current_zone.id }}&service_mode={% if service_mode == 'home' %}local{% else %}home{% endif %}" class="btn btn-sm btn-secondary">
+                            <i class="fas fa-exchange-alt"></i> Cambiar a {% if service_mode == 'home' %}Local{% else %}Domicilio{% endif %}
+                        </a>
+                    </div>
                     {% else %}
-                    <p>Por favor selecciona tu zona para ver servicios disponibles</p>
-                    <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#zoneModal">
+                    <p class="mb-2">Por favor selecciona tu zona para ver servicios disponibles</p>
+                    <button type="button" class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#zoneModal">
                         <i class="fas fa-map-marked-alt"></i> Seleccionar Zona
                     </button>
                     {% endif %}
@@ -234,10 +317,7 @@
     </div>
 </div>
 
-<!-- ========================================
-     MODAL: SELECCIÓN DE CIUDAD
-     VERSION SIMPLIFICADA: Usa GET redirect
-     ======================================== -->
+<!-- Modal: Selección de Ciudad -->
 <div class="modal fade" id="cityModal" tabindex="-1" aria-labelledby="cityModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
@@ -278,9 +358,7 @@
     </div>
 </div>
 
-<!-- ========================================
-     MODAL: SELECCIÓN DE ZONA
-     ======================================== -->
+<!-- Modal: Selección de Zona -->
 <div class="modal fade" id="zoneModal" tabindex="-1" aria-labelledby="zoneModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
@@ -297,7 +375,7 @@
                 
                 <div class="list-group">
                     {% for zone in zones %}
-                    <a href="?zone={{ zone.id }}" 
+                    <a href="?zone={{ zone.id }}&service_mode={{ service_mode }}" 
                        class="list-group-item list-group-item-action {% if current_zone.id == zone.id %}active{% endif %}">
                         <div class="d-flex justify-content-between align-items-center">
                             <div>
@@ -327,10 +405,25 @@
     </div>
 </div>
 
+<style>
+.service-card {
+    transition: all 0.3s ease;
+}
+
+.service-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.1);
+}
+
+.service-price {
+    font-size: 1.5rem;
+    font-weight: bold;
+    color: #0d6efd;
+}
+</style>
+
 <script>
-// ========================================
-// Categoría Filter
-// ========================================
+// Categoría Filter - Submit del formulario
 document.querySelectorAll('.category-filter').forEach(radio => {
     radio.addEventListener('change', function() {
         const loader = document.getElementById('globalLoader');
@@ -342,6 +435,21 @@ document.querySelectorAll('.category-filter').forEach(radio => {
     });
 });
 
-console.log('✅ JavaScript de servicios cargado correctamente');
+// ✅ Modo de Atención Filter - Navegación directa
+document.querySelectorAll('.mode-filter').forEach(radio => {
+    radio.addEventListener('change', function() {
+        const loader = document.getElementById('globalLoader');
+        if (loader) loader.classList.add('active');
+        
+        // Construir URL con parámetros actuales
+        const params = new URLSearchParams(window.location.search);
+        
+        // Actualizar service_mode
+        params.set('service_mode', this.value);
+        
+        // Forzar navegación
+        window.location.href = window.location.pathname + '?' + params.toString();
+    });
+});
 </script>
 {% endblock %}

@@ -11,15 +11,37 @@
 
     <div class="row mb-4">
         <div class="col-12">
-            <div class="btn-group">
-                {% if not base_location %}
-                <a href="{% url 'provider_location_create_base' %}" class="btn btn-primary">
-                    <i class="fas fa-home"></i> Domicilio Base
-                </a>
+            <!-- Mostrar modalidad actual -->
+            <div class="alert alert-info mb-3">
+                <strong><i class="fas fa-info-circle"></i> Modalidad Actual:</strong>
+                {% if service_mode == 'home' %}
+                    <span class="badge bg-success">Solo a Domicilio</span> - Solo puedes crear domicilio base
+                {% elif service_mode == 'local' %}
+                    <span class="badge bg-info">Solo en Local</span> - Solo puedes crear locales
+                {% elif service_mode == 'both' %}
+                    <span class="badge bg-warning">Local y Domicilio</span> - Puedes crear ambos tipos
                 {% endif %}
+                <a href="{% url 'provider_settings_service_mode' %}" class="btn btn-sm btn-outline-primary ms-2">
+                    <i class="fas fa-cog"></i> Cambiar Modalidad
+                </a>
+            </div>
+
+            <div class="btn-group">
+                <!-- Botón Domicilio Base: Solo si modalidad permite (home o both) -->
+                {% if service_mode == 'home' or service_mode == 'both' %}
+                    {% if not base_location %}
+                    <a href="{% url 'provider_location_create_base' %}" class="btn btn-primary">
+                        <i class="fas fa-home"></i> Crear Domicilio Base
+                    </a>
+                    {% endif %}
+                {% endif %}
+
+                <!-- Botón Agregar Local: Solo si modalidad permite (local o both) -->
+                {% if service_mode == 'local' or service_mode == 'both' %}
                 <a href="{% url 'provider_location_create_local' %}" class="btn btn-success">
                     <i class="fas fa-store"></i> Agregar Local
                 </a>
+                {% endif %}
             </div>
         </div>
     </div>

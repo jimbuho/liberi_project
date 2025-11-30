@@ -18,7 +18,7 @@ from .models import (
     Profile, Category, ProviderProfile, Service, Location, Booking, Review, AuditLog,
     Zone, ProviderSchedule, ProviderUnavailability, SystemConfig, ProviderZoneCost,
     PaymentMethod, BankAccount, PaymentProof, Notification, Payment,
-    WithdrawalRequest, ProviderBankAccount, Bank, City
+    WithdrawalRequest, ProviderBankAccount, Bank, City, ProviderLocation
 )
 
 logger = logging.getLogger(__name__)
@@ -169,6 +169,134 @@ class CityAdmin(admin.ModelAdmin):
             messages.WARNING
         )
     deactivate_cities.short_description = '❌ Desactivar ciudades seleccionadas'
+
+# admin.py - Agregar después de CityAdmin
+
+@admin.register(ProviderLocation)
+class ProviderLocationAdmin(admin.ModelAdmin):
+    list_display = [
+        'provider_info', 
+        'location_type_badge', 
+        'label', 
+        'zone_info',
+        'verified_badge',
+        'whatsapp_display',
+        'created_at'
+    ]
+    list_filter = ['location_type', 'is_verified', 'city', 'zone', 'created_at']
+    search_fields = [
+        'provider__username', 
+        'provider__email', 
+        'provider__first_name', 
+        'provider__last_name',
+        'label', 
+        'address'
+    ]
+    readonly_fields = ['created_at', 'updated_at', 'preview_document']
+    
+    fieldsets = (
+        ('Proveedor', {
+            'fields': ('provider',)
+        }),
+        ('Tipo y Ubicación', {
+            'fields': ('location_type', 'city', 'zone', 'label')
+        }),
+        ('Dirección', {
+            'fields': ('address', 'reference', 'latitude', 'longitude')
+        }),
+        ('Contacto', {
+            'fields': ('whatsapp_number',)
+        }),
+        ('Verificación', {
+            'fields': ('is_verified', 'document_proof', 'preview_document')
+        }),
+        ('Auditoría', {
+            'fields': ('created_at', 'updated_at'),
+            'classes': ('collapse',)
+        }),
+    )
+    
+    actions = ['verify_locations', 'unverify_locations']
+    
+    def provider_info(self, obj):
+        provider = obj.provider
+        return format_html(
+            '<strong>{}</strong><br><small>{}</small>',
+            provider.get_full_name() or provider.username,
+            provider.email
+        )
+    provider_info.short_description = 'Proveedor'
+    
+    def location_type_badge(self, obj):
+        colors = {'base': 'info', 'local': 'success'}
+        icons = {'base': '🏠', 'local': '🏢'}
+        color = colors.get(obj.location_type, 'secondary')
+        icon = icons.get(obj.location_type, '📍')
+        
+        return format_html(
+            '<span class="badge bg-{}">{} {}</span>',
+            color, icon, obj.get_location_type_display()
+        )
+    location_type_badge.short_description = 'Tipo'
+    
+    def zone_info(self, obj):
+        if obj.zone:
+            return format_html(
+                '<strong>{}</strong><br><small>{}</small>',
+                obj.zone.name,
+                obj.city.name if obj.city else 'Sin ciudad'
+            )
+        return format_html('<small class="text-muted">Sin zona</small>')
+    zone_info.short_description = 'Zona / Ciudad'
+    
+    def verified_badge(self, obj):
+        if obj.is_verified:
+            return format_html('<span class="badge bg-success">✅ Verificado</span>')
+        else:
+            if obj.location_type == 'base':
+                return format_html('<span class="badge bg-info">ℹ️ Domicilio base</span>')
+            return format_html('<span class="badge bg-warning">⏳ Pendiente</span>')
+    verified_badge.short_description = 'Estado'
+    
+    def whatsapp_display(self, obj):
+        if obj.whatsapp_number:
+            return format_html(
+                '📱 <a href="https://wa.me/{}" target="_blank">{}</a>',
+                obj.whatsapp_number.replace('+', ''),
+                obj.whatsapp_number
+            )
+        return format_html('<small class="text-muted">No configurado</small>')
+    whatsapp_display.short_description = 'WhatsApp'
+    
+    def preview_document(self, obj):
+        if obj.document_proof:
+            return format_html(
+                '<a href="{}" target="_blank">'
+                '<img src="{}" style="max-width: 300px; max-height: 300px; border: 1px solid #ddd; padding: 5px;">'
+                '</a>',
+                obj.document_proof.url,
+                obj.document_proof.url
+            )
+        return format_html('<small class="text-muted">Sin documento</small>')
+    preview_document.short_description = 'Documento de respaldo'
+    
+    def verify_locations(self, request, queryset):
+        count = queryset.filter(location_type='local').update(is_verified=True)
+        self.message_user(
+            request,
+            f'✅ {count} ubicación(es) verificada(s).',
+            messages.SUCCESS
+        )
+    verify_locations.short_description = '✅ Verificar ubicaciones seleccionadas'
+    
+    def unverify_locations(self, request, queryset):
+        count = queryset.filter(location_type='local').update(is_verified=False)
+        self.message_user(
+            request,
+            f'❌ {count} ubicación(es) desverificada(s).',
+            messages.WARNING
+        )
+    unverify_locations.short_description = '❌ Desverificar ubicaciones'
 
 
 @admin.register(ProviderProfile)
