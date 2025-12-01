@@ -20,113 +20,9 @@
                 <ul class="mb-0 mt-2">
                     <li>Agrega o elimina zonas donde ofreces tus servicios</li>
                     <li>Los clientes solo te verán si están en una de tus zonas</li>
-                    <li>Debes mantener al menos 1 zona activa</li>
-                    <li>No puedes eliminar zonas con reservas activas</li>
+                    <li>Puedes empezar sin zonas y agregarlas cuando estés listo</li>
+                    <li>No puedes eliminar zonas con reservas activas (pendientes o aceptadas)</li>
                 </ul>
-            </div>
-
-            <div class="row">
-                <!-- Zonas Actuales -->
-                <div class="col-md-6 mb-4">
-                    <div class="card">
-                        <div class="card-header bg-success text-white">
-                            <h5 class="mb-0">
-                                <i class="fas fa-check-circle"></i> 
-                                Mis Zonas de Cobertura ({{ covered_zones|length }})
-                            </h5>
-                        </div>
-                        <div class="card-body">
-                            {% if covered_zones %}
-                                <div class="list-group">
-                                    {% for zone in covered_zones %}
-                                    <div class="list-group-item d-flex justify-content-between align-items-center">
-                                        <div>
-                                            <h6 class="mb-1">
-                                                <i class="fas fa-map-marker-alt text-success"></i> 
-                                                {{ zone.name }}
-                                            </h6>
-                                            <small class="text-muted">{{ zone.city }}</small>
-                                        </div>
-                                        <form method="post" 
-                                              action="{% url 'provider_coverage_remove' zone.id %}"
-                                              onsubmit="return confirm('¿Remover {{ zone.name }} de tu cobertura?')">
-                                            {% csrf_token %}
-                                            <button type="submit" class="btn btn-sm btn-outline-danger">
-                                                <i class="fas fa-times"></i> Remover
-                                            </button>
-                                        </form>
-                                    </div>
-                                    {% endfor %}
-                                </div>
-                            {% else %}
-                                <div class="alert alert-warning">
-                                    <i class="fas fa-exclamation-triangle"></i>
-                                    No tienes zonas de cobertura configuradas
-                                </div>
-                            {% endif %}
-                        </div>
-                    </div>
-
-                    <!-- Tip de costos por zona -->
-                    {% if covered_zones %}
-                    <div class="card mt-3">
-                        <div class="card-body">
-                            <h6>
-                                <i class="fas fa-dollar-sign text-success"></i> 
-                                ¿Configuraste tus costos?
-                            </h6>
-                            <p class="text-muted mb-2">
-                                Recuerda configurar el costo de traslado para cada zona
-                            </p>
-                            <a href="{% url 'provider_zone_costs_manage' %}" 
-                               class="btn btn-sm btn-success">
-                                <i class="fas fa-cog"></i> Configurar Costos
-                            </a>
-                        </div>
-                    </div>
-                    {% endif %}
-                </div>
-
-                <!-- Zonas Disponibles -->
-                <div class="col-md-6 mb-4">
-                    <div class="card">
-                        <div class="card-header bg-primary text-white">
-                            <h5 class="mb-0">
-                                <i class="fas fa-plus-circle"></i> 
-                                Zonas Disponibles ({{ available_zones|length }})
-                            </h5>
-                        </div>
-                        <div class="card-body">
-                            {% if available_zones %}
-                                <div class="list-group">
-                                    {% for zone in available_zones %}
-                                    <div class="list-group-item d-flex justify-content-between align-items-center">
-                                        <div>
-                                            <h6 class="mb-1">
-                                                <i class="far fa-map-marker-alt"></i> 
-                                                {{ zone.name }}
-                                            </h6>
-                                            <small class="text-muted">{{ zone.city }}</small>
-                                        </div>
-                                        <form method="post" action="{% url 'provider_coverage_add' %}">
-                                            {% csrf_token %}
-                                            <input type="hidden" name="zone_id" value="{{ zone.id }}">
-                                            <button type="submit" class="btn btn-sm btn-primary">
-                                                <i class="fas fa-plus"></i> Agregar
-                                            </button>
-                                        </form>
-                                    </div>
-                                    {% endfor %}
-                                </div>
-                            {% else %}
-                                <div class="alert alert-success">
-                                    <i class="fas fa-check-circle"></i>
-                                    ¡Ya cubres todas las zonas disponibles!
-                                </div>
-                            {% endif %}
-                        </div>
-                    </div>
-                </div>
             </div>
 
             <!-- Advertencias -->
@@ -140,7 +36,136 @@
                         <li>No puedes remover zonas si tienes reservas activas (pendientes o aceptadas)</li>
                         <li>Los cambios se reflejan inmediatamente en las búsquedas</li>
                         <li>Considera bien tu capacidad de desplazamiento antes de agregar zonas muy distantes</li>
+                        <li>Si no tienes zonas configuradas, los clientes no podrán encontrar tus servicios</li>
                     </ul>
+                </div>
+            </div>
+
+            <div class="row">
+                <!-- Zonas Actuales -->
+                <div class="col-md-6 mb-4">
+                    <div class="card">
+                        <div class="card-header bg-success text-white">
+                            <h5 class="mb-0">
+                                <i class="fas fa-check-circle"></i>
+                                Mis Zonas de Cobertura ({{ covered_zones|length }})
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            {% if covered_zones %}
+                            <div class="list-group">
+                                {% for zone in covered_zones %}
+                                <div class="list-group-item d-flex justify-content-between align-items-center">
+                                    <div>
+                                        <h6 class="mb-1">
+                                            <i class="fas fa-map-marker-alt text-success"></i>
+                                            {{ zone.name }}
+                                        </h6>
+                                        <small class="text-muted">{{ zone.city.name }}</small>
+                                    </div>
+                                    <form method="post" action="{% url 'provider_coverage_remove' zone.id %}"
+                                        onsubmit="return confirm('¿Remover {{ zone.name }} de tu cobertura?')">
+                                        {% csrf_token %}
+                                        <button type="submit" class="btn btn-sm btn-outline-danger">
+                                            <i class="fas fa-times"></i> Remover
+                                        </button>
+                                    </form>
+                                </div>
+                                {% endfor %}
+                            </div>
+                            {% else %}
+                            <div class="alert alert-warning">
+                                <i class="fas fa-exclamation-triangle"></i>
+                                No tienes zonas de cobertura configuradas. Agrega al menos una para que los clientes puedan encontrarte.
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <!-- Tip de costos por zona -->
+                    {% if covered_zones %}
+                    <div class="card mt-3">
+                        <div class="card-body">
+                            <h6>
+                                <i class="fas fa-dollar-sign text-success"></i>
+                                ¿Configuraste tus costos?
+                            </h6>
+                            <p class="text-muted mb-2">
+                                Recuerda configurar el costo de traslado para cada zona
+                            </p>
+                            <a href="{% url 'provider_zone_costs_manage' %}" class="btn btn-sm btn-success">
+                                <i class="fas fa-cog"></i> Configurar Costos
+                            </a>
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+
+                <!-- Zonas Disponibles -->
+                <div class="col-md-6 mb-4">
+                    <div class="card">
+                        <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+                            <h5 class="mb-0">
+                                <i class="fas fa-plus-circle"></i>
+                                Agregar Zonas de Cobertura
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            <!-- Filtro de Ciudad -->
+                            <form method="get" class="mb-3">
+                                <div class="input-group">
+                                    <select name="city" class="form-select" onchange="this.form.submit()">
+                                        <option value="">Selecciona una ciudad...</option>
+                                        {% for city in cities %}
+                                        <option value="{{ city.id }}" {% if selected_city_id == city.id %}selected{% endif %}>
+                                            {{ city.name }}
+                                        </option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                            </form>
+
+                            <!-- ✅ CAMBIO: Solo mostrar zonas si hay ciudad seleccionada -->
+                            {% if selected_city_id %}
+                                {% if available_zones %}
+                                <div class="alert alert-info mb-3">
+                                    <i class="fas fa-info-circle"></i>
+                                    Mostrando zonas disponibles en <strong>{{ selected_city.name }}</strong>
+                                </div>
+                                <div class="list-group">
+                                    {% for zone in available_zones %}
+                                    <div class="list-group-item d-flex justify-content-between align-items-center">
+                                        <div>
+                                            <h6 class="mb-1">
+                                                <i class="far fa-map-marker-alt"></i>
+                                                {{ zone.name }}
+                                            </h6>
+                                            <small class="text-muted">{{ zone.city.name }}</small>
+                                        </div>
+                                        <form method="post" action="{% url 'provider_coverage_add' %}">
+                                            {% csrf_token %}
+                                            <input type="hidden" name="zone_id" value="{{ zone.id }}">
+                                            <button type="submit" class="btn btn-sm btn-primary">
+                                                <i class="fas fa-plus"></i> Agregar
+                                            </button>
+                                        </form>
+                                    </div>
+                                    {% endfor %}
+                                </div>
+                                {% else %}
+                                <div class="alert alert-success">
+                                    <i class="fas fa-check-circle"></i>
+                                    ¡Ya cubres todas las zonas de {{ selected_city.name }}!
+                                </div>
+                                {% endif %}
+                            {% else %}
+                            <div class="alert alert-info">
+                                <i class="fas fa-arrow-up"></i>
+                                Selecciona una ciudad para ver las zonas disponibles
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>

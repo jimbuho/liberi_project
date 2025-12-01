@@ -3,15 +3,22 @@ from django.urls import path, include
 from django.conf import settings
 from django.conf.urls.static import static
 
-from core import views
+from apps.core import views
 
 urlpatterns = [
     path('admin/', admin.site.urls),
-    path('api/', include('core.urls')),
-    path('api/payments/', include('payments.urls')),
-    path('api/messaging/', include('messaging.urls')),
-    path('', include('frontend.urls')),
-    path('legal/', include('legal.urls')),
+    path('api/', include('apps.core.urls')),
+    path('api/payments/', include('apps.payments.urls')),
+    path('api/messaging/', include('apps.messaging.urls')),
+    
+    # New refactored apps
+    path('auth/', include('apps.authentication.urls')),
+    path('', include('apps.profiles.urls')),
+    path('', include('apps.bookings.urls')),
+    path('', include('apps.public.urls')),
+    
+    path('', include('apps.frontend.urls')),
+    path('legal/', include('apps.legal.urls')),
     path('accounts/', include('allauth.urls')),
 ]
 
@@ -23,9 +30,9 @@ admin.site.site_header = 'Liberi Admin'
 admin.site.site_title = 'Liberi Admin Portal'
 admin.site.index_title = 'Bienvenido al Panel de Administración'
 
-handler404 = 'core.views.custom_404'
-handler500 = 'core.views.custom_500'
-handler400 = 'core.views.custom_400'
+handler404 = 'apps.core.views.custom_404'
+handler500 = 'apps.core.views.custom_500'
+handler400 = 'apps.core.views.custom_400'
    
 urlpatterns += [
     path('test-404/', views.test_404_view, name='test_404'),

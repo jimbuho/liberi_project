@@ -1,4 +1,5 @@
 import os
+import sys
 import dj_database_url
 from pathlib import Path
 from datetime import timedelta
@@ -8,6 +9,9 @@ from celery.schedules import crontab
 load_dotenv()
 
 BASE_DIR = Path(__file__).resolve().parent.parent
+
+# Add apps directory to Python path
+sys.path.insert(0, os.path.join(BASE_DIR, 'apps'))
 
 SECRET_KEY = os.getenv('SECRET_KEY', 'django-insecure-change-this-in-production')
 
@@ -66,12 +70,19 @@ INSTALLED_APPS = [
     'rest_framework_simplejwt',
     'corsheaders',
     
-    'core',
-    'payments',
-    'messaging',
-    'frontend',
-    'legal',
-    'whatsapp_notifications',
+    # Custom apps (organized in apps/ directory)
+    'apps.core',
+    'apps.payments',
+    'apps.messaging',
+    'apps.frontend',
+    'apps.legal',
+    'apps.whatsapp_notifications',
+    
+    # New refactored apps
+    'apps.authentication',
+    'apps.profiles',
+    'apps.bookings',
+    'apps.public',
 
     # Celery y Beat
     'django_celery_beat',
@@ -87,7 +98,7 @@ MIDDLEWARE = [
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'allauth.account.middleware.AccountMiddleware',
-    'legal.middleware.LegalAcceptanceMiddleware',
+    'apps.legal.middleware.LegalAcceptanceMiddleware',
     'core.middleware.PayPhoneReferrerPolicyMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
