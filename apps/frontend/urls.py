@@ -22,7 +22,7 @@ urlpatterns = [
     
     path('payment/bank-transfer/<uuid:booking_id>/', views.payment_bank_transfer, name='payment_bank_transfer'),
     path('payment/confirm-transfer/<uuid:booking_id>/', views.confirm_bank_transfer_payment, name='confirm_bank_transfer'),
-    path('payment/confirmation/<int:payment_id>/', views.payment_confirmation, name='service_create'),
+    path('payment/confirmation/<int:payment_id>/', views.payment_confirmation, name='payment_confirmation'),
 
     # API de Notificaciones
     path('api/notifications/', views.api_notifications_list, name='api_notifications_list'),

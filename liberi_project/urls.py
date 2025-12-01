@@ -12,7 +12,7 @@ urlpatterns = [
     path('api/messaging/', include('apps.messaging.urls')),
     
     # New refactored apps
-    path('auth/', include('apps.authentication.urls')),
+    path('', include('apps.authentication.urls')),
     path('', include('apps.profiles.urls')),
     path('', include('apps.bookings.urls')),
     path('', include('apps.public.urls')),
