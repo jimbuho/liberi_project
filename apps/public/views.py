@@ -103,10 +103,16 @@ def services_list(request):
     search = request.GET.get('search')
     min_price = request.GET.get('min_price')
     max_price = request.GET.get('max_price')
+    # ✅ MANEJO DE ZONA: establecer o limpiar
+    clear_zone = request.GET.get('clear_zone')
     zone_id = request.GET.get('zone')
-    
-    # Si se selecciona una zona, guardarla en sesión
-    if zone_id:
+
+    if clear_zone == '1':
+        # Usuario quiere cambiar de zona - limpiar sesión
+        request.session.pop('current_zone_id', None)
+        current_zone = None
+    elif zone_id:
+        # Usuario está seleccionando una nueva zona
         try:
             zone = zones.get(id=zone_id)
             current_zone = zone
@@ -235,14 +241,33 @@ def set_current_city_ajax(request):
 
 
 def service_detail(request, service_code):
-    """Detalle de un servicio con validación de zona y modalidad"""
+    """Detalle de un servicio con validación de zona y modalidad MEJORADA"""
     
     service = get_object_or_404(Service, service_code=service_code)
     provider_profile = service.provider.provider_profile
     
+    # Obtener ciudad actual
+    current_city = get_current_city(request)
+    
     # Obtener zona actual
     current_zone_id = request.session.get('current_zone_id')
     current_zone = Zone.objects.filter(id=current_zone_id).first() if current_zone_id else None
+    
+    # ✅ OBTENER ZONAS DISPONIBLES (para selector)
+    zones = Zone.objects.filter(
+        active=True,
+        city=current_city
+    ).order_by('name') if current_city else Zone.objects.none()
+    
+    # ✅ Si viene zone_id en GET, establecerla
+    zone_id = request.GET.get('zone')
+    if zone_id:
+        try:
+            zone = zones.get(id=zone_id)
+            current_zone = zone
+            request.session['current_zone_id'] = zone.id
+        except Zone.DoesNotExist:
+            pass
     
     # ✅ DETERMINAR MODALIDAD DEL PROVEEDOR
     provider_service_mode = provider_profile.service_mode
@@ -273,13 +298,10 @@ def service_detail(request, service_code):
     selected_provider_location = None
     provider_has_required_location = False
     
-    # Obtener ciudad actual
-    current_city = get_current_city(request)
-    
-    # DEBUG: Logging temporal para diagnóstico
     logger.info(f"=== DEBUG service_detail ===")
     logger.info(f"Provider: {service.provider.username}")
     logger.info(f"Current city: {current_city.name if current_city else 'NONE'}")
+    logger.info(f"Current zone: {current_zone.name if current_zone else 'NONE'}")
     logger.info(f"Selected mode: {selected_mode}")
     logger.info(f"Provider service mode: {provider_service_mode}")
     
@@ -295,29 +317,20 @@ def service_detail(request, service_code):
             
         elif selected_mode == 'local':
             # Modo local - obtener locales verificados del proveedor
+            # ✅ NO FILTRAR POR ZONA - Mostrar todos los locales de la ciudad
             location_filter = ProviderLocation.objects.filter(
                 provider=service.provider,
                 location_type='local',
                 is_verified=True
             )
             
-            # DEBUG: Ver todos los locales antes de filtrar
-            all_locations = list(location_filter.select_related('zone', 'zone__city'))
-            logger.info(f"Total locales del proveedor (sin filtro ciudad): {len(all_locations)}")
-            for loc in all_locations:
-                logger.info(f"  - Local: {loc.label}, Zone: {loc.zone.name}, City: {loc.zone.city.name}, ID: {loc.id}")
-            
             # Filtrar por ciudad actual SI existe
             if current_city:
                 location_filter = location_filter.filter(zone__city=current_city)
-                logger.info(f"Filtrando por ciudad: {current_city.name}")
-            else:
-                logger.warning("⚠️ NO HAY CIUDAD ACTUAL - No se filtra por ciudad")
+                logger.info(f"Filtrando locales por ciudad: {current_city.name}")
             
             available_provider_locations = list(location_filter.select_related('zone', 'zone__city'))
-            logger.info(f"Locales disponibles después de filtro: {len(available_provider_locations)}")
-            for loc in available_provider_locations:
-                logger.info(f"  ✓ Disponible: {loc.label} ({loc.zone.city.name})")
+            logger.info(f"Locales disponibles: {len(available_provider_locations)}")
             
             provider_has_required_location = len(available_provider_locations) > 0
             
@@ -337,21 +350,25 @@ def service_detail(request, service_code):
     logger.info(f"=== FIN DEBUG ===")
 
     
-    # Verificar si el proveedor cubre la zona actual
+    # ✅ VERIFICAR SI PUEDE RESERVAR - LÓGICA MEJORADA
     can_book = False
     zone_not_covered = False
+    zone_required = False  # Nueva variable
     travel_cost = 0
     
-    if current_zone:
-        provider_covers_zone = provider_profile.coverage_zones.filter(
-            id=current_zone.id
-        ).exists()
+    if selected_mode == 'home':
+        # Modo domicilio - SÍ REQUIERE ZONA
+        zone_required = True
         
-        if provider_covers_zone and provider_has_required_location:
-            can_book = True
+        if current_zone:
+            provider_covers_zone = provider_profile.coverage_zones.filter(
+                id=current_zone.id
+            ).exists()
             
-            # Costo de traslado solo aplica en modo 'home'
-            if selected_mode == 'home':
+            if provider_covers_zone and provider_has_required_location:
+                can_book = True
+                
+                # Calcular costo de traslado
                 zone_cost = ProviderZoneCost.objects.filter(
                     provider=service.provider,
                     zone=current_zone
@@ -362,16 +379,24 @@ def service_detail(request, service_code):
                 else:
                     travel_cost = Decimal(SystemConfig.get_config('default_travel_cost', 2.50))
             else:
-                # En modo 'local' no hay costo de traslado
-                travel_cost = 0
+                if not provider_covers_zone:
+                    zone_not_covered = True
+                else:
+                    can_book = False
         else:
-            if not provider_covers_zone:
-                zone_not_covered = True
-            else:
-                can_book = False
-    else:
-        # Si no hay zona seleccionada, usar costo promedio
-        travel_cost = provider_profile.avg_travel_cost if selected_mode == 'home' else 0
+            # No hay zona - marcar como requerida
+            can_book = False
+            
+    elif selected_mode == 'local':
+        # Modo local - NO REQUIERE ZONA
+        zone_required = False
+        
+        # Puede reservar si hay locales disponibles y ha seleccionado uno
+        if provider_has_required_location and selected_provider_location:
+            can_book = True
+            travel_cost = 0  # Sin costo de traslado
+        else:
+            can_book = False
     
     # Reviews del proveedor
     reviews = Review.objects.filter(
@@ -414,10 +439,12 @@ def service_detail(request, service_code):
         'total_cost': total_cost,
         'today': timezone.now().date(),
         'current_zone': current_zone,
-        'current_city': current_city,  # NUEVO
+        'current_city': current_city,
+        'zones': zones,  # ✅ NUEVO: Zonas para selector
         'can_book': can_book,
         'zone_not_covered': zone_not_covered,
-        # ✅ VARIABLES DE MODALIDAD
+        'zone_required': zone_required,  # ✅ NUEVO: Indica si se requiere zona
+        # Variables de modalidad
         'provider_service_mode': provider_service_mode,
         'selected_mode': selected_mode,
         'user_can_choose': user_can_choose,

@@ -93,7 +93,7 @@
                         {% endif %}
                     </div>
 
-                    <!-- ✅ MOSTRAR LOCALES cuando modo='local' Y hay locales -->
+                    <!-- ✅ MOSTRAR LOCALES cuando modo='local' Y hay locales - SIN NECESIDAD DE ZONA -->
                     {% if selected_mode == 'local' and available_provider_locations %}
                     <div class="card mb-3 border-primary">
                         <div class="card-header bg-primary text-white">
@@ -149,6 +149,13 @@
                             </div>
                             {% endfor %}
                         </div>
+                    </div>
+                    {% elif selected_mode == 'local' and not available_provider_locations %}
+                    <!-- No hay locales disponibles -->
+                    <div class="alert alert-warning">
+                        <i class="fas fa-exclamation-triangle"></i>
+                        <strong>No hay locales disponibles{% if current_city %} en {{ current_city.name }}{% endif %}</strong>
+                        <p class="mb-0 mt-2">Este proveedor no tiene locales registrados en tu ciudad actual.</p>
                     </div>
                     {% endif %}
 
@@ -246,7 +253,7 @@
             {% endif %}
         </div>
 
-        <!-- Booking Sidebar -->
+        <!-- Booking Sidebar - MEJORADO -->
         <div class="col-md-4">
             <div class="card sticky-top" style="top: 80px;">
                 <div class="card-body">
@@ -256,142 +263,162 @@
                     
                     {% if user.is_authenticated %}
                         {% if user.profile.role == 'customer' %}
-                            {% if zone_not_covered and current_zone %}
-                                <!-- No cubre zona -->
-                                <div class="alert alert-danger text-center">
-                                    <i class="fas fa-ban fa-3x mb-3"></i>
-                                    <p><strong>No disponible en tu zona</strong></p>
-                                    <p class="small mb-0">
-                                        Este proveedor no cubre <strong>{{ current_zone.name }}</strong>
-                                    </p>
+                            
+                            <!-- ✅ Selector de modalidad en sidebar -->
+                            {% if user_can_choose %}
+                            <div class="mb-3">
+                                <label class="form-label fw-semibold">Modalidad</label>
+                                <div class="btn-group w-100" role="group">
+                                    <input type="radio" class="btn-check" name="service_mode" id="mode_home" value="home" 
+                                           {% if selected_mode == 'home' %}checked{% endif %}>
+                                    <label class="btn btn-outline-success btn-sm" for="mode_home" onclick="window.location.href='?service_mode=home'">
+                                        <i class="bi bi-house-fill"></i> Domicilio
+                                    </label>
+                                    
+                                    <input type="radio" class="btn-check" name="service_mode" id="mode_location" value="local"
+                                           {% if selected_mode == 'local' %}checked{% endif %}>
+                                    <label class="btn btn-outline-primary btn-sm" for="mode_location" onclick="window.location.href='?service_mode=local'">
+                                        <i class="bi bi-shop"></i> Local
+                                    </label>
                                 </div>
-                                <a href="{% url 'services_list' %}" class="btn btn-outline-primary w-100">
-                                    <i class="fas fa-search"></i> Buscar Otros Servicios
-                                </a>
-                            {% elif not current_zone %}
-                                <!-- Sin zona -->
-                                <div class="alert alert-warning text-center">
-                                    <i class="fas fa-map-marker-alt fa-3x mb-3"></i>
-                                    <p><strong>Selecciona tu zona</strong></p>
-                                </div>
-                                <a href="{% url 'services_list' %}" class="btn btn-primary w-100">
-                                    <i class="fas fa-map-marked-alt"></i> Seleccionar Zona
-                                </a>
+                            </div>
                             {% else %}
-                                <!-- PUEDE RESERVAR -->
-                                {% if selected_mode == 'home' and not valid_locations %}
-                                <div class="alert alert-warning">
-                                    <i class="fas fa-exclamation-triangle"></i>
-                                    No tienes ubicaciones en zonas del proveedor.
-                                    <a href="{% url 'location_create' %}?next={{ request.path }}" class="alert-link">
-                                        Agregar ubicación
-                                    </a>
+                            <div class="mb-3">
+                                <label class="form-label fw-semibold">Modalidad</label>
+                                <div class="alert {% if selected_mode == 'home' %}alert-success{% else %}alert-info{% endif %} mb-0 py-2">
+                                    {% if selected_mode == 'home' %}
+                                    <i class="fas fa-home"></i> <strong>A Domicilio</strong>
+                                    {% else %}
+                                    <i class="fas fa-store"></i> <strong>En Local</strong>
+                                    {% endif %}
                                 </div>
-                                {% endif %}
+                            </div>
+                            {% endif %}
 
-                                <div class="mb-3">
-                                    <label class="form-label fw-semibold">
-                                        <i class="fas fa-map-marker-alt"></i> Zona Actual
-                                    </label>
-                                    <div class="alert alert-success mb-0 py-2">
-                                        <strong>{{ current_zone.name }}</strong>
-                                    </div>
-                                </div>
-
-                                <!-- ✅ Selector de modalidad en sidebar -->
-                                {% if user_can_choose %}
-                                <div class="mb-3">
-                                    <label class="form-label fw-semibold">Modalidad</label>
-                                    <div class="btn-group w-100" role="group">
-                                        <input type="radio" class="btn-check" name="service_mode" id="mode_home" value="home" 
-                                               {% if selected_mode == 'home' %}checked{% endif %}>
-                                        <label class="btn btn-outline-success btn-sm" for="mode_home" onclick="window.location.href='?service_mode=home'">
-                                            <i class="bi bi-house-fill"></i> Domicilio
-                                        </label>
-                                        
-                                        <input type="radio" class="btn-check" name="service_mode" id="mode_location" value="local"
-                                               {% if selected_mode == 'local' %}checked{% endif %}>
-                                        <label class="btn btn-outline-primary btn-sm" for="mode_location" onclick="window.location.href='?service_mode=local'">
-                                            <i class="bi bi-shop"></i> Local
-                                        </label>
-                                    </div>
-                                </div>
+                            <!-- ✅ SELECTOR DE ZONA - SIEMPRE VISIBLE en modo home -->
+                            {% if selected_mode == 'home' and zones %}
+                            <div class="mb-3">
+                                <label class="form-label fw-semibold">
+                                    <i class="fas fa-map-marker-alt text-primary"></i> Selecciona tu Zona
+                                </label>
+                                <select class="form-select" id="zoneSelector" onchange="selectZone(this.value)">
+                                    <option value="">-- Elige tu zona --</option>
+                                    {% for zone in zones %}
+                                    <option value="{{ zone.id }}" {% if current_zone and current_zone.id == zone.id %}selected{% endif %}>
+                                        {{ zone.name }}
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                                {% if not current_zone %}
+                                <small class="text-muted d-block mt-1">
+                                    <i class="fas fa-info-circle"></i> Necesario para calcular costo de traslado
+                                </small>
                                 {% else %}
-                                <div class="mb-3">
-                                    <label class="form-label fw-semibold">Modalidad</label>
-                                    <div class="alert {% if selected_mode == 'home' %}alert-success{% else %}alert-info{% endif %} mb-0 py-2">
-                                        {% if selected_mode == 'home' %}
-                                        <i class="fas fa-home"></i> <strong>A Domicilio</strong>
-                                        {% else %}
-                                        <i class="fas fa-store"></i> <strong>En Local</strong>
-                                        {% endif %}
-                                    </div>
-                                </div>
+                                <small class="text-success d-block mt-1">
+                                    <i class="fas fa-check-circle"></i> Zona seleccionada: <strong>{{ current_zone.name }}</strong>
+                                </small>
                                 {% endif %}
+                            </div>
+                            {% endif %}
 
-                                <!-- ✅ Mostrar local seleccionado si hay -->
-                                {% if selected_mode == 'local' and selected_provider_location %}
-                                <div class="mb-3">
-                                    <label class="form-label fw-semibold">
-                                        <i class="bi bi-geo-alt-fill text-primary"></i> Local Seleccionado
-                                    </label>
-                                    <div class="alert alert-primary mb-0 py-2">
-                                        <strong>{{ selected_provider_location.label }}</strong><br>
-                                        <small>{{ selected_provider_location.address }}</small><br>
-                                        <small><span class="badge bg-white text-primary">{{ selected_provider_location.zone.name }}</span></small>
-                                    </div>
-                                    <small class="text-muted d-block mt-1">
-                                        <i class="fas fa-info-circle"></i> Puedes cambiar el local en la lista de arriba
-                                    </small>
+                            <!-- ✅ Mostrar local seleccionado si hay -->
+                            {% if selected_mode == 'local' and selected_provider_location %}
+                            <div class="mb-3">
+                                <label class="form-label fw-semibold">
+                                    <i class="bi bi-geo-alt-fill text-primary"></i> Local Seleccionado
+                                </label>
+                                <div class="alert alert-primary mb-0 py-2">
+                                    <strong>{{ selected_provider_location.label }}</strong><br>
+                                    <small>{{ selected_provider_location.address }}</small><br>
+                                    <small><span class="badge bg-white text-primary">{{ selected_provider_location.zone.name }}</span></small>
                                 </div>
-                                {% endif %}
+                                <small class="text-muted d-block mt-1">
+                                    <i class="fas fa-info-circle"></i> Puedes cambiar el local en la lista de arriba
+                                </small>
+                            </div>
+                            {% endif %}
 
-                                <div class="mb-3">
-                                    <label class="form-label fw-semibold">Costo del Servicio</label>
-                                    <div class="d-flex justify-content-between">
-                                        <span>Servicio:</span>
-                                        <strong>${{ service.base_price }}</strong>
-                                    </div>
+                            <!-- ✅ COSTOS -->
+                            <div class="mb-3">
+                                <label class="form-label fw-semibold">Costo del Servicio</label>
+                                <div class="d-flex justify-content-between">
+                                    <span>Servicio:</span>
+                                    <strong>${{ service.base_price }}</strong>
                                 </div>
-                                
-                                {% if selected_mode == 'home' %}
-                                <div class="mb-3">
-                                    <div class="d-flex justify-content-between">
-                                        <span>Traslado:</span>
-                                        <strong>${{ travel_cost }}</strong>
-                                    </div>
+                            </div>
+                            
+                            {% if selected_mode == 'home' and current_zone %}
+                            <div class="mb-3">
+                                <div class="d-flex justify-content-between">
+                                    <span>Traslado:</span>
+                                    <strong>${{ travel_cost }}</strong>
                                 </div>
-                                {% endif %}
-                                
-                                <hr>
-                                
-                                <div class="d-flex justify-content-between mb-3">
-                                    <strong>Total:</strong>
-                                    <h4 class="text-primary mb-0">
-                                        ${{ total_cost }}
-                                    </h4>
-                                </div>
-                                
-                                {% if selected_mode == 'home' and valid_locations or selected_mode == 'local' and selected_provider_location %}
-                                <a href="{% url 'booking_create_step1' service.id %}?service_mode={{ selected_mode }}{% if selected_mode == 'local' and selected_provider_location %}&location_id={{ selected_provider_location.id }}{% endif %}" 
+                            </div>
+                            {% endif %}
+                            
+                            <hr>
+                            
+                            <div class="d-flex justify-content-between mb-3">
+                                <strong>Total:</strong>
+                                <h4 class="text-primary mb-0">
+                                    ${{ total_cost }}
+                                </h4>
+                            </div>
+                            
+                            <!-- ✅ BOTÓN DE RESERVA CON LÓGICA MEJORADA -->
+                            {% if zone_not_covered and current_zone %}
+                                <!-- Zona no cubierta -->
+                                <button type="button" class="btn btn-secondary w-100 btn-lg" disabled>
+                                    <i class="fas fa-ban"></i> Zona No Cubierta
+                                </button>
+                                <small class="text-danger d-block text-center mt-2">
+                                    Este proveedor no cubre {{ current_zone.name }}
+                                </small>
+                            {% elif selected_mode == 'home' and not current_zone %}
+                                <!-- Modo home sin zona -->
+                                <button type="button" class="btn btn-warning w-100 btn-lg" disabled>
+                                    <i class="fas fa-map-marker-alt"></i> Selecciona tu Zona
+                                </button>
+                                <small class="text-muted d-block text-center mt-2">
+                                    Elige tu zona arriba para continuar
+                                </small>
+                            {% elif selected_mode == 'local' and not selected_provider_location %}
+                                <!-- Modo local sin local seleccionado -->
+                                <button type="button" class="btn btn-warning w-100 btn-lg" disabled>
+                                    <i class="fas fa-store"></i> Selecciona un Local
+                                </button>
+                                <small class="text-muted d-block text-center mt-2">
+                                    {% if not available_provider_locations %}
+                                    No hay locales disponibles{% if current_city %} en {{ current_city.name }}{% endif %}
+                                    {% else %}
+                                    Elige un local arriba para continuar
+                                    {% endif %}
+                                </small>
+                            {% elif selected_mode == 'home' and not valid_locations %}
+                                <!-- Modo home sin ubicaciones del usuario -->
+                                <a href="{% url 'location_create' %}?next={{ request.path }}?service_mode={{ selected_mode }}{% if current_zone %}&zone={{ current_zone.id }}{% endif %}" 
+                                   class="btn btn-success w-100 btn-lg">
+                                    <i class="fas fa-plus"></i> Agregar Ubicación
+                                </a>
+                                <small class="text-muted d-block text-center mt-2">
+                                    Necesitas una ubicación en {{ current_zone.name }}
+                                </small>
+                            {% elif can_book %}
+                                <!-- TODO LISTO PARA RESERVAR -->
+                                <a href="{% url 'booking_create_step1' service.id %}?service_mode={{ selected_mode }}{% if selected_mode == 'local' and selected_provider_location %}&location_id={{ selected_provider_location.id }}{% endif %}{% if current_zone %}&zone={{ current_zone.id }}{% endif %}" 
                                    class="btn btn-primary w-100 btn-lg">
                                     <i class="fas fa-calendar-check"></i> Reservar Ahora
                                 </a>
-                                {% else %}
+                            {% else %}
+                                <!-- Fallback -->
                                 <button type="button" class="btn btn-secondary w-100 btn-lg" disabled>
                                     <i class="fas fa-ban"></i> No Disponible
                                 </button>
                                 <small class="text-danger d-block text-center mt-2">
-                                    {% if selected_mode == 'home' %}
-                                    Agrega una ubicación para continuar
-                                    {% elif selected_mode == 'local' and not available_provider_locations %}
-                                    El proveedor no tiene locales{% if current_city %} en {{ current_city.name }}{% endif %}
-                                    {% else %}
-                                    Selecciona un local arriba para continuar
-                                    {% endif %}
+                                    Completa los requisitos para continuar
                                 </small>
-                                {% endif %}
                             {% endif %}
+                            
                         {% else %}
                             <div class="alert alert-warning">
                                 <i class="fas fa-info-circle"></i> 
@@ -418,6 +445,16 @@
 </div>
 
 <script>
+// Función para seleccionar zona
+function selectZone(zoneId) {
+    if (zoneId) {
+        const url = new URL(window.location.href);
+        url.searchParams.set('zone', zoneId);
+        window.location.href = url.toString();
+    }
+}
+
+// Función para seleccionar local del proveedor
 function selectProviderLocationDetail(locationId) {
     const url = new URL(window.location.href);
     url.searchParams.set('service_mode', 'local');
