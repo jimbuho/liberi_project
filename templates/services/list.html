@@ -136,8 +136,8 @@
 
                         <hr>
 
-                        <!-- ✅ Modalidad de Atención -->
-                        {% if current_zone %}
+                        <!-- ✅ Modalidad de Atención - SIEMPRE VISIBLE si hay ciudad -->
+                        {% if current_city %}
                         <div class="mb-3">
                             <label class="form-label fw-bold">¿Cómo quieres ser atendido?</label>
                             <div class="form-check">
@@ -163,8 +163,14 @@
                                 <i class="fas fa-info-circle"></i> Sin costo de traslado
                                 {% endif %}
                             </small>
+                            {% if not current_zone %}
+                            <div class="alert alert-warning alert-sm mt-2 p-2" role="alert">
+                                <small><i class="fas fa-exclamation-triangle"></i> Selecciona una zona para ver servicios disponibles</small>
+                            </div>
+                            {% endif %}
                         </div>
                         {% endif %}
+
 
                         <hr>
 

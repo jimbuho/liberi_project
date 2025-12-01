@@ -234,21 +234,36 @@
                             <i class="fas fa-user"></i> {{ user.first_name|default:user.username }}
                         </a>
                         <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="userDropdown">
-                            <li>
-                                <a class="dropdown-item" href="{% url 'dashboard' %}">
-                                    <i class="fas fa-tachometer-alt"></i> Dashboard
-                                </a>
-                            </li>
-                            <li>
-                                <a class="dropdown-item" href="{% url 'bookings_list' %}">
-                                    <i class="fas fa-calendar-check"></i> Mis Reservas
-                                </a>
-                            </li>
-                            <li>
-                                <a class="dropdown-item" href="{% url 'change_password' %}">
-                                    <i class="fas fa-lock"></i> Cambiar Contraseña
-                                </a>
-                            </li>
+                            {% if user.provider_profile and user.provider_profile.status != 'approved' %}
+                                <!-- Proveedor con perfil incompleto -->
+                                <li>
+                                    <a class="dropdown-item disabled" href="#">
+                                        <i class="fas fa-hourglass-half text-warning"></i> Perfil en Proceso
+                                    </a>
+                                </li>
+                                <li>
+                                    <small class="dropdown-item-text text-muted px-3">
+                                        Completa tu perfil para acceder al dashboard
+                                    </small>
+                                </li>
+                            {% else %}
+                                <!-- Usuario normal o proveedor aprobado -->
+                                <li>
+                                    <a class="dropdown-item" href="{% url 'dashboard' %}">
+                                        <i class="fas fa-tachometer-alt"></i> Dashboard
+                                    </a>
+                                </li>
+                                <li>
+                                    <a class="dropdown-item" href="{% url 'bookings_list' %}">
+                                        <i class="fas fa-calendar-check"></i> Mis Reservas
+                                    </a>
+                                </li>
+                                <li>
+                                    <a class="dropdown-item" href="{% url 'change_password' %}">
+                                        <i class="fas fa-lock"></i> Cambiar Contraseña
+                                    </a>
+                                </li>
+                            {% endif %}
                             <li>
                                 <hr class="dropdown-divider">
                             </li>
