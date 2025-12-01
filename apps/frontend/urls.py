@@ -4,18 +4,10 @@ from django.conf.urls.static import static
 from . import views
 
 urlpatterns = [
-    # Home & Public
-    path('', views.home, name='home'),
-
     # Service Management (Provider)
     path('services/create/', views.service_create, name='service_create'),  # Debe estar ANTES de la ruta dinámica
     path('services/<int:service_id>/edit/', views.service_edit, name='service_edit'),  # Mantener ID para edición (admin)
     path('services/<int:service_id>/delete/', views.service_delete, name='service_delete'),  # Mantener ID para eliminación (admin)
- 
-    # Location Detection & Zone Selection
-    path('api/set-zone/', views.set_current_zone, name='set_current_zone'),
-    path('api/set-city/', views.set_current_city_ajax, name='set_current_city'),  # ← AGREGAR ESTA
-    path('api/detect-location/', views.detect_user_location, name='detect_location'),
 
      # Locations
     path('locations/create/', views.location_create, name='location_create'),

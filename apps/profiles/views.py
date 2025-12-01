@@ -814,7 +814,6 @@ def provider_coverage_manage(request):
     }
     return render(request, 'providers/coverage_manage.html', context)
 
-
 @login_required
 def provider_coverage_add(request):
     """Agregar zona a la cobertura"""
@@ -834,7 +833,7 @@ def provider_coverage_add(request):
         # Agregar zona
         provider_profile.coverage_zones.add(zone)
         
-        messages.success(request, f'✅ Zona {zone.name} agregada a tu cobertura')
+        messages.success(request, f'Zona {zone.name} agregada a tu cobertura')
         
         # Log
         AuditLog.objects.create(
@@ -863,8 +862,10 @@ def provider_coverage_remove(request, zone_id):
         zone = get_object_or_404(Zone, id=zone_id)
         provider_profile = request.user.provider_profile
         
-        # ✅ REMOVIDO: Ya no verificamos que tenga al menos una zona
-        # El proveedor puede eliminar todas sus zonas si se equivocó
+        # Verificar que no sea la única zona
+        if provider_profile.coverage_zones.count() <= 1:
+            messages.error(request, 'Debes mantener al menos una zona de cobertura')
+            return redirect('provider_coverage_manage')
         
         # Verificar que no tenga reservas activas en esta zona
         active_bookings = Booking.objects.filter(
@@ -876,7 +877,7 @@ def provider_coverage_remove(request, zone_id):
         if active_bookings > 0:
             messages.error(
                 request,
-                f'❌ No puedes eliminar {zone.name} porque tienes {active_bookings} '
+                f'No puedes eliminar {zone.name} porque tienes {active_bookings} '
                 f'reserva(s) activa(s) en esta zona. Completa o cancela primero.'
             )
             return redirect('provider_coverage_manage')
@@ -890,7 +891,10 @@ def provider_coverage_remove(request, zone_id):
             zone=zone
         ).delete()
         
-        messages.success(request, f'✅ Zona {zone.name} removida de tu cobertura')
+        messages.success(
+            request,
+            f'Zona {zone.name} removida de tu cobertura'
+        )
         
         # Log
         AuditLog.objects.create(
