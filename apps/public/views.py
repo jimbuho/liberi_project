@@ -307,13 +307,10 @@ def service_detail(request, service_code):
     
     if selected_mode:
         if selected_mode == 'home':
-            # Modo domicilio - verificar que tenga domicilio base
-            base_location = ProviderLocation.objects.filter(
-                provider=service.provider,
-                location_type='base'
-            ).first()
-            provider_has_required_location = base_location is not None
-            logger.info(f"Modo HOME - Base location exists: {provider_has_required_location}")
+            # Modo domicilio - si tiene zonas de cobertura, puede atender
+            # Ya no requerimos ubicación base para modo home
+            provider_has_required_location = provider_profile.coverage_zones.exists()
+            logger.info(f"Modo HOME - Has coverage zones: {provider_has_required_location}")
             
         elif selected_mode == 'local':
             # Modo local - obtener locales verificados del proveedor
