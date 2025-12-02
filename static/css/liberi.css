@@ -784,6 +784,12 @@ footer h5 {
         background-color: #f8d7da;
         color: #721c24;
     }
+
+    .alert-error {
+        border-left-color: #dc3545;
+        background-color: #f8d7da;
+        color: #721c24;
+    }
     
     .alert-success {
         border-left-color: #28a745;

@@ -217,26 +217,54 @@ def register_provider_view(request):
         profile_photo = request.FILES.get('profile_photo')
         terms_accepted = request.POST.get('terms_accepted')
         
+        # Helper para preservar datos del formulario (excluyendo passwords)
+        form_data = {
+            'username': username,
+            'email': email,
+            'first_name': first_name,
+            'last_name': last_name,
+            'phone': phone,
+            'business_name': business_name,
+            'description': description,
+            'category': int(category_id) if category_id else None,
+            'terms_accepted': terms_accepted
+        }
+
         if password != password_confirm:
             messages.error(request, 'Las contraseñas no coinciden')
-            return render(request, 'auth/register_provider.html', {'categories': get_active_categories()})
+            return render(request, 'auth/register_provider.html', {
+                'categories': get_active_categories(),
+                'form_data': form_data
+            })
 
         # NUEVA VALIDACIÓN
         if terms_accepted is None or not terms_accepted:
             messages.error(request, 'Debes aceptar los Términos de Uso y Política de Privacidad')
-            return render(request, 'auth/register_provider.html', {'categories': get_active_categories()})
+            return render(request, 'auth/register_provider.html', {
+                'categories': get_active_categories(),
+                'form_data': form_data
+            })
         
         if User.objects.filter(username=username).exists():
             messages.error(request, 'El nombre de usuario ya está en uso')
-            return render(request, 'auth/register_provider.html', {'categories': get_active_categories()})
+            return render(request, 'auth/register_provider.html', {
+                'categories': get_active_categories(),
+                'form_data': form_data
+            })
         
         if User.objects.filter(email=email).exists():
             messages.error(request, 'El email ya está registrado')
-            return render(request, 'auth/register_provider.html', {'categories': get_active_categories()})
+            return render(request, 'auth/register_provider.html', {
+                'categories': get_active_categories(),
+                'form_data': form_data
+            })
         
         if not profile_photo:
             messages.error(request, 'La foto de perfil es obligatoria')
-            return render(request, 'auth/register_provider.html', {'categories': get_active_categories()})
+            return render(request, 'auth/register_provider.html', {
+                'categories': get_active_categories(),
+                'form_data': form_data
+            })
 
         try:
             user = User.objects.create_user(
@@ -312,11 +340,17 @@ def register_provider_view(request):
             else:
                 user.delete()
                 messages.error(request, f'Error al enviar email: {message}')
-                return render(request, 'auth/register_provider.html', {'categories': get_active_categories()})
+                return render(request, 'auth/register_provider.html', {
+                    'categories': get_active_categories(),
+                    'form_data': form_data
+                })
 
         except ValueError as e:
             messages.error(request, str(e))
-            return render(request, 'auth/register_provider.html', {'categories': get_active_categories()})
+            return render(request, 'auth/register_provider.html', {
+                'categories': get_active_categories(),
+                'form_data': form_data
+            })
         except Exception as e:
             try:
                 user = User.objects.get(username=username)
@@ -325,7 +359,10 @@ def register_provider_view(request):
                 pass
             print(f'Error al crear perfil: {str(e)}')
             messages.error(request, f'Error al crear perfil: {str(e)}')
-            return render(request, 'auth/register_provider.html', {'categories': get_active_categories()})
+            return render(request, 'auth/register_provider.html', {
+                'categories': get_active_categories(),
+                'form_data': form_data
+            })
 
     context = {
         'categories': get_active_categories(),
@@ -564,8 +601,7 @@ def forgot_password_view(request):
         
         try:
             reset_token = PasswordResetToken.create_for_user(user)
-            
-            from core.tasks import send_password_reset_email_task
+
             send_password_reset_email_task.delay(
                 user_id=user.id,
                 token=reset_token.token
