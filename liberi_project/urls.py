@@ -8,13 +8,13 @@ from apps.core import views
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('api/', include('apps.core.urls')),
-    path('api/payments/', include('apps.payments.urls')),
     path('api/messaging/', include('apps.messaging.urls')),
     
     # New refactored apps
     path('', include('apps.authentication.urls')),
     path('', include('apps.profiles.urls')),
     path('', include('apps.bookings.urls')),
+    path('', include('apps.payments.urls')),  # Now handles both API and Template URLs
     path('', include('apps.public.urls')),
     
     path('', include('apps.frontend.urls')),

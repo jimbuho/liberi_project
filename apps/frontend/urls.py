@@ -16,13 +16,7 @@ urlpatterns = [
     # Reviews
     path('bookings/<uuid:booking_id>/review/', views.review_create, name='review_create'),
     
-    # Pagos v2 (con imagen)
-    path('payments/<uuid:booking_id>/', views.payment_process, name='payment_process'),
-    path('payments/payphone/callback/', views.payphone_callback, name='payphone_callback'),
-    
-    path('payment/bank-transfer/<uuid:booking_id>/', views.payment_bank_transfer, name='payment_bank_transfer'),
-    path('payment/confirm-transfer/<uuid:booking_id>/', views.confirm_bank_transfer_payment, name='confirm_bank_transfer'),
-    path('payment/confirmation/<int:payment_id>/', views.payment_confirmation, name='payment_confirmation'),
+    # Pagos v2 - MOVED TO apps/payments/urls.py
 
     # API de Notificaciones
     path('api/notifications/', views.api_notifications_list, name='api_notifications_list'),
