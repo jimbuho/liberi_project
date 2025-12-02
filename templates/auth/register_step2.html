@@ -42,7 +42,7 @@
                                    accept="image/jpeg,image/png,image/jpg"
                                    required>
                             <small class="text-muted">
-                                Foto clara del frente de tu cédula. Máximo 2MB.
+                                Foto clara del frente de tu cédula. Máximo 7MB.
                             </small>
                         </div>
 
@@ -58,7 +58,7 @@
                                    accept="image/jpeg,image/png,image/jpg"
                                    required>
                             <small class="text-muted">
-                                Foto clara del reverso de tu cédula. Máximo 2MB.
+                                Foto clara del reverso de tu cédula. Máximo 7MB.
                             </small>
                         </div>
 
@@ -74,7 +74,7 @@
                                    accept="image/jpeg,image/png,image/jpg"
                                    required>
                             <small class="text-muted">
-                                Selfie donde se vea claramente tu rostro y tu cédula. Máximo 2MB.
+                                Selfie donde se vea claramente tu rostro y tu cédula. Máximo 7MB.
                             </small>
                             
                             <div class="alert alert-warning mt-2">
@@ -122,8 +122,8 @@ document.querySelectorAll('input[type="file"]').forEach(input => {
         const file = e.target.files[0];
         if (file) {
             // Validar tamaño
-            if (file.size > 2 * 1024 * 1024) {
-                alert('La imagen no puede superar los 2MB');
+            if (file.size > 7 * 1024 * 1024) {
+                alert('La imagen no puede superar los 7MB');
                 this.value = '';
                 return;
             }
