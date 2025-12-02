@@ -387,16 +387,41 @@
                         <div class="card-body">
                             <div class="row">
                                 <div class="col-md-8">
-                                    <div class="d-flex justify-content-between align-items-start mb-2">
-                                        <div>
-                                            <h6 class="mb-1">Reserva #{{ booking.booking_id }}</h6>
-                                            <p class="text-muted mb-2"><i class="fas fa-calendar"></i> {{ booking.scheduled_time|date:"d/m/Y H:i" }}</p>
+                                    <div class="d-flex justify-content-between align-items-start mb-3">
+                                        <div class="flex-grow-1">
+                                            <h6 class="mb-2">Reserva #{{ booking.booking_id }}</h6>
+                                            
+                                            <!-- Fechas en formato mejorado -->
+                                            <div class="row g-2 mb-2">
+                                                <div class="col-12">
+                                                    <div class="d-flex align-items-center">
+                                                        <div class="bg-primary bg-opacity-10 rounded p-2 me-2" style="min-width: 40px; text-align: center;">
+                                                            <i class="fas fa-calendar-check text-primary"></i>
+                                                        </div>
+                                                        <div>
+                                                            <small class="text-muted d-block" style="font-size: 0.75rem;">Cita agendada para:</small>
+                                                            <strong class="text-primary">{{ booking.scheduled_time|date:"D d/m/Y" }} a las {{ booking.scheduled_time|date:"H:i" }}</strong>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                <div class="col-12">
+                                                    <div class="d-flex align-items-center">
+                                                        <div class="bg-secondary bg-opacity-10 rounded p-2 me-2" style="min-width: 40px; text-align: center;">
+                                                            <i class="fas fa-clock text-secondary"></i>
+                                                        </div>
+                                                        <div>
+                                                            <small class="text-muted d-block" style="font-size: 0.75rem;">Reserva creada:</small>
+                                                            <span class="text-secondary">{{ booking.created_at|date:"d/m/Y H:i" }}</span>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
 
                                             <!-- TIEMPO CORRECTO -->
                                             {% if not booking.is_past and booking.status == 'accepted' and booking.payment_status == 'paid' %}
                                                 {% if booking.hours_until <= 24 %}
                                                 <div class="alert alert-warning py-1 px-2 mb-2">
-                                                    <i class="fas fa-clock"></i>
+                                                    <i class="fas fa-bell"></i>
                                                     <strong>¡Faltan {{ booking.hours_until }} hora{{ booking.hours_until|pluralize }} para la cita!</strong>
                                                 </div>
                                                 {% elif booking.days_until <= 7 %}
@@ -411,368 +436,370 @@
                                                 <strong>¡Atención! Esta reserva pasó y no está completada</strong>
                                             </div>
                                             {% endif %}
-                                </div>
-                                <div class="text-end">
-                                    <span
-                                        class="badge bg-{% if booking.status == 'pending' %}warning{% elif booking.status == 'accepted' %}info{% elif booking.status == 'completed' %}success{% elif booking.status == 'cancelled' %}danger{% else %}secondary{% endif %} fs-6">
-                                        {{ booking.get_status_display }}
-                                    </span>
-                                    {% if booking.payment_status == 'paid' %}
-                                    <span class="badge bg-success fs-6 mt-1 d-block"><i class="fas fa-check-circle"></i>
-                                        Pagado</span>
+                                        </div>
+                                        <div class="text-end">
+                                            <span
+                                                class="badge bg-{% if booking.status == 'pending' %}warning{% elif booking.status == 'accepted' %}info{% elif booking.status == 'completed' %}success{% elif booking.status == 'cancelled' %}danger{% else %}secondary{% endif %} fs-6">
+                                                {{ booking.get_status_display }}
+                                            </span>
+                                            {% if booking.payment_status == 'paid' %}
+                                            <span class="badge bg-success fs-6 mt-1 d-block"><i class="fas fa-check-circle"></i>
+                                                Pagado</span>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+
+                                    <hr class="my-2">
+
+                                    <p class="mb-1"><strong>Cliente:</strong> {{ booking.customer.get_full_name }}</p>
+                                    <p class="mb-1"><strong>Teléfono:</strong> {{ booking.customer_phone }}</p>
+                                    <p class="mb-1">
+                                        <strong>Servicios:</strong>
+                                        {% for service in booking.service_list %}
+                                        {{ service.name }}{% if not forloop.last %}, {% endif %}
+                                        {% endfor %}
+                                    </p>
+                                    {% if booking.location %}
+                                    <p class="mb-1"><strong>Ubicación:</strong> {{ booking.location.address|truncatewords:10 }}
+                                    </p>
                                     {% endif %}
                                 </div>
-                            </div>
 
-                            <p class="mb-1"><strong>Cliente:</strong> {{ booking.customer.get_full_name }}</p>
-                            <p class="mb-1"><strong>Teléfono:</strong> {{ booking.customer_phone }}</p>
-                            <p class="mb-1">
-                                <strong>Servicios:</strong>
-                                {% for service in booking.service_list %}
-                                {{ service.name }}{% if not forloop.last %}, {% endif %}
-                                {% endfor %}
-                            </p>
-                            {% if booking.location %}
-                            <p class="mb-1"><strong>Ubicación:</strong> {{ booking.location.address|truncatewords:10 }}
-                            </p>
-                            {% endif %}
-                        </div>
-
-                        <div class="col-md-4 text-end">
-                            <h5 class="text-primary mb-3">${{ booking.total_cost }}</h5>
-                            <div class="mb-2">
-                                <span
-                                    class="badge bg-{% if booking.payment_status == 'paid' %}success{% elif booking.payment_status == 'pending' %}warning{% else %}secondary{% endif %}">
-                                    <i class="fas fa-credit-card"></i> {{ booking.get_payment_status_display }}
-                                </span>
-                            </div>
-                            <div class="d-grid gap-2">
-                                <a href="{% url 'booking_detail' booking.id %}" class="btn btn-outline-primary btn-sm">
-                                    <i class="fas fa-eye"></i> Ver Detalles
-                                </a>
-                                {% if booking.status == 'pending' %}
-                                <form method="post" action="{% url 'booking_accept' booking.id %}" class="d-inline">
-                                    {% csrf_token %}
-                                    <button type="submit" class="btn btn-success btn-sm w-100">
-                                        <i class="fas fa-check"></i> Aceptar
-                                    </button>
-                                </form>
-                                <form method="post" action="{% url 'booking_reject' booking.id %}" class="d-inline">
-                                    {% csrf_token %}
-                                    <button type="submit" class="btn btn-danger btn-sm w-100">
-                                        <i class="fas fa-times"></i> Rechazar
-                                    </button>
-                                </form>
-                                {% elif booking.status == 'accepted' and not booking.is_past %}
-                                <form method="post" action="{% url 'booking_complete' booking.id %}" class="d-inline">
-                                    {% csrf_token %}
-                                    <button type="submit" class="btn btn-success btn-sm w-100">
-                                        <i class="fas fa-check-circle"></i> Completar
-                                    </button>
-                                </form>
-                                {% elif booking.is_past and booking.status != 'completed' %}
-                                <form method="post" action="{% url 'booking_complete' booking.id %}" class="d-inline">
-                                    {% csrf_token %}
-                                    <button type="submit" class="btn btn-warning btn-sm w-100">
-                                        <i class="fas fa-exclamation-triangle"></i> Completar Ahora
-                                    </button>
-                                </form>
-                                {% endif %}
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            {% endfor %}
-            {% else %}
-            <div class="text-center py-4">
-                <i class="fas fa-inbox fa-3x text-muted mb-3"></i>
-                <p class="text-muted">No tienes reservas aún</p>
-            </div>
-            {% endif %}
-        </div>
-    </div>
-    {% endif %}
-
-    <!-- My Services -->
-    <div class="card mb-4">
-        <div class="card-header bg-light">
-            <div class="d-flex justify-content-between align-items-center">
-                <h5 class="mb-0"><i class="fas fa-concierge-bell"></i> Mis Servicios</h5>
-                <a href="{% url 'service_create' %}" class="btn btn-sm btn-primary">
-                    <i class="fas fa-plus"></i> Agregar Servicio
-                </a>
-            </div>
-        </div>
-        <div class="card-body">
-            {% if services %}
-            <div class="row">
-                {% for service in services %}
-                <div class="col-md-6 mb-3">
-                    <div class="card">
-                        <div class="card-body">
-                            <div class="d-flex justify-content-between align-items-start mb-2">
-                                <h6 class="mb-0">{{ service.name }}</h6>
-                                <span class="badge bg-{% if service.available %}success{% else %}danger{% endif %}">
-                                    {% if service.available %}Activo{% else %}Inactivo{% endif %}
-                                </span>
-                            </div>
-                            <p class="text-muted mb-2"><small>{{ service.description|truncatewords:12 }}</small></p>
-                            <div class="d-flex justify-content-between align-items-center">
-                                <strong class="text-primary">${{ service.base_price }}</strong>
-                                <div>
-                                    <a href="{% url 'service_edit' service.id %}"
-                                        class="btn btn-sm btn-outline-primary">
-                                        <i class="fas fa-edit"></i>
-                                    </a>
-                                    <button class="btn btn-sm btn-outline-danger"
-                                        onclick="toggleService({{ service.id }}, {{ service.available|lower }})">
-                                        <i
-                                            class="fas fa-{% if service.available %}eye-slash{% else %}eye{% endif %}"></i>
-                                    </button>
+                                <div class="col-md-4 text-end">
+                                    <h5 class="text-primary mb-3">${{ booking.total_cost }}</h5>
+                                    <div class="mb-2">
+                                        <span
+                                            class="badge bg-{% if booking.payment_status == 'paid' %}success{% elif booking.payment_status == 'pending' %}warning{% else %}secondary{% endif %}">
+                                            <i class="fas fa-credit-card"></i> {{ booking.get_payment_status_display }}
+                                        </span>
+                                    </div>
+                                    <div class="d-grid gap-2">
+                                        <a href="{% url 'booking_detail' booking.id %}" class="btn btn-outline-primary btn-sm">
+                                            <i class="fas fa-eye"></i> Ver Detalles
+                                        </a>
+                                        {% if booking.status == 'pending' %}
+                                        <form method="post" action="{% url 'booking_accept' booking.id %}" class="d-inline">
+                                            {% csrf_token %}
+                                            <button type="submit" class="btn btn-success btn-sm w-100">
+                                                <i class="fas fa-check"></i> Aceptar
+                                            </button>
+                                        </form>
+                                        <form method="post" action="{% url 'booking_reject' booking.id %}" class="d-inline">
+                                            {% csrf_token %}
+                                            <button type="submit" class="btn btn-danger btn-sm w-100">
+                                                <i class="fas fa-times"></i> Rechazar
+                                            </button>
+                                        </form>
+                                        {% elif booking.status == 'accepted' and not booking.is_past %}
+                                        <form method="post" action="{% url 'booking_complete' booking.id %}" class="d-inline">
+                                            {% csrf_token %}
+                                            <button type="submit" class="btn btn-success btn-sm w-100">
+                                                <i class="fas fa-check-circle"></i> Completar
+                                            </button>
+                                        </form>
+                                        {% elif booking.is_past and booking.status != 'completed' %}
+                                        <form method="post" action="{% url 'booking_complete' booking.id %}" class="d-inline">
+                                            {% csrf_token %}
+                                            <button type="submit" class="btn btn-warning btn-sm w-100">
+                                                <i class="fas fa-exclamation-triangle"></i> Completar Ahora
+                                            </button>
+                                        </form>
+                                        {% endif %}
+                                    </div>
                                 </div>
                             </div>
                         </div>
                     </div>
+                    {% endfor %}
+                    {% else %}
+                    <div class="text-center py-4">
+                        <i class="fas fa-inbox fa-3x text-muted mb-3"></i>
+                        <p class="text-muted">No tienes reservas aún</p>
+                    </div>
+                    {% endif %}
                 </div>
-                {% endfor %}
             </div>
-            {% else %}
-            <div class="text-center py-4">
-                <i class="fas fa-concierge-bell fa-3x text-muted mb-3"></i>
-                <p class="text-muted">No has agregado servicios aún</p>
-                <a href="{% url 'service_create' %}" class="btn btn-primary">
-                    <i class="fas fa-plus"></i> Agregar Mi Primer Servicio
-                </a>
+            {% endif %}
+
+            <!-- My Services -->
+            <div class="card mb-4">
+                <div class="card-header bg-light">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0"><i class="fas fa-concierge-bell"></i> Mis Servicios</h5>
+                        <a href="{% url 'service_create' %}" class="btn btn-sm btn-primary">
+                            <i class="fas fa-plus"></i> Agregar Servicio
+                        </a>
+                    </div>
+                </div>
+                <div class="card-body">
+                    {% if services %}
+                    <div class="row">
+                        {% for service in services %}
+                        <div class="col-md-6 mb-3">
+                            <div class="card">
+                                <div class="card-body">
+                                    <div class="d-flex justify-content-between align-items-start mb-2">
+                                        <h6 class="mb-0">{{ service.name }}</h6>
+                                        <span class="badge bg-{% if service.available %}success{% else %}danger{% endif %}">
+                                            {% if service.available %}Activo{% else %}Inactivo{% endif %}
+                                        </span>
+                                    </div>
+                                    <p class="text-muted mb-2"><small>{{ service.description|truncatewords:12 }}</small></p>
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <strong class="text-primary">${{ service.base_price }}</strong>
+                                        <div>
+                                            <a href="{% url 'service_edit' service.id %}"
+                                                class="btn btn-sm btn-outline-primary">
+                                                <i class="fas fa-edit"></i>
+                                            </a>
+                                            <button class="btn btn-sm btn-outline-danger"
+                                                onclick="toggleService({{ service.id }}, {{ service.available|lower }})">
+                                                <i
+                                                    class="fas fa-{% if service.available %}eye-slash{% else %}eye{% endif %}"></i>
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <div class="text-center py-4">
+                        <i class="fas fa-concierge-bell fa-3x text-muted mb-3"></i>
+                        <p class="text-muted">No has agregado servicios aún</p>
+                        <a href="{% url 'service_create' %}" class="btn btn-primary">
+                            <i class="fas fa-plus"></i> Agregar Mi Primer Servicio
+                        </a>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Recent Reviews -->
+            {% if recent_reviews %}
+            <div class="card">
+                <div class="card-header bg-light">
+                    <h5 class="mb-0"><i class="fas fa-star"></i> Reseñas Recientes</h5>
+                </div>
+                <div class="card-body">
+                    {% for review in recent_reviews %}
+                    <div class="mb-3 pb-3 {% if not forloop.last %}border-bottom{% endif %}">
+                        <div class="d-flex justify-content-between">
+                            <div>
+                                <strong>{{ review.customer.get_full_name }}</strong>
+                                <div class="rating">
+                                    {% for i in "12345" %}
+                                    {% if forloop.counter <= review.rating %} <i class="fas fa-star text-warning"></i>
+                                        {% else %}
+                                        <i class="far fa-star text-warning"></i>
+                                        {% endif %}
+                                        {% endfor %}
+                                </div>
+                            </div>
+                            <small class="text-muted">{{ review.created_at|date:"d/m/Y" }}</small>
+                        </div>
+                        {% if review.comment %}
+                        <p class="mt-2 mb-0">{{ review.comment }}</p>
+                        {% endif %}
+                    </div>
+                    {% endfor %}
+                </div>
             </div>
             {% endif %}
         </div>
-    </div>
 
-    <!-- Recent Reviews -->
-    {% if recent_reviews %}
-    <div class="card">
-        <div class="card-header bg-light">
-            <h5 class="mb-0"><i class="fas fa-star"></i> Reseñas Recientes</h5>
-        </div>
-        <div class="card-body">
-            {% for review in recent_reviews %}
-            <div class="mb-3 pb-3 {% if not forloop.last %}border-bottom{% endif %}">
-                <div class="d-flex justify-content-between">
-                    <div>
-                        <strong>{{ review.customer.get_full_name }}</strong>
+        <!-- Sidebar Col-4 -->
+        <div class="col-md-4">
+            <!-- Profile Card -->
+            <div class="card mb-4 text-center" style="background-color: white;">
+                <div class="card-body">
+                    {% if provider_profile.profile_photo %}
+                    <img src="{{ provider_profile.profile_photo.url }}" alt="{{ provider_profile.get_display_name }}"
+                        class="rounded-circle mb-3"
+                        style="width: 120px; height: 120px; object-fit: cover; border: 4px solid #667eea;">
+                    {% else %}
+                    <div class="rounded-circle mx-auto mb-3 d-flex align-items-center justify-content-center"
+                        style="width: 120px; height: 120px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border: 4px solid #667eea;">
+                        <i class="fas fa-user fa-3x" style="color: white;"></i>
+                    </div>
+                    {% endif %}
+
+                    {% if provider_profile.business_name %}
+                    <h5 class="mb-1" style="color: #3D3D3D;">{{ provider_profile.business_name }}</h5>
+                    <p class="text-muted small mb-2">{{ user.get_full_name }}</p>
+                    {% else %}
+                    <h5 class="mb-2" style="color: #3D3D3D;">{{ user.get_full_name }}</h5>
+                    {% endif %}
+
+                    <p class="text-muted mb-3">
+                        {{ provider_profile.category.icon }} {{ provider_profile.category.name }}
+                    </p>
+
+                    <a href="{% url 'provider_profile_edit' %}" class="btn btn-primary w-100 mb-2">
+                        <i class="fas fa-user-edit"></i> Editar Mi Perfil
+                    </a>
+                </div>
+            </div>
+
+            {% if provider_profile.status == 'approved' %}
+            <!-- Balance Card -->
+            <div class="card mb-4 border-success">
+                <div class="card-header bg-success text-white">
+                    <h5 class="mb-0"><i class="fas fa-wallet"></i> Saldo Disponible para Retirar</h5>
+                </div>
+                <div class="card-body text-center">
+                    <div class="display-4 text-success mb-3">${{ active_balance|default:"0.00" }}</div>
+                    <p class="text-muted mb-3">Dinero acumulado de servicios completados y pagados</p>
+                    {% if active_balance > 0 %}
+                    <a href="{% url 'provider_withdrawal_create' %}" class="btn btn-success btn-lg">
+                        <i class="fas fa-hand-holding-usd"></i> Solicitar Retiro
+                    </a>
+                    <a href="{% url 'provider_withdrawal_list' %}" class="btn btn-outline-success">
+                        <i class="fas fa-history"></i> Ver Mis Retiros
+                    </a>
+                    {% else %}
+                    <p class="text-muted"><small>Completa servicios y recibe pagos para generar saldo</small></p>
+                    {% endif %}
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Profile Stats -->
+            <div class="card mb-4">
+                <div class="card-header bg-light">
+                    <h5 class="mb-0"><i class="fas fa-chart-line"></i> Mi Rendimiento</h5>
+                </div>
+                <div class="card-body text-center">
+                    {% if rating_avg %}
+                    <div class="mb-3">
+                        <div class="display-4 text-warning">{{ rating_avg }}</div>
                         <div class="rating">
                             {% for i in "12345" %}
-                            {% if forloop.counter <= review.rating %} <i class="fas fa-star text-warning"></i>
+                            {% if forloop.counter <= rating_avg %} <i class="fas fa-star"></i>
                                 {% else %}
-                                <i class="far fa-star text-warning"></i>
+                                <i class="far fa-star"></i>
                                 {% endif %}
                                 {% endfor %}
                         </div>
+                        <p class="text-muted">{{ total_reviews }} reseñas</p>
                     </div>
-                    <small class="text-muted">{{ review.created_at|date:"d/m/Y" }}</small>
-                </div>
-                {% if review.comment %}
-                <p class="mt-2 mb-0">{{ review.comment }}</p>
-                {% endif %}
-            </div>
-            {% endfor %}
-        </div>
-    </div>
-    {% endif %}
-</div>
-
-<!-- Sidebar Col-4 -->
-<div class="col-md-4">
-    <!-- Profile Card -->
-    <div class="card mb-4 text-center" style="background-color: white;">
-        <div class="card-body">
-            {% if provider_profile.profile_photo %}
-            <img src="{{ provider_profile.profile_photo.url }}" alt="{{ provider_profile.get_display_name }}"
-                class="rounded-circle mb-3"
-                style="width: 120px; height: 120px; object-fit: cover; border: 4px solid #667eea;">
-            {% else %}
-            <div class="rounded-circle mx-auto mb-3 d-flex align-items-center justify-content-center"
-                style="width: 120px; height: 120px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border: 4px solid #667eea;">
-                <i class="fas fa-user fa-3x" style="color: white;"></i>
-            </div>
-            {% endif %}
-
-            {% if provider_profile.business_name %}
-            <h5 class="mb-1" style="color: #3D3D3D;">{{ provider_profile.business_name }}</h5>
-            <p class="text-muted small mb-2">{{ user.get_full_name }}</p>
-            {% else %}
-            <h5 class="mb-2" style="color: #3D3D3D;">{{ user.get_full_name }}</h5>
-            {% endif %}
-
-            <p class="text-muted mb-3">
-                {{ provider_profile.category.icon }} {{ provider_profile.category.name }}
-            </p>
-
-            <a href="{% url 'provider_profile_edit' %}" class="btn btn-primary w-100 mb-2">
-                <i class="fas fa-user-edit"></i> Editar Mi Perfil
-            </a>
-        </div>
-    </div>
-
-    {% if provider_profile.status == 'approved' %}
-    <!-- Balance Card -->
-    <div class="card mb-4 border-success">
-        <div class="card-header bg-success text-white">
-            <h5 class="mb-0"><i class="fas fa-wallet"></i> Saldo Disponible para Retirar</h5>
-        </div>
-        <div class="card-body text-center">
-            <div class="display-4 text-success mb-3">${{ active_balance|default:"0.00" }}</div>
-            <p class="text-muted mb-3">Dinero acumulado de servicios completados y pagados</p>
-            {% if active_balance > 0 %}
-            <a href="{% url 'provider_withdrawal_create' %}" class="btn btn-success btn-lg">
-                <i class="fas fa-hand-holding-usd"></i> Solicitar Retiro
-            </a>
-            <a href="{% url 'provider_withdrawal_list' %}" class="btn btn-outline-success">
-                <i class="fas fa-history"></i> Ver Mis Retiros
-            </a>
-            {% else %}
-            <p class="text-muted"><small>Completa servicios y recibe pagos para generar saldo</small></p>
-            {% endif %}
-        </div>
-    </div>
-    {% endif %}
-
-    <!-- Profile Stats -->
-    <div class="card mb-4">
-        <div class="card-header bg-light">
-            <h5 class="mb-0"><i class="fas fa-chart-line"></i> Mi Rendimiento</h5>
-        </div>
-        <div class="card-body text-center">
-            {% if rating_avg %}
-            <div class="mb-3">
-                <div class="display-4 text-warning">{{ rating_avg }}</div>
-                <div class="rating">
-                    {% for i in "12345" %}
-                    {% if forloop.counter <= rating_avg %} <i class="fas fa-star"></i>
-                        {% else %}
-                        <i class="far fa-star"></i>
-                        {% endif %}
-                        {% endfor %}
-                </div>
-                <p class="text-muted">{{ total_reviews }} reseñas</p>
-            </div>
-            {% else %}
-            <i class="fas fa-star fa-3x text-muted mb-3"></i>
-            <p class="text-muted">Aún no tienes reseñas</p>
-            {% endif %}
-            <hr>
-            <div class="row text-center">
-                <div class="col-6 mb-2">
-                    <h4 class="mb-0">{{ services|length }}</h4>
-                    <small class="text-muted">Servicios</small>
-                </div>
-                <div class="col-6 mb-2">
-                    <h4 class="mb-0">{{ completed_bookings }}</h4>
-                    <small class="text-muted">Trabajos</small>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Quick Actions -->
-    <div class="card mb-4">
-        <div class="card-header bg-light">
-            <h5 class="mb-0"><i class="fas fa-bolt"></i> Acciones Rápidas</h5>
-        </div>
-        <div class="card-body">
-            <div class="d-grid gap-2">
-                <a href="{% url 'service_create' %}" class="btn btn-primary">
-                    <i class="fas fa-plus"></i> Agregar Servicio
-                </a>
-                {% if provider_profile.status == 'approved' %}
-                <a href="{% url 'provider_locations_list' %}" class="btn btn-outline-primary">
-                    <i class="fas fa-map-marker-alt"></i> Mis Ubicaciones
-                </a>
-                <a href="{% url 'provider_settings_service_mode' %}" class="btn btn-outline-secondary">
-                    <i class="fas fa-cogs"></i> Modalidad de Atención
-                </a>
-                <a href="{% url 'bookings_list' %}" class="btn btn-outline-primary">
-                    <i class="fas fa-calendar-check"></i> Ver Reservas
-                </a>
-                <a href="{% url 'provider_coverage_manage' %}" class="btn btn-outline-info">
-                    <i class="fas fa-map-marked-alt"></i> Gestionar Cobertura
-                </a>
-                <a href="{% url 'provider_schedule_manage' %}" class="btn btn-outline-primary">
-                    <i class="fas fa-clock"></i> Gestionar Horarios
-                </a>
-                <a href="{% url 'provider_zone_costs_manage' %}" class="btn btn-outline-success">
-                    <i class="fas fa-dollar-sign"></i> Costos por Zona
-                </a>
-                <a href="{% url 'provider_unavailability_manage' %}" class="btn btn-outline-warning">
-                    <i class="fas fa-calendar-times"></i> Días de Inactividad
-                </a>
-                <a href="{% url 'provider_profile' provider_profile.slug %}" class="btn btn-outline-primary">
-                    <i class="fas fa-user"></i> Mi Perfil Público
-                </a>
-                <hr>
-                <a href="{% url 'provider_bank_accounts' %}" class="btn btn-outline-success">
-                    <i class="fas fa-university"></i> Mis Cuentas Bancarias
-                </a>
-                <a href="{% url 'provider_withdrawal_list' %}" class="btn btn-outline-info">
-                    <i class="fas fa-exchange-alt"></i> Mis Retiros
-                </a>
-                {% endif %}
-                <hr>
-                <form method="post" action="{% url 'provider_toggle_active' %}">
-                    {% csrf_token %}
-                    {% if provider_profile.is_active %}
-                    <button type="submit" class="btn btn-outline-danger w-100"
-                        onclick="return confirm('¿Desactivar tu perfil? No aparecerás en búsquedas.')">
-                        <i class="fas fa-pause-circle"></i> Desactivar Perfil
-                    </button>
                     {% else %}
-                    <button type="submit" class="btn btn-success w-100">
-                        <i class="fas fa-play-circle"></i> Activar Perfil
-                    </button>
+                    <i class="fas fa-star fa-3x text-muted mb-3"></i>
+                    <p class="text-muted">Aún no tienes reseñas</p>
                     {% endif %}
-                </form>
+                    <hr>
+                    <div class="row text-center">
+                        <div class="col-6 mb-2">
+                            <h4 class="mb-0">{{ services|length }}</h4>
+                            <small class="text-muted">Servicios</small>
+                        </div>
+                        <div class="col-6 mb-2">
+                            <h4 class="mb-0">{{ completed_bookings }}</h4>
+                            <small class="text-muted">Trabajos</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Quick Actions -->
+            <div class="card mb-4">
+                <div class="card-header bg-light">
+                    <h5 class="mb-0"><i class="fas fa-bolt"></i> Acciones Rápidas</h5>
+                </div>
+                <div class="card-body">
+                    <div class="d-grid gap-2">
+                        <a href="{% url 'service_create' %}" class="btn btn-primary">
+                            <i class="fas fa-plus"></i> Agregar Servicio
+                        </a>
+                        {% if provider_profile.status == 'approved' %}
+                        <a href="{% url 'provider_locations_list' %}" class="btn btn-outline-primary">
+                            <i class="fas fa-map-marker-alt"></i> Mis Ubicaciones
+                        </a>
+                        <a href="{% url 'provider_settings_service_mode' %}" class="btn btn-outline-secondary">
+                            <i class="fas fa-cogs"></i> Modalidad de Atención
+                        </a>
+                        <a href="{% url 'bookings_list' %}" class="btn btn-outline-primary">
+                            <i class="fas fa-calendar-check"></i> Ver Reservas
+                        </a>
+                        <a href="{% url 'provider_coverage_manage' %}" class="btn btn-outline-info">
+                            <i class="fas fa-map-marked-alt"></i> Gestionar Cobertura
+                        </a>
+                        <a href="{% url 'provider_schedule_manage' %}" class="btn btn-outline-primary">
+                            <i class="fas fa-clock"></i> Gestionar Horarios
+                        </a>
+                        <a href="{% url 'provider_zone_costs_manage' %}" class="btn btn-outline-success">
+                            <i class="fas fa-dollar-sign"></i> Costos por Zona
+                        </a>
+                        <a href="{% url 'provider_unavailability_manage' %}" class="btn btn-outline-warning">
+                            <i class="fas fa-calendar-times"></i> Días de Inactividad
+                        </a>
+                        <a href="{% url 'provider_profile' provider_profile.slug %}" class="btn btn-outline-primary">
+                            <i class="fas fa-user"></i> Mi Perfil Público
+                        </a>
+                        <hr>
+                        <a href="{% url 'provider_bank_accounts' %}" class="btn btn-outline-success">
+                            <i class="fas fa-university"></i> Mis Cuentas Bancarias
+                        </a>
+                        <a href="{% url 'provider_withdrawal_list' %}" class="btn btn-outline-info">
+                            <i class="fas fa-exchange-alt"></i> Mis Retiros
+                        </a>
+                        {% endif %}
+                        <hr>
+                        <form method="post" action="{% url 'provider_toggle_active' %}">
+                            {% csrf_token %}
+                            {% if provider_profile.is_active %}
+                            <button type="submit" class="btn btn-outline-danger w-100"
+                                onclick="return confirm('¿Desactivar tu perfil? No aparecerás en búsquedas.')">
+                                <i class="fas fa-pause-circle"></i> Desactivar Perfil
+                            </button>
+                            {% else %}
+                            <button type="submit" class="btn btn-success w-100">
+                                <i class="fas fa-play-circle"></i> Activar Perfil
+                            </button>
+                            {% endif %}
+                        </form>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Profile Status -->
+            {% if provider_profile.status == 'pending' %}
+            <div class="card border-warning mb-4">
+                <div class="card-body">
+                    <h5 class="text-warning"><i class="fas fa-exclamation-triangle"></i> Perfil en Revisión</h5>
+                    <p class="mb-0">Tu perfil está siendo verificado. Te notificaremos cuando sea aprobado.</p>
+                </div>
+            </div>
+            {% elif provider_profile.status == 'rejected' %}
+            <div class="card border-danger mb-4">
+                <div class="card-body">
+                    <h5 class="text-danger"><i class="fas fa-times-circle"></i> Perfil Rechazado</h5>
+                    <p class="mb-3">Tu perfil no fue aprobado. Por favor contacta a soporte.</p>
+                    <a href="mailto:support@liberi.ec" class="btn btn-danger">
+                        <i class="fas fa-envelope"></i> Contactar Soporte
+                    </a>
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Tips -->
+            <div class="card">
+                <div class="card-header bg-light">
+                    <h5 class="mb-0"><i class="fas fa-lightbulb"></i> Consejos</h5>
+                </div>
+                <div class="card-body">
+                    <ul class="list-unstyled mb-0">
+                        <li class="mb-2"><i class="fas fa-check text-success"></i> Responde rápido a las reservas</li>
+                        <li class="mb-2"><i class="fas fa-check text-success"></i> Mantén tus servicios actualizados</li>
+                        <li class="mb-2"><i class="fas fa-check text-success"></i> Sé puntual en tus citas</li>
+                        <li class="mb-2"><i class="fas fa-check text-success"></i> Ofrece un servicio de calidad</li>
+                        <li class="mb-0"><i class="fas fa-check text-success"></i> Pide a tus clientes que te reseñen</li>
+                    </ul>
+                </div>
             </div>
         </div>
     </div>
-
-    <!-- Profile Status -->
-    {% if provider_profile.status == 'pending' %}
-    <div class="card border-warning mb-4">
-        <div class="card-body">
-            <h5 class="text-warning"><i class="fas fa-exclamation-triangle"></i> Perfil en Revisión</h5>
-            <p class="mb-0">Tu perfil está siendo verificado. Te notificaremos cuando sea aprobado.</p>
-        </div>
-    </div>
-    {% elif provider_profile.status == 'rejected' %}
-    <div class="card border-danger mb-4">
-        <div class="card-body">
-            <h5 class="text-danger"><i class="fas fa-times-circle"></i> Perfil Rechazado</h5>
-            <p class="mb-3">Tu perfil no fue aprobado. Por favor contacta a soporte.</p>
-            <a href="mailto:support@liberi.ec" class="btn btn-danger">
-                <i class="fas fa-envelope"></i> Contactar Soporte
-            </a>
-        </div>
-    </div>
-    {% endif %}
-
-    <!-- Tips -->
-    <div class="card">
-        <div class="card-header bg-light">
-            <h5 class="mb-0"><i class="fas fa-lightbulb"></i> Consejos</h5>
-        </div>
-        <div class="card-body">
-            <ul class="list-unstyled mb-0">
-                <li class="mb-2"><i class="fas fa-check text-success"></i> Responde rápido a las reservas</li>
-                <li class="mb-2"><i class="fas fa-check text-success"></i> Mantén tus servicios actualizados</li>
-                <li class="mb-2"><i class="fas fa-check text-success"></i> Sé puntual en tus citas</li>
-                <li class="mb-2"><i class="fas fa-check text-success"></i> Ofrece un servicio de calidad</li>
-                <li class="mb-0"><i class="fas fa-check text-success"></i> Pide a tus clientes que te reseñen</li>
-            </ul>
-        </div>
-    </div>
-</div>
-</div>
 </div>
 
 <script>

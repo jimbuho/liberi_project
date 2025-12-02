@@ -10,7 +10,7 @@
             <div class="card bg-primary text-white">
                 <div class="card-body p-4">
                     <h2 class="mb-2">
-                        <i class="fas fa-home"></i> 
+                        <i class="fas fa-home"></i>
                         ¡Hola, {{ user.first_name|default:user.username }}!
                     </h2>
                     <p class="mb-0">Bienvenido a tu panel de control</p>
@@ -70,293 +70,322 @@
                             <i class="fas fa-calendar"></i> Reservas Recientes
                         </h5>
                         <a href="{% url 'bookings_list' %}" class="btn btn-sm btn-outline-primary">
-                            Ver Todas <i class="fas fa-arrow-right"></i>
+                            <i class="fas fa-arrow-right"></i>
                         </a>
                     </div>
                 </div>
                 <div class="card-body">
                     {% if recent_bookings %}
-                        {% for booking in recent_bookings %}
-                        <div class="card mb-3 {% if booking.is_past and booking.status != 'completed' %}border-warning{% elif booking.is_past %}bg-light{% endif %}">
-                            <div class="card-body">
-                                <div class="row">
-                                    <div class="col-md-8">
-                                        <div class="d-flex justify-content-between align-items-start mb-2">
-                                            <div>
-                                                <h6 class="mb-1">
-                                                    Reserva #{{ booking.booking_id }}
-                                                </h6>
-                                                <p class="text-muted mb-2">
-                                                    <i class="fas fa-calendar"></i> 
-                                                    {{ booking.scheduled_time|date:"d/m/Y H:i" }}
-                                                </p>
-                                                
-                                                <!-- Contador de tiempo -->
-                                                {% if not booking.is_past and booking.status == 'accepted' and booking.payment_status == 'paid' %}
-                                                    {% if booking.hours_until <= 24 %}
-                                                        <div class="alert alert-warning py-1 px-2 mb-2">
-                                                            <i class="fas fa-clock"></i> 
-                                                            <strong>¡Faltan {{ booking.hours_until }} hora{{ booking.hours_until|pluralize }} para tu cita!</strong>
+                    {% for booking in recent_bookings %}
+                    <div
+                        class="card mb-3 {% if booking.is_past and booking.status != 'completed' %}border-warning{% elif booking.is_past %}bg-light{% endif %}">
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col-md-8">
+                                    <div class="d-flex justify-content-between align-items-start mb-3">
+                                        <div class="flex-grow-1">
+                                            <h6 class="mb-2">Reserva #{{ booking.booking_id }}</h6>
+
+                                            <!-- Fechas en formato mejorado -->
+                                            <div class="row g-2 mb-2">
+                                                <div class="col-12">
+                                                    <div class="d-flex align-items-center">
+                                                        <div class="bg-primary bg-opacity-10 rounded p-2 me-2"
+                                                            style="min-width: 40px; text-align: center;">
+                                                            <i class="fas fa-calendar-check text-primary"></i>
                                                         </div>
-                                                    {% elif booking.days_until <= 7 %}
-                                                        <div class="alert alert-info py-1 px-2 mb-2">
-                                                            <i class="fas fa-calendar-day"></i> 
-                                                            <strong>Faltan {{ booking.days_until }} día{{ booking.days_until|pluralize }} para tu cita</strong>
+                                                        <div>
+                                                            <small class="text-muted d-block"
+                                                                style="font-size: 0.75rem;">Cita agendada para:</small>
+                                                            <strong class="text-primary">{{ booking.scheduled_time|date:"D d/m/Y" }} a las {{ booking.scheduled_time|date:"H:i" }}</strong>
                                                         </div>
-                                                    {% endif %}
-                                                {% elif booking.is_past and booking.status != 'completed' %}
-                                                    <div class="alert alert-danger py-1 px-2 mb-2">
-                                                        <i class="fas fa-exclamation-triangle"></i> 
-                                                        <strong>¡Atención! Esta reserva pasó y no está completada</strong>
                                                     </div>
-                                                {% endif %}
+                                                </div>
+                                                <div class="col-12">
+                                                    <div class="d-flex align-items-center">
+                                                        <div class="bg-secondary bg-opacity-10 rounded p-2 me-2"
+                                                            style="min-width: 40px; text-align: center;">
+                                                            <i class="fas fa-clock text-secondary"></i>
+                                                        </div>
+                                                        <div>
+                                                            <small class="text-muted d-block"
+                                                                style="font-size: 0.75rem;">Reserva creada:</small>
+                                                            <span class="text-secondary">{{booking.created_at|date:"d/m/Y H:i" }}</span>
+                                                        </div>
+                                                    </div>
+                                                </div>
                                             </div>
-                                            <div class="text-end">
-                                                <span class="badge bg-{% if booking.status == 'pending' %}warning{% elif booking.status == 'accepted' %}info{% elif booking.status == 'completed' %}success{% elif booking.status == 'cancelled' %}danger{% else %}secondary{% endif %} fs-6">
-                                                    {{ booking.get_status_display }}
-                                                </span>
-                                                {% if booking.payment_status == 'paid' %}
-                                                <span class="badge bg-success fs-6 mt-1 d-block">
-                                                    <i class="fas fa-check-circle"></i> Pagado
-                                                </span>
-                                                {% endif %}
-                                            </div>
+
+                                            <!-- Contador de tiempo -->
+                                            {% if not booking.is_past and booking.status == 'accepted' and booking.payment_status == 'paid' %}
+                                            {% if booking.hours_until <= 24 %} <div
+                                                class="alert alert-warning py-1 px-2 mb-2">
+                                                <i class="fas fa-bell"></i>
+                                                <strong>¡Faltan {{ booking.hours_until }} hora{{booking.hours_until|pluralize }} para tu cita!</strong>
                                         </div>
-
-                                        <p class="mb-1">
-                                            <strong>Proveedor:</strong> 
-                                            {% if booking.provider.provider_profile.business_name %}
-                                                <strong>{{ booking.provider.provider_profile.business_name }}</strong>
-                                                <br><small>{{ booking.provider.get_full_name }}</small>
-                                            {% else %}
-                                                {{ booking.provider.get_full_name }}
-                                            {% endif %}
-                                        </p>
-                                        <p class="mb-1">
-                                            <strong>Teléfono:</strong> {{ booking.provider_phone }}
-                                        </p>
-
-                                        <p class="mb-1">
-                                            <strong>Servicios:</strong>
-                                            {% for service in booking.service_list %}
-                                                {{ service.name }}{% if not forloop.last %}, {% endif %}
-                                            {% endfor %}
-                                        </p>
-
-                                        {% if booking.location %}
-                                        <p class="mb-1">
-                                            <strong>Ubicación:</strong> {{ booking.location.address|truncatewords:10 }}
-                                        </p>
-                                        {% endif %}
+                                        {% elif booking.days_until <= 7 %} <div class="alert alert-info py-1 px-2 mb-2">
+                                            <i class="fas fa-calendar-day"></i>
+                                            <strong>Faltan {{ booking.days_until }} día{{ booking.days_until|pluralize}} para tu cita</strong>
                                     </div>
-
-                                    <div class="col-md-4 text-end">
-                                        <h5 class="text-primary mb-3">${{ booking.total_cost }}</h5>
-                                        
-                                        <div class="mb-2">
-                                            <span class="badge bg-{% if booking.payment_status == 'paid' %}success{% elif booking.payment_status == 'pending' %}warning{% else %}secondary{% endif %}">
-                                                <i class="fas fa-credit-card"></i> {{ booking.get_payment_status_display }}
-                                            </span>
-                                        </div>
-
-                                        <div class="d-grid gap-2">
-                                            <a href="{% url 'booking_detail' booking.id %}" class="btn btn-outline-primary btn-sm">
-                                                <i class="fas fa-eye"></i> Ver Detalles
-                                            </a>
-
-                                            {% if booking.status == 'completed' and not booking.review %}
-                                                <a href="{% url 'review_create' booking.id %}" class="btn btn-warning btn-sm">
-                                                    <i class="fas fa-star"></i> Dejar Reseña
-                                                </a>
-                                            {% endif %}
-
-                                            {% if booking.payment_status == 'pending' and booking.status == 'accepted' %}
-                                                <a href="{% url 'payment_process' booking.id %}" class="btn btn-primary btn-sm">
-                                                    <i class="fas fa-credit-card"></i> Pagar Ahora
-                                                </a>
-                                            {% endif %}
-                                        </div>
+                                    {% endif %}
+                                    {% elif booking.is_past and booking.status != 'completed' %}
+                                    <div class="alert alert-danger py-1 px-2 mb-2">
+                                        <i class="fas fa-exclamation-triangle"></i>
+                                        <strong>¡Atención! Esta reserva pasó y no está completada</strong>
                                     </div>
+                                    {% endif %}
+                                </div>
+                                <div class="text-end">
+                                    <span
+                                        class="badge bg-{% if booking.status == 'pending' %}warning{% elif booking.status == 'accepted' %}info{% elif booking.status == 'completed' %}success{% elif booking.status == 'cancelled' %}danger{% else %}secondary{% endif %} fs-6">
+                                        {{ booking.get_status_display }}
+                                    </span>
+                                    {% if booking.payment_status == 'paid' %}
+                                    <span class="badge bg-success fs-6 mt-1 d-block">
+                                        <i class="fas fa-check-circle"></i> Pagado
+                                    </span>
+                                    {% endif %}
                                 </div>
                             </div>
-                        </div>
-                        {% endfor %}
-                    {% else %}
-                        <div class="text-center py-4">
-                            <i class="fas fa-inbox fa-3x text-muted mb-3"></i>
-                            <p class="text-muted">No tienes reservas aún</p>
-                            <a href="{% url 'services_list' %}" class="btn btn-primary">
-                                <i class="fas fa-search"></i> Buscar Servicios
-                            </a>
-                        </div>
-                    {% endif %}
-                </div>
-            </div>
 
-            <!-- Pending Reviews -->
-            {% if pending_reviews %}
-            <div class="card mb-4">
-                <div class="card-header bg-warning text-dark">
-                    <h5 class="mb-0">
-                        <i class="fas fa-star"></i> Servicios Pendientes de Reseña
-                    </h5>
-                </div>
-                <div class="card-body">
-                    {% for booking in pending_reviews %}
-                    <div class="d-flex justify-content-between align-items-center mb-3 pb-3 {% if not forloop.last %}border-bottom{% endif %}">
-                        <div>
-                            <h6 class="mb-1">{{ booking.provider.get_full_name }}</h6>
-                            <p class="text-muted mb-0">
-                                <small>{{ booking.scheduled_time|date:"d/m/Y" }}</small>
+                            <hr class="my-2">
+
+                            <p class="mb-1">
+                                <strong>Proveedor:</strong>
+                                {% if booking.provider.provider_profile.business_name %}
+                                <strong>{{ booking.provider.provider_profile.business_name }}</strong>
+                                <br><small>{{ booking.provider.get_full_name }}</small>
+                                {% else %}
+                                {{ booking.provider.get_full_name }}
+                                {% endif %}
                             </p>
-                        </div>
-                        <a href="{% url 'review_create' booking.id %}" class="btn btn-warning">
-                            <i class="fas fa-star"></i> Dejar Reseña
-                        </a>
-                    </div>
-                    {% endfor %}
-                </div>
-            </div>
-            {% endif %}
+                            <p class="mb-1">
+                                <strong>Teléfono:</strong> {{ booking.provider_phone }}
+                            </p>
 
-            <!-- Favorite Providers (if any) -->
-            {% if favorite_providers %}
-            <div class="card">
-                <div class="card-header bg-light">
-                    <h5 class="mb-0">
-                        <i class="fas fa-heart"></i> Proveedores Favoritos
-                    </h5>
-                </div>
-                <div class="card-body">
-                    <div class="row">
-                        {% for provider in favorite_providers %}
-                        <div class="col-md-6 mb-3">
-                            <div class="card">
-                                <div class="card-body">
-                                    <h6>{{ provider.get_full_name }}</h6>
-                                    <p class="text-muted mb-2">
-                                        <small>{{ provider.provider_profile.category.name }}</small>
-                                    </p>
-                                    <div class="rating mb-2">
-                                        {% for i in "12345" %}
-                                            <i class="fas fa-star text-warning"></i>
-                                        {% endfor %}
-                                    </div>
-                                    <a href="{% url 'provider_profile' provider.provider_profile.slug %}" class="btn btn-sm btn-outline-primary">
-                                        Ver Perfil
-                                    </a>
-                                </div>
+                            <p class="mb-1">
+                                <strong>Servicios:</strong>
+                                {% for service in booking.service_list %}
+                                {{ service.name }}{% if not forloop.last %}, {% endif %}
+                                {% endfor %}
+                            </p>
+
+                            {% if booking.location %}
+                            <p class="mb-1">
+                                <strong>Ubicación:</strong> {{ booking.location.address|truncatewords:10 }}
+                            </p>
+                            {% endif %}
+                        </div>
+
+                        <div class="col-md-4 text-end">
+                            <h5 class="text-primary mb-3">${{ booking.total_cost }}</h5>
+
+                            <div class="mb-2">
+                                <span
+                                    class="badge bg-{% if booking.payment_status == 'paid' %}success{% elif booking.payment_status == 'pending' %}warning{% else %}secondary{% endif %}">
+                                    <i class="fas fa-credit-card"></i> {{ booking.get_payment_status_display }}
+                                </span>
+                            </div>
+
+                            <div class="d-grid gap-2">
+                                <a href="{% url 'booking_detail' booking.id %}" class="btn btn-outline-primary btn-sm">
+                                    <i class="fas fa-eye"></i> Ver Detalles
+                                </a>
+
+                                {% if booking.status == 'completed' and not booking.review %}
+                                <a href="{% url 'review_create' booking.id %}" class="btn btn-warning btn-sm">
+                                    <i class="fas fa-star"></i> Dejar Reseña
+                                </a>
+                                {% endif %}
+
+                                {% if booking.payment_status == 'pending' and booking.status == 'accepted' %}
+                                <a href="{% url 'payment_process' booking.id %}" class="btn btn-primary btn-sm">
+                                    <i class="fas fa-credit-card"></i> Pagar Ahora
+                                </a>
+                                {% endif %}
                             </div>
                         </div>
-                        {% endfor %}
                     </div>
                 </div>
+            </div>
+            {% endfor %}
+            {% else %}
+            <div class="text-center py-4">
+                <i class="fas fa-inbox fa-3x text-muted mb-3"></i>
+                <p class="text-muted">No tienes reservas aún</p>
+                <a href="{% url 'services_list' %}" class="btn btn-primary">
+                    <i class="fas fa-search"></i> Buscar Servicios
+                </a>
             </div>
             {% endif %}
         </div>
+    </div>
 
-        <!-- Sidebar -->
-        <div class="col-md-4">
-            <!-- Quick Actions -->
-            <div class="card mb-4">
-                <div class="card-header bg-light">
-                    <h5 class="mb-0">
-                        <i class="fas fa-bolt"></i> Acciones Rápidas
-                    </h5>
+    <!-- Pending Reviews -->
+    {% if pending_reviews %}
+    <div class="card mb-4">
+        <div class="card-header bg-warning text-dark">
+            <h5 class="mb-0">
+                <i class="fas fa-star"></i> Servicios Pendientes de Reseña
+            </h5>
+        </div>
+        <div class="card-body">
+            {% for booking in pending_reviews %}
+            <div
+                class="d-flex justify-content-between align-items-center mb-3 pb-3 {% if not forloop.last %}border-bottom{% endif %}">
+                <div>
+                    <h6 class="mb-1">{{ booking.provider.get_full_name }}</h6>
+                    <p class="text-muted mb-0">
+                        <small>{{ booking.scheduled_time|date:"d/m/Y" }}</small>
+                    </p>
                 </div>
-                <div class="card-body">
-                    <div class="d-grid gap-2">
-                        <a href="{% url 'services_list' %}" class="btn btn-primary">
-                            <i class="fas fa-search"></i> Buscar Servicios
-                        </a>
-                        <a href="{% url 'bookings_list' %}" class="btn btn-outline-primary">
-                            <i class="fas fa-calendar-check"></i> Mis Reservas
-                        </a>
-                        <a href="{% url 'location_create' %}" class="btn btn-outline-primary">
-                            <i class="fas fa-map-marker-alt"></i> Agregar Ubicación
-                        </a>
-                    </div>
-                </div>
+                <a href="{% url 'review_create' booking.id %}" class="btn btn-warning">
+                    <i class="fas fa-star"></i> Dejar Reseña
+                </a>
             </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
 
-            <!-- My Locations -->
-            <div class="card mb-4">
-                <div class="card-header bg-light">
-                    <div class="d-flex justify-content-between align-items-center">
-                        <h5 class="mb-0">
-                            <i class="fas fa-map-marker-alt"></i> Mis Ubicaciones
-                        </h5>
-                        <a href="{% url 'location_create' %}" class="btn btn-sm btn-outline-primary">
-                            <i class="fas fa-plus"></i>
-                        </a>
-                    </div>
-                </div>
-                <div class="card-body">
-                    {% if locations %}
-                        {% for location in locations %}
-                        <div class="mb-3 pb-3 {% if not forloop.last %}border-bottom{% endif %}">
-                            <div class="d-flex justify-content-between align-items-start">
-                                <div>
-                                    <h6 class="mb-1">
-                                        <i class="fas fa-home"></i> {{ location.label|title }}
-                                    </h6>
-                                    <p class="text-muted mb-0">
-                                        <small>{{ location.address|truncatewords:8 }}</small>
-                                    </p>
-                                </div>
-                                <button class="btn btn-sm btn-outline-danger" 
-                                        onclick="deleteLocation({{ location.id }})">
-                                    <i class="fas fa-trash"></i>
-                                </button>
+    <!-- Favorite Providers (if any) -->
+    {% if favorite_providers %}
+    <div class="card">
+        <div class="card-header bg-light">
+            <h5 class="mb-0">
+                <i class="fas fa-heart"></i> Proveedores Favoritos
+            </h5>
+        </div>
+        <div class="card-body">
+            <div class="row">
+                {% for provider in favorite_providers %}
+                <div class="col-md-6 mb-3">
+                    <div class="card">
+                        <div class="card-body">
+                            <h6>{{ provider.get_full_name }}</h6>
+                            <p class="text-muted mb-2">
+                                <small>{{ provider.provider_profile.category.name }}</small>
+                            </p>
+                            <div class="rating mb-2">
+                                {% for i in "12345" %}
+                                <i class="fas fa-star text-warning"></i>
+                                {% endfor %}
                             </div>
+                            <a href="{% url 'provider_profile' provider.provider_profile.slug %}"
+                                class="btn btn-sm btn-outline-primary">
+                                Ver Perfil
+                            </a>
                         </div>
-                        {% endfor %}
-                    {% else %}
-                        <p class="text-muted text-center">No tienes ubicaciones guardadas</p>
-                        <a href="{% url 'location_create' %}" class="btn btn-sm btn-primary w-100">
-                            <i class="fas fa-plus"></i> Agregar Ubicación
-                        </a>
-                    {% endif %}
+                    </div>
                 </div>
-            </div>
-
-            <!-- Categories -->
-            <div class="card">
-                <div class="card-header bg-light">
-                    <h5 class="mb-0">
-                        <i class="fas fa-th"></i> Categorías
-                    </h5>
-                </div>
-                <div class="card-body">
-                    {% for category in categories %}
-                    <a href="{% url 'services_list' %}?category={{ category.id }}" 
-                       class="btn btn-outline-primary w-100 mb-2 text-start">
-                        {{ category.icon }} {{ category.name }}
-                    </a>
-                    {% endfor %}
-                </div>
+                {% endfor %}
             </div>
         </div>
     </div>
+    {% endif %}
+</div>
+
+<!-- Sidebar -->
+<div class="col-md-4">
+    <!-- Quick Actions -->
+    <div class="card mb-4">
+        <div class="card-header bg-light">
+            <h5 class="mb-0">
+                <i class="fas fa-bolt"></i> Acciones Rápidas
+            </h5>
+        </div>
+        <div class="card-body">
+            <div class="d-grid gap-2">
+                <a href="{% url 'services_list' %}" class="btn btn-primary">
+                    <i class="fas fa-search"></i> Buscar Servicios
+                </a>
+                <a href="{% url 'bookings_list' %}" class="btn btn-outline-primary">
+                    <i class="fas fa-calendar-check"></i> Mis Reservas
+                </a>
+                <a href="{% url 'location_create' %}" class="btn btn-outline-primary">
+                    <i class="fas fa-map-marker-alt"></i> Agregar Ubicación
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- My Locations -->
+    <div class="card mb-4">
+        <div class="card-header bg-light">
+            <div class="d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">
+                    <i class="fas fa-map-marker-alt"></i> Mis Ubicaciones
+                </h5>
+                <a href="{% url 'location_create' %}" class="btn btn-sm btn-outline-primary">
+                    <i class="fas fa-plus"></i>
+                </a>
+            </div>
+        </div>
+        <div class="card-body">
+            {% if locations %}
+            {% for location in locations %}
+            <div class="mb-3 pb-3 {% if not forloop.last %}border-bottom{% endif %}">
+                <div class="d-flex justify-content-between align-items-start">
+                    <div>
+                        <h6 class="mb-1">
+                            <i class="fas fa-home"></i> {{ location.label|title }}
+                        </h6>
+                        <p class="text-muted mb-0">
+                            <small>{{ location.address|truncatewords:8 }}</small>
+                        </p>
+                    </div>
+                    <button class="btn btn-sm btn-outline-danger" onclick="deleteLocation({{ location.id }})">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </div>
+            </div>
+            {% endfor %}
+            {% else %}
+            <p class="text-muted text-center">No tienes ubicaciones guardadas</p>
+            <a href="{% url 'location_create' %}" class="btn btn-sm btn-primary w-100">
+                <i class="fas fa-plus"></i> Agregar Ubicación
+            </a>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Categories -->
+    <div class="card">
+        <div class="card-header bg-light">
+            <h5 class="mb-0">
+                <i class="fas fa-th"></i> Categorías
+            </h5>
+        </div>
+        <div class="card-body">
+            {% for category in categories %}
+            <a href="{% url 'services_list' %}?category={{ category.id }}"
+                class="btn btn-outline-primary w-100 mb-2 text-start">
+                {{ category.icon }} {{ category.name }}
+            </a>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+</div>
 </div>
 
 <script>
-function deleteLocation(locationId) {
-    if (confirm('¿Estás seguro de eliminar esta ubicación?')) {
-        fetch(`/api/locations/${locationId}/`, {
-            method: 'DELETE',
-            headers: {
-                'X-CSRFToken': '{{ csrf_token }}',
-                'Authorization': 'Bearer ' + localStorage.getItem('token')
-            }
-        }).then(response => {
-            if (response.ok) {
-                location.reload();
-            } else {
-                alert('Error al eliminar la ubicación');
-            }
-        });
+    function deleteLocation(locationId) {
+        if (confirm('¿Estás seguro de eliminar esta ubicación?')) {
+            fetch(`/api/locations/${locationId}/`, {
+                method: 'DELETE',
+                headers: {
+                    'X-CSRFToken': '{{ csrf_token }}',
+                    'Authorization': 'Bearer ' + localStorage.getItem('token')
+                }
+            }).then(response => {
+                if (response.ok) {
+                    location.reload();
+                } else {
+                    alert('Error al eliminar la ubicación');
+                }
+            });
+        }
     }
-}
 </script>
 {% endblock %}

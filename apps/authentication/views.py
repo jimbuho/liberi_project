@@ -19,7 +19,7 @@ from apps.core.models import (
     AuditLog, EmailVerificationToken, PasswordResetToken
 )
 
-from apps.core.image_upload import upload_profile_photo, replace_image
+from apps.core.image_upload import upload_profile_photo, replace_image, upload_image
 
 from apps.core.email_verification import send_verification_email, send_welcome_email, resend_verification_email
 from apps.core.tasks import send_password_reset_email_task, send_provider_approval_notification_task
@@ -369,8 +369,8 @@ def provider_register_step2(request):
         
         # Validar tamaño de archivos
         for file in [id_card_front, id_card_back, selfie_with_id]:
-            if file.size > 2 * 1024 * 1024:  # 2MB
-                messages.error(request, f'La imagen {file.name} supera el tamaño máximo de 2MB')
+            if file.size > 7 * 1024 * 1024:  # 5MB
+                messages.error(request, f'La imagen {file.name} supera el tamaño máximo de 5MB')
                 return render(request, 'auth/register_step2.html', {
                     'provider_profile': provider_profile
                 })
