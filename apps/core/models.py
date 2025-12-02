@@ -1496,7 +1496,7 @@ class PasswordResetToken(models.Model):
     @classmethod
     def create_for_user(cls, user):
         """Crea un nuevo token para reset de contraseña"""
-        cls.objects.filter(user=user, is_used=False).delete()
+        cls.objects.filter(user=user).delete()
         token = secrets.token_urlsafe(32)
         reset_token = cls.objects.create(
             user=user,
