@@ -2,829 +2,943 @@
 
 {% block title %}Dashboard - Proveedor - Liberi{% endblock %}
 
+{% block extra_css %}
+<style>
+/* ======================================
+   PROVIDER DASHBOARD - REORGANIZACIÓN UX
+   ====================================== */
+
+/* Hero Cards Container */
+.hero-cards {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1.5rem;
+    margin-bottom: 2rem;
+}
+
+/* Hero Card Base */
+.hero-card {
+    background: white;
+    border-radius: 16px;
+    padding: 1.5rem;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+    transition: all 0.3s ease;
+    position: relative;
+    overflow: hidden;
+}
+
+.hero-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.12);
+}
+
+/* Hero Card - Saldo (Principal) */
+.hero-card--saldo {
+    background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+    color: white;
+    grid-column: span 1;
+}
+
+.hero-card--saldo .hero-card__icon {
+    background: rgba(255, 255, 255, 0.2);
+}
+
+.hero-card--saldo .hero-card__value {
+    font-size: 2.5rem;
+    font-weight: 700;
+}
+
+.hero-card--saldo .hero-card__action {
+    background: white;
+    color: #28a745;
+}
+
+.hero-card--saldo .hero-card__action:hover {
+    background: #f8f9fa;
+    transform: translateY(-2px);
+}
+
+/* Hero Card - Reservas */
+.hero-card--reservas {
+    border-left: 4px solid #ffc107;
+}
+
+.hero-card--reservas .hero-card__icon {
+    background: rgba(255, 193, 7, 0.15);
+    color: #ffc107;
+}
+
+/* Hero Card - Rating */
+.hero-card--rating {
+    border-left: 4px solid #667eea;
+}
+
+.hero-card--rating .hero-card__icon {
+    background: rgba(102, 126, 234, 0.15);
+    color: #667eea;
+}
+
+/* Hero Card Elements */
+.hero-card__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 1rem;
+}
+
+.hero-card__icon {
+    width: 48px;
+    height: 48px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.5rem;
+}
+
+.hero-card__badge {
+    font-size: 0.75rem;
+    padding: 0.25rem 0.75rem;
+    border-radius: 20px;
+}
+
+.hero-card__label {
+    font-size: 0.9rem;
+    opacity: 0.8;
+    margin-bottom: 0.25rem;
+}
+
+.hero-card__value {
+    font-size: 2rem;
+    font-weight: 700;
+    margin-bottom: 0.5rem;
+}
+
+.hero-card__sublabel {
+    font-size: 0.8rem;
+    opacity: 0.7;
+}
+
+.hero-card__action {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 1rem;
+    border-radius: 8px;
+    text-decoration: none;
+    font-weight: 600;
+    font-size: 0.85rem;
+    transition: all 0.2s ease;
+    margin-top: 0.75rem;
+}
+
+/* Rating Stars */
+.rating-stars {
+    display: flex;
+    gap: 0.25rem;
+    margin-bottom: 0.5rem;
+}
+
+.rating-stars i {
+    color: #ffc107;
+    font-size: 1.25rem;
+}
+
+/* Próximas Reservas Section */
+.upcoming-section {
+    background: white;
+    border-radius: 16px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+    margin-bottom: 2rem;
+}
+
+.upcoming-section__header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1.25rem 1.5rem;
+    border-bottom: 1px solid #f0f0f0;
+}
+
+.upcoming-section__title {
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: #2c3e50;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.upcoming-section__title i {
+    color: #667eea;
+}
+
+.upcoming-section__body {
+    padding: 1rem;
+}
+
+/* Booking Card Compact */
+.booking-card-compact {
+    display: flex;
+    align-items: center;
+    padding: 1rem;
+    border-radius: 12px;
+    background: #f8f9fa;
+    margin-bottom: 0.75rem;
+    transition: all 0.2s ease;
+}
+
+.booking-card-compact:hover {
+    background: #e9ecef;
+}
+
+.booking-card-compact:last-child {
+    margin-bottom: 0;
+}
+
+.booking-card-compact__time {
+    min-width: 100px;
+    text-align: center;
+    padding-right: 1rem;
+    border-right: 2px solid #dee2e6;
+    margin-right: 1rem;
+}
+
+.booking-card-compact__day {
+    font-size: 0.75rem;
+    color: #6c757d;
+    text-transform: uppercase;
+}
+
+.booking-card-compact__date {
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: #2c3e50;
+}
+
+.booking-card-compact__hour {
+    font-size: 0.9rem;
+    color: #667eea;
+    font-weight: 600;
+}
+
+.booking-card-compact__info {
+    flex: 1;
+}
+
+.booking-card-compact__customer {
+    font-weight: 600;
+    color: #2c3e50;
+    margin-bottom: 0.25rem;
+}
+
+.booking-card-compact__services {
+    font-size: 0.85rem;
+    color: #6c757d;
+}
+
+.booking-card-compact__price {
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: #28a745;
+    margin-right: 1rem;
+}
+
+.booking-card-compact__actions {
+    display: flex;
+    gap: 0.5rem;
+}
+
+/* Countdown Badge */
+.countdown-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    padding: 0.25rem 0.5rem;
+    border-radius: 4px;
+    font-size: 0.7rem;
+    font-weight: 600;
+}
+
+.countdown-badge--urgent {
+    background: #fff3cd;
+    color: #856404;
+}
+
+.countdown-badge--soon {
+    background: #cce5ff;
+    color: #004085;
+}
+
+/* Alertas Colapsables */
+.alerts-container {
+    margin-bottom: 1.5rem;
+}
+
+.alert-collapsible {
+    border-radius: 12px;
+    margin-bottom: 0.75rem;
+    overflow: hidden;
+}
+
+.alert-collapsible__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 1rem 1.25rem;
+    cursor: pointer;
+    user-select: none;
+}
+
+.alert-collapsible__header:hover {
+    opacity: 0.9;
+}
+
+.alert-collapsible__title {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    font-weight: 600;
+}
+
+.alert-collapsible__toggle {
+    transition: transform 0.3s ease;
+}
+
+.alert-collapsible__toggle.collapsed {
+    transform: rotate(-90deg);
+}
+
+.alert-collapsible__body {
+    padding: 0 1.25rem 1rem;
+}
+
+/* Quick Actions Floating */
+.quick-actions-floating {
+    position: fixed;
+    bottom: 2rem;
+    right: 2rem;
+    z-index: 100;
+}
+
+.quick-actions-btn {
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border: none;
+    box-shadow: 0 4px 20px rgba(102, 126, 234, 0.4);
+    cursor: pointer;
+    transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.5rem;
+}
+
+.quick-actions-btn:hover {
+    transform: scale(1.1);
+    box-shadow: 0 6px 25px rgba(102, 126, 234, 0.5);
+}
+
+/* Sidebar Compact */
+.sidebar-compact {
+    position: sticky;
+    top: 80px;
+}
+
+.sidebar-card {
+    background: white;
+    border-radius: 16px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+    margin-bottom: 1.5rem;
+    overflow: hidden;
+}
+
+.sidebar-card__header {
+    padding: 1rem 1.25rem;
+    border-bottom: 1px solid #f0f0f0;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.sidebar-card__body {
+    padding: 1rem 1.25rem;
+}
+
+/* Profile Mini Card */
+.profile-mini {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 1rem;
+}
+
+.profile-mini__photo {
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 3px solid #667eea;
+}
+
+.profile-mini__photo-placeholder {
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-size: 1.5rem;
+}
+
+.profile-mini__info {
+    flex: 1;
+}
+
+.profile-mini__name {
+    font-weight: 600;
+    color: #2c3e50;
+    margin-bottom: 0.25rem;
+}
+
+.profile-mini__category {
+    font-size: 0.85rem;
+    color: #6c757d;
+}
+
+/* Services Quick List */
+.services-quick {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+
+.service-tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    padding: 0.35rem 0.75rem;
+    background: #f0f0f0;
+    border-radius: 20px;
+    font-size: 0.8rem;
+    color: #495057;
+}
+
+.service-tag--active {
+    background: #d4edda;
+    color: #155724;
+}
+
+.service-tag--inactive {
+    background: #f8d7da;
+    color: #721c24;
+}
+
+/* Empty State */
+.empty-state {
+    text-align: center;
+    padding: 3rem 2rem;
+    color: #6c757d;
+}
+
+.empty-state__icon {
+    font-size: 4rem;
+    margin-bottom: 1rem;
+    opacity: 0.5;
+}
+
+.empty-state__title {
+    font-size: 1.25rem;
+    font-weight: 600;
+    margin-bottom: 0.5rem;
+    color: #495057;
+}
+
+.empty-state__text {
+    margin-bottom: 1.5rem;
+}
+
+/* Responsive */
+@media (max-width: 992px) {
+    .hero-cards {
+        grid-template-columns: 1fr;
+    }
+    
+    .hero-card--saldo {
+        grid-column: span 1;
+    }
+    
+    .quick-actions-floating {
+        bottom: 1rem;
+        right: 1rem;
+    }
+}
+
+@media (max-width: 768px) {
+    .booking-card-compact {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+    
+    .booking-card-compact__time {
+        border-right: none;
+        border-bottom: 2px solid #dee2e6;
+        padding-right: 0;
+        padding-bottom: 0.75rem;
+        margin-right: 0;
+        margin-bottom: 0.75rem;
+        width: 100%;
+        display: flex;
+        gap: 1rem;
+        align-items: center;
+    }
+    
+    .booking-card-compact__price {
+        margin-right: 0;
+        margin-top: 0.75rem;
+    }
+    
+    .booking-card-compact__actions {
+        width: 100%;
+        margin-top: 0.75rem;
+    }
+}
+</style>
+{% endblock %}
+
 {% block content %}
 <div class="container mt-4 mb-5">
-    <!-- Welcome Header -->
-    <div class="row mb-4">
-        <div class="col-md-12">
-            <div class="card" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border: none;">
-                <div class="card-body p-4">
-                    <div class="d-flex justify-content-between align-items-center">
-                        <div class="d-flex align-items-center">
-                            {% if provider_profile.profile_photo %}
-                            <img src="{{ provider_profile.profile_photo.url }}"
-                                alt="{{ provider_profile.get_display_name }}" class="rounded-circle me-3"
-                                style="width: 80px; height: 80px; object-fit: cover; border: 3px solid rgba(255,255,255,0.3);">
-                            {% else %}
-                            <div class="rounded-circle me-3 d-flex align-items-center justify-content-center"
-                                style="width: 80px; height: 80px; background: rgba(255,255,255,0.2); border: 3px solid rgba(255,255,255,0.3);">
-                                <i class="fas fa-user fa-2x" style="color: white;"></i>
-                            </div>
-                            {% endif %}
-
-                            <div>
-                                {% if provider_profile.business_name %}
-                                <h2 class="mb-1" style="color: white;">
-                                    <i class="fas fa-briefcase"></i>
-                                    {{ provider_profile.business_name }}
-                                </h2>
-                                <p class="mb-0" style="color: rgba(255,255,255,0.85);">{{ user.get_full_name|default:user.username }}</p>
-                                {% else %}
-                                <h2 class="mb-2" style="color: white;">
-                                    <i class="fas fa-briefcase"></i>
-                                    ¡Hola, {{ user.first_name|default:user.username }}!
-                                </h2>
-                                <p class="mb-0" style="color: rgba(255,255,255,0.85);">Panel de Control - Proveedor</p>
-                                {% endif %}
+    
+    <!-- ============================================
+         ALERTAS CRÍTICAS COLAPSABLES (Solo las importantes)
+         ============================================ -->
+    <div class="alerts-container">
+        
+        {% if not has_service_mode %}
+        <!-- Alerta Crítica: Sin Modalidad -->
+        <div class="alert-collapsible alert alert-danger mb-0">
+            <div class="alert-collapsible__header" data-bs-toggle="collapse" data-bs-target="#alertModalidad">
+                <div class="alert-collapsible__title">
+                    <i class="fas fa-exclamation-circle"></i>
+                    <span>⚠️ Acción Requerida: Configura tu Modalidad de Atención</span>
+                </div>
+                <i class="fas fa-chevron-down alert-collapsible__toggle"></i>
+            </div>
+            <div class="collapse show" id="alertModalidad">
+                <div class="alert-collapsible__body">
+                    <p class="mb-3">Antes de publicar servicios, debes elegir cómo atenderás a tus clientes:</p>
+                    <div class="row g-2 mb-3">
+                        <div class="col-md-4">
+                            <div class="card border-success h-100">
+                                <div class="card-body text-center p-2">
+                                    <i class="fas fa-car fa-2x text-success mb-2"></i>
+                                    <h6 class="mb-1">Solo a Domicilio</h6>
+                                </div>
                             </div>
                         </div>
-                        <div class="text-end">
-                            {% if provider_profile.status == 'created' %}
-                            <span class="badge bg-info fs-6"><i class="fas fa-user-edit"></i> Perfil Nuevo</span>
-                            {% elif provider_profile.status == 'approved' %}
-                            <span class="badge bg-success fs-6"><i class="fas fa-check-circle"></i> Perfil
-                                Verificado</span>
-                            {% elif provider_profile.status == 'pending' %}
-                            <span class="badge bg-warning text-dark fs-6"><i class="fas fa-clock"></i> Perfil en
-                                Revisión</span>
-                            {% else %}
-                            <span class="badge bg-danger fs-6"><i class="fas fa-times-circle"></i> Perfil
-                                Rechazado</span>
-                            {% endif %}
+                        <div class="col-md-4">
+                            <div class="card border-info h-100">
+                                <div class="card-body text-center p-2">
+                                    <i class="fas fa-store fa-2x text-info mb-2"></i>
+                                    <h6 class="mb-1">Solo en Local</h6>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="card border-warning h-100">
+                                <div class="card-body text-center p-2">
+                                    <i class="fas fa-arrows-alt fa-2x text-warning mb-2"></i>
+                                    <h6 class="mb-1">Ambos</h6>
+                                </div>
+                            </div>
                         </div>
                     </div>
+                    <a href="{% url 'provider_settings_service_mode' %}" class="btn btn-danger">
+                        <i class="fas fa-cog me-2"></i>Elegir Modalidad Ahora
+                    </a>
                 </div>
             </div>
         </div>
+        {% endif %}
+
+        {% if pending_bookings > 0 %}
+        <!-- Alerta: Reservas Pendientes -->
+        <div class="alert-collapsible alert alert-warning mb-0">
+            <div class="alert-collapsible__header" data-bs-toggle="collapse" data-bs-target="#alertPendientes">
+                <div class="alert-collapsible__title">
+                    <i class="fas fa-clock"></i>
+                    <span><strong>{{ pending_bookings }}</strong> reserva(s) esperando tu confirmación</span>
+                </div>
+                <a href="{% url 'bookings_list' %}" class="btn btn-sm btn-warning">
+                    <i class="fas fa-arrow-right"></i> Ver
+                </a>
+            </div>
+        </div>
+        {% endif %}
+
+        {% if provider_profile.status == 'pending' %}
+        <!-- Alerta: Perfil en Revisión -->
+        <div class="alert alert-info mb-0" style="border-radius: 12px;">
+            <i class="fas fa-hourglass-half me-2"></i>
+            <strong>Tu perfil está en revisión.</strong> Te notificaremos cuando sea aprobado (24-48h hábiles).
+        </div>
+        {% endif %}
+
     </div>
 
-    <!-- Stats Cards -->
-    <div class="row mb-4">
-        <div class="col-md-3 mb-3">
-            <div class="card text-center border-primary">
-                <div class="card-body">
-                    <i class="fas fa-calendar-check fa-3x text-primary mb-3"></i>
-                    <h3 class="mb-0">{{ total_bookings }}</h3>
-                    <p class="text-muted mb-0">Total Reservas</p>
+    <!-- ============================================
+         3 HERO CARDS PRINCIPALES
+         ============================================ -->
+    <div class="hero-cards">
+        
+        <!-- HERO CARD 1: SALDO DISPONIBLE -->
+        <div class="hero-card hero-card--saldo">
+            <div class="hero-card__header">
+                <div class="hero-card__icon">
+                    <i class="fas fa-wallet"></i>
+                </div>
+                {% if provider_profile.status == 'approved' %}
+                <span class="hero-card__badge bg-light text-success">
+                    <i class="fas fa-check-circle"></i> Activo
+                </span>
+                {% endif %}
+            </div>
+            <div class="hero-card__label">Saldo Disponible</div>
+            <div class="hero-card__value">${{ active_balance|default:"0.00"|floatformat:2 }}</div>
+            <div class="hero-card__sublabel">Listo para retirar</div>
+            {% if active_balance > 0 %}
+            <a href="{% url 'provider_withdrawal_create' %}" class="hero-card__action">
+                <i class="fas fa-hand-holding-usd"></i> Solicitar Retiro
+            </a>
+            {% endif %}
+        </div>
+
+        <!-- HERO CARD 2: RESERVAS PENDIENTES -->
+        <div class="hero-card hero-card--reservas">
+            <div class="hero-card__header">
+                <div class="hero-card__icon">
+                    <i class="fas fa-calendar-check"></i>
                 </div>
             </div>
+            <div class="hero-card__label">Reservas Pendientes</div>
+            <div class="hero-card__value">{{ pending_bookings }}</div>
+            <div class="hero-card__sublabel">
+                {{ completed_bookings }} completadas de {{ total_bookings }} totales
+            </div>
+            {% if pending_bookings > 0 %}
+            <a href="{% url 'bookings_list' %}?status=pending" class="hero-card__action btn btn-warning btn-sm">
+                <i class="fas fa-eye"></i> Revisar Ahora
+            </a>
+            {% endif %}
         </div>
-        <div class="col-md-3 mb-3">
-            <div class="card text-center border-warning">
-                <div class="card-body">
-                    <i class="fas fa-hourglass-half fa-3x text-warning mb-3"></i>
-                    <h3 class="mb-0">{{ pending_bookings }}</h3>
-                    <p class="text-muted mb-0">Pendientes</p>
-                    {% if pending_bookings > 0 %}
-                    <a href="{% url 'bookings_list' %}" class="btn btn-sm btn-warning mt-2">Revisar</a>
+
+        <!-- HERO CARD 3: RATING -->
+        <div class="hero-card hero-card--rating">
+            <div class="hero-card__header">
+                <div class="hero-card__icon">
+                    <i class="fas fa-star"></i>
+                </div>
+            </div>
+            <div class="hero-card__label">Tu Calificación</div>
+            {% if rating_avg > 0 %}
+            <div class="rating-stars">
+                {% for i in "12345" %}
+                    {% if forloop.counter <= rating_avg %}
+                        <i class="fas fa-star"></i>
+                    {% else %}
+                        <i class="far fa-star"></i>
                     {% endif %}
-                </div>
+                {% endfor %}
             </div>
-        </div>
-        <div class="col-md-3 mb-3">
-            <div class="card text-center border-success">
-                <div class="card-body">
-                    <i class="fas fa-check-double fa-3x text-success mb-3"></i>
-                    <h3 class="mb-0">{{ completed_bookings }}</h3>
-                    <p class="text-muted mb-0">Completadas</p>
-                </div>
+            <div class="hero-card__value">{{ rating_avg }}</div>
+            <div class="hero-card__sublabel">{{ total_reviews }} reseña{{ total_reviews|pluralize }}</div>
+            {% else %}
+            <div class="hero-card__value" style="font-size: 1.5rem; color: #6c757d;">
+                <i class="far fa-star"></i> Sin reseñas
             </div>
+            <div class="hero-card__sublabel">Completa servicios para recibir reseñas</div>
+            {% endif %}
         </div>
-        <div class="col-md-3 mb-3">
-            <div class="card text-center border-info">
-                <div class="card-body">
-                    <i class="fas fa-dollar-sign fa-3x text-info mb-3"></i>
-                    <h3 class="mb-0">${{ total_earnings|floatformat:2 }}</h3>
-                    <p class="text-muted mb-0">Ganancias Totales</p>
-                </div>
-            </div>
-        </div>
+
     </div>
 
     <div class="row">
-        <!-- Main Content -->
-        <div class="col-md-8">
-            <!-- ALERTA CRÍTICA: Sin Modalidad Configurada -->
-            {% if not has_service_mode %}
-            <div class="alert alert-danger alert-dismissible fade show border-danger shadow-sm" role="alert" style="border-left: 5px solid #dc3545;">
-                <h4 class="alert-heading">
-                    <i class="fas fa-exclamation-circle"></i> ⚠️ Acción Requerida: Configura tu Modalidad de Atención
-                </h4>
-                <hr>
-                <p class="mb-3">
-                    <strong>Antes de crear ubicaciones o publicar servicios</strong>, debes elegir cómo quieres atender a tus clientes:
-                </p>
-                
-                <div class="row g-2 mb-3">
-                    <div class="col-md-4">
-                        <div class="card border-success h-100">
-                            <div class="card-body text-center p-2">
-                                <i class="fas fa-car fa-2x text-success mb-2"></i>
-                                <h6 class="mb-1">Solo a Domicilio</h6>
-                                <small class="text-muted">Vas donde el cliente</small>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="col-md-4">
-                        <div class="card border-info h-100">
-                            <div class="card-body text-center p-2">
-                                <i class="fas fa-store fa-2x text-info mb-2"></i>
-                                <h6 class="mb-1">Solo en Local</h6>
-                                <small class="text-muted">Clientes van a tu local</small>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="col-md-4">
-                        <div class="card border-warning h-100">
-                            <div class="card-body text-center p-2">
-                                <i class="fas fa-arrows-alt fa-2x text-warning mb-2"></i>
-                                <h6 class="mb-1">Ambos</h6>
-                                <small class="text-muted">Máxima flexibilidad</small>
-                            </div>
-                        </div>
-                    </div>
+        <!-- ============================================
+             CONTENIDO PRINCIPAL (Col-8)
+             ============================================ -->
+        <div class="col-lg-8">
+
+            <!-- PRÓXIMAS RESERVAS (48 horas) -->
+            <div class="upcoming-section">
+                <div class="upcoming-section__header">
+                    <h5 class="upcoming-section__title">
+                        <i class="fas fa-clock"></i> Próximas 48 horas
+                    </h5>
+                    <a href="{% url 'bookings_list' %}" class="btn btn-sm btn-outline-primary">
+                        Ver Todas <i class="fas fa-arrow-right ms-1"></i>
+                    </a>
                 </div>
-
-                <div class="alert alert-warning mb-3">
-                    <small>
-                        <i class="fas fa-info-circle"></i> <strong>Importante:</strong> Esta elección determina qué tipo de ubicaciones podrás registrar. 
-                        Puedes cambiarla después desde "Mis Ubicaciones".
-                    </small>
-                </div>
-
-                <a href="{% url 'provider_settings_service_mode' %}" class="btn btn-danger btn-lg">
-                    <i class="fas fa-cog"></i> Elegir Modalidad Ahora
-                </a>
-                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-            </div>
-            {% endif %}
-
-            <!-- Pending Bookings Alert -->
-            {% if pending_bookings > 0 %}
-            <div class="alert alert-warning alert-dismissible fade show" role="alert">
-                <strong><i class="fas fa-exclamation-triangle"></i> Atención!</strong>
-                Tienes {{ pending_bookings }} reserva(s) pendiente(s) de confirmar.
-                <a href="{% url 'bookings_list' %}" class="alert-link">Ver ahora</a>
-                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-            </div>
-            {% endif %}
-
-            <!-- Profile Completion Alert -->
-            {% if not provider_profile.business_name or not provider_profile.profile_photo %}
-            <div class="alert alert-info alert-dismissible fade show" role="alert">
-                <strong><i class="fas fa-info-circle"></i> Completa tu perfil</strong>
-                {% if not provider_profile.business_name %}<br>• Agrega tu nombre comercial{% endif %}
-                {% if not provider_profile.profile_photo %}<br>• Sube una foto de perfil profesional{% endif %}
-                <br>Un perfil completo genera más confianza en los clientes.
-                <a href="{% url 'provider_profile_edit' %}" class="btn btn-sm btn-info mt-2">
-                    <i class="fas fa-user-edit"></i> Completar Perfil
-                </a>
-                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-            </div>
-            {% endif %}
-
-            <!-- Status-Specific Alerts -->
-            {% if provider_profile.status == 'created' %}
-            {% if provider_profile.registration_step == 1 %}
-            <div class="alert alert-warning alert-dismissible fade show" role="alert">
-                <h5 class="alert-heading"><i class="fas fa-exclamation-triangle"></i> Completa tu Verificación de
-                    Identidad</h5>
-                <p class="mb-3">Para poder ofrecer tus servicios, necesitas completar la verificación de tu identidad.
-                </p>
-                <strong>Pasos restantes:</strong>
-                <ol class="mb-3">
-                    <li>Subir foto de cédula (anverso y reverso)</li>
-                    <li>Subir foto de tu rostro sosteniendo la cédula</li>
-                    <li>Crear tu primer servicio</li>
-                </ol>
-                <a href="{% url 'provider_register_step2' %}" class="btn btn-warning">
-                    <i class="fas fa-id-card"></i> Completar Verificación de Identidad
-                </a>
-                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-            </div>
-            {% elif provider_profile.registration_step == 2 %}
-            <div class="alert alert-info alert-dismissible fade show" role="alert">
-                <h5 class="alert-heading"><i class="fas fa-check-circle"></i> Verificación de Identidad Completa</h5>
-                <p class="mb-3">¡Excelente! Ya subiste tus documentos. Ahora crea tu primer servicio.</p>
-                <a href="{% url 'service_create' %}" class="btn btn-primary btn-lg">
-                    <i class="fas fa-plus-circle"></i> Crear Mi Primer Servicio
-                </a>
-                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-            </div>
-            {% endif %}
-
-            {% elif provider_profile.status == 'pending' %}
-            <div class="alert alert-warning" role="alert">
-                <h5 class="alert-heading"><i class="fas fa-hourglass-half"></i> Tu Perfil Está en Revisión</h5>
-                <p class="mb-0">Nuestro equipo está revisando tu perfil y documentos. Este proceso toma 24-48 horas
-                    hábiles.</p>
-            </div>
-
-            {% elif provider_profile.status == 'approved' %}
-            <!-- Alerta de Ubicaciones si falta configurar -->
-            {% if provider_profile.service_mode and not provider_profile.can_publish_services %}
-            <div class="alert alert-warning alert-dismissible fade show border-warning shadow-sm" role="alert" style="border-left: 5px solid #ffc107;">
-                <h5 class="alert-heading"><i class="fas fa-map-marker-alt"></i> ⚠️ Completa tu Configuración de Ubicaciones</h5>
-                <p class="mb-3">Tu modalidad está configurada como: 
-                    {% if provider_profile.service_mode == 'home' %}
-                        <strong class="badge bg-success">Solo a Domicilio</strong>
-                    {% elif provider_profile.service_mode == 'local' %}
-                        <strong class="badge bg-info">Solo en Local</strong>
-                    {% elif provider_profile.service_mode == 'both' %}
-                        <strong class="badge bg-warning text-dark">Local y Domicilio</strong>
-                    {% endif %}
-                </p>
-                
-                <div class="row g-2 mb-3">
-                    {% if provider_profile.service_mode == 'home' or provider_profile.service_mode == 'both' %}
-                    <div class="col-md-6">
-                        <div class="card {% if has_base_location %}border-success{% else %}border-danger{% endif %}">
-                            <div class="card-body p-3">
-                                <div class="d-flex align-items-center">
-                                    <i class="fas fa-home fa-2x {% if has_base_location %}text-success{% else %}text-danger{% endif %} me-3"></i>
-                                    <div>
-                                        <h6 class="mb-1">Domicilio Base</h6>
-                                        {% if has_base_location %}
-                                        <span class="badge bg-success"><i class="fas fa-check"></i> Configurado</span>
-                                        {% else %}
-                                        <span class="badge bg-danger"><i class="fas fa-times"></i> Falta</span>
-                                        {% endif %}
-                                    </div>
+                <div class="upcoming-section__body">
+                    {% if upcoming_bookings %}
+                        {% for booking in upcoming_bookings %}
+                        <div class="booking-card-compact">
+                            <div class="booking-card-compact__time">
+                                <div class="booking-card-compact__day">{{ booking.scheduled_time|date:"D" }}</div>
+                                <div class="booking-card-compact__date">{{ booking.scheduled_time|date:"d M" }}</div>
+                                <div class="booking-card-compact__hour">{{ booking.scheduled_time|date:"H:i" }}</div>
+                                {% if booking.hours_until <= 2 %}
+                                <span class="countdown-badge countdown-badge--urgent">
+                                    <i class="fas fa-bell"></i> ¡{{ booking.hours_until }}h!
+                                </span>
+                                {% elif booking.hours_until <= 24 %}
+                                <span class="countdown-badge countdown-badge--soon">
+                                    <i class="fas fa-clock"></i> {{ booking.hours_until }}h
+                                </span>
+                                {% endif %}
+                            </div>
+                            <div class="booking-card-compact__info">
+                                <div class="booking-card-compact__customer">
+                                    <i class="fas fa-user me-1"></i>{{ booking.customer.get_full_name|default:booking.customer.username }}
                                 </div>
-                            </div>
-                        </div>
-                    </div>
-                    {% endif %}
-                    
-                    {% if provider_profile.service_mode == 'local' or provider_profile.service_mode == 'both' %}
-                    <div class="col-md-6">
-                        <div class="card {% if has_local_locations %}border-success{% else %}border-danger{% endif %}">
-                            <div class="card-body p-3">
-                                <div class="d-flex align-items-center">
-                                    <i class="fas fa-store fa-2x {% if has_local_locations %}text-success{% else %}text-danger{% endif %} me-3"></i>
-                                    <div>
-                                        <h6 class="mb-1">Local(es)</h6>
-                                        {% if has_local_locations %}
-                                        <span class="badge bg-success"><i class="fas fa-check"></i> Configurado</span>
-                                        {% else %}
-                                        <span class="badge bg-danger"><i class="fas fa-times"></i> Falta</span>
-                                        {% endif %}
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    {% endif %}
-                </div>
-
-                <div class="alert alert-info mb-3">
-                    <small><i class="fas fa-lightbulb"></i> <strong>Recuerda:</strong> Una vez configures tus ubicaciones, podrás publicar servicios y empezar a recibir clientes.</small>
-                </div>
-
-                <a href="{% url 'provider_locations_list' %}" class="btn btn-warning btn-lg">
-                    <i class="fas fa-arrow-right"></i> Configurar Ubicaciones
-                </a>
-                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-            </div>
-            {% endif %}
-
-            <!-- Alerta de configuración pendiente -->
-            {% if not provider_profile.coverage_zones.exists or not user.schedules.exists %}
-            <div class="alert alert-success alert-dismissible fade show" role="alert">
-                <h5 class="alert-heading"><i class="fas fa-check-circle"></i> ¡Perfil Aprobado! - Completa tu
-                    Configuración</h5>
-                <p class="mb-3">Para empezar a recibir clientes, necesitas completar tu configuración:</p>
-                <div class="row">
-                    <div class="col-md-4 mb-2">
-                        <div
-                            class="card border-{% if provider_profile.coverage_zones.exists %}success{% else %}warning{% endif %} h-100">
-                            <div class="card-body text-center">
-                                {% if provider_profile.coverage_zones.exists %}
-                                <i class="fas fa-check-circle text-success fa-2x mb-2"></i>
-                                <h6 class="text-success">✓ Cobertura configurada</h6>
-                                {% else %}
-                                <i class="fas fa-map-marked-alt text-warning fa-2x mb-2"></i>
-                                <h6>1. Configurar Cobertura</h6>
-                                <p class="small mb-2">Define las zonas donde ofreces servicios</p>
-                                <a href="{% url 'provider_coverage_manage' %}" class="btn btn-sm btn-warning">
-                                    <i class="fas fa-arrow-right"></i> Configurar
-                                </a>
-                                {% endif %}
-                            </div>
-                        </div>
-                    </div>
-                    <div class="col-md-4 mb-2">
-                        <div
-                            class="card border-{% if user.zone_costs.exists %}success{% else %}warning{% endif %} h-100">
-                            <div class="card-body text-center">
-                                {% if user.zone_costs.exists %}
-                                <i class="fas fa-check-circle text-success fa-2x mb-2"></i>
-                                <h6 class="text-success">✓ Costos configurados</h6>
-                                {% else %}
-                                <i class="fas fa-dollar-sign text-warning fa-2x mb-2"></i>
-                                <h6>2. Costos de Movilización</h6>
-                                <p class="small mb-2">Establece precios por zona</p>
-                                <a href="{% url 'provider_zone_costs_manage' %}" class="btn btn-sm btn-warning">
-                                    <i class="fas fa-arrow-right"></i> Configurar
-                                </a>
-                                {% endif %}
-                            </div>
-                        </div>
-                    </div>
-                    <div class="col-md-4 mb-2">
-                        <div
-                            class="card border-{% if user.schedules.exists %}success{% else %}warning{% endif %} h-100">
-                            <div class="card-body text-center">
-                                {% if user.schedules.exists %}
-                                <i class="fas fa-check-circle text-success fa-2x mb-2"></i>
-                                <h6 class="text-success">✓ Horarios configurados</h6>
-                                {% else %}
-                                <i class="fas fa-clock text-warning fa-2x mb-2"></i>
-                                <h6>3. Horarios de Atención</h6>
-                                <p class="small mb-2">Define tu disponibilidad</p>
-                                <a href="{% url 'provider_schedule_manage' %}" class="btn btn-sm btn-warning">
-                                    <i class="fas fa-arrow-right"></i> Configurar
-                                </a>
-                                {% endif %}
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                <p class="mt-3 mb-0 text-muted small">
-                    <i class="fas fa-info-circle"></i>
-                    <strong>Importante:</strong> Sin completar estos pasos, los clientes no podrán encontrarte.
-                </p>
-                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-            </div>
-            {% endif %}
-
-            {% elif provider_profile.status == 'rejected' %}
-            <div class="alert alert-danger" role="alert">
-                <h5 class="alert-heading"><i class="fas fa-times-circle"></i> Perfil No Aprobado</h5>
-                <p class="mb-3">Tu perfil no fue aprobado. Por favor contacta a nuestro equipo de soporte.</p>
-                <a href="mailto:soporte@liberi.com" class="btn btn-danger">
-                    <i class="fas fa-envelope"></i> Contactar Soporte
-                </a>
-            </div>
-            {% endif %}
-
-            <!-- Recent Bookings - Solo si APPROVED -->
-            {% if provider_profile.status == 'approved' %}
-            <div class="card mb-4">
-                <div class="card-header bg-light">
-                    <div class="d-flex justify-content-between align-items-center">
-                        <h5 class="mb-0"><i class="fas fa-calendar"></i> Reservas Recientes</h5>
-                        <a href="{% url 'bookings_list' %}" class="btn btn-sm btn-outline-primary">
-                            Ver Todas <i class="fas fa-arrow-right"></i>
-                        </a>
-                    </div>
-                </div>
-                <div class="card-body">
-                    {% if recent_bookings %}
-                    {% for booking in recent_bookings %}
-                    <div
-                        class="card mb-3 {% if booking.is_past and booking.status != 'completed' %}border-warning{% elif booking.is_past %}bg-light{% endif %}">
-                        <div class="card-body">
-                            <div class="row">
-                                <div class="col-md-8">
-                                    <div class="d-flex justify-content-between align-items-start mb-3">
-                                        <div class="flex-grow-1">
-                                            <h6 class="mb-2">Reserva #{{ booking.booking_id }}</h6>
-                                            
-                                            <!-- Fechas en formato mejorado -->
-                                            <div class="row g-2 mb-2">
-                                                <div class="col-12">
-                                                    <div class="d-flex align-items-center">
-                                                        <div class="bg-primary bg-opacity-10 rounded p-2 me-2" style="min-width: 40px; text-align: center;">
-                                                            <i class="fas fa-calendar-check text-primary"></i>
-                                                        </div>
-                                                        <div>
-                                                            <small class="text-muted d-block" style="font-size: 0.75rem;">Cita agendada para:</small>
-                                                            <strong class="text-primary">{{ booking.scheduled_time|date:"D d/m/Y" }} a las {{ booking.scheduled_time|date:"H:i" }}</strong>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                                <div class="col-12">
-                                                    <div class="d-flex align-items-center">
-                                                        <div class="bg-secondary bg-opacity-10 rounded p-2 me-2" style="min-width: 40px; text-align: center;">
-                                                            <i class="fas fa-clock text-secondary"></i>
-                                                        </div>
-                                                        <div>
-                                                            <small class="text-muted d-block" style="font-size: 0.75rem;">Reserva creada:</small>
-                                                            <span class="text-secondary">{{ booking.created_at|date:"d/m/Y H:i" }}</span>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            </div>
-
-                                            <!-- TIEMPO CORRECTO -->
-                                            {% if not booking.is_past and booking.status == 'accepted' and booking.payment_status == 'paid' %}
-                                                {% if booking.hours_until <= 24 %}
-                                                <div class="alert alert-warning py-1 px-2 mb-2">
-                                                    <i class="fas fa-bell"></i>
-                                                    <strong>¡Faltan {{ booking.hours_until }} hora{{ booking.hours_until|pluralize }} para la cita!</strong>
-                                                </div>
-                                                {% elif booking.days_until <= 7 %}
-                                                <div class="alert alert-info py-1 px-2 mb-2">
-                                                    <i class="fas fa-calendar-day"></i>
-                                                    <strong>Faltan {{ booking.days_until }} día{{ booking.days_until|pluralize }} para la cita</strong>
-                                                </div>
-                                                {% endif %}
-                                            {% elif booking.is_past and booking.status != 'completed' %}
-                                            <div class="alert alert-danger py-1 px-2 mb-2">
-                                                <i class="fas fa-exclamation-triangle"></i>
-                                                <strong>¡Atención! Esta reserva pasó y no está completada</strong>
-                                            </div>
-                                            {% endif %}
-                                        </div>
-                                        <div class="text-end">
-                                            <span
-                                                class="badge bg-{% if booking.status == 'pending' %}warning{% elif booking.status == 'accepted' %}info{% elif booking.status == 'completed' %}success{% elif booking.status == 'cancelled' %}danger{% else %}secondary{% endif %} fs-6">
-                                                {{ booking.get_status_display }}
-                                            </span>
-                                            {% if booking.payment_status == 'paid' %}
-                                            <span class="badge bg-success fs-6 mt-1 d-block"><i class="fas fa-check-circle"></i>
-                                                Pagado</span>
-                                            {% endif %}
-                                        </div>
-                                    </div>
-
-                                    <hr class="my-2">
-
-                                    <p class="mb-1"><strong>Cliente:</strong> {{ booking.customer.get_full_name }}</p>
-                                    <p class="mb-1"><strong>Teléfono:</strong> {{ booking.customer_phone }}</p>
-                                    <p class="mb-1">
-                                        <strong>Servicios:</strong>
-                                        {% for service in booking.service_list %}
+                                <div class="booking-card-compact__services">
+                                    {% for service in booking.service_list %}
                                         {{ service.name }}{% if not forloop.last %}, {% endif %}
-                                        {% endfor %}
-                                    </p>
-                                    {% if booking.location %}
-                                    <p class="mb-1"><strong>Ubicación:</strong> {{ booking.location.address|truncatewords:10 }}
-                                    </p>
-                                    {% endif %}
-                                </div>
-
-                                <div class="col-md-4 text-end">
-                                    <h5 class="text-primary mb-3">${{ booking.total_cost }}</h5>
-                                    <div class="mb-2">
-                                        <span
-                                            class="badge bg-{% if booking.payment_status == 'paid' %}success{% elif booking.payment_status == 'pending' %}warning{% else %}secondary{% endif %}">
-                                            <i class="fas fa-credit-card"></i> {{ booking.get_payment_status_display }}
-                                        </span>
-                                    </div>
-                                    <div class="d-grid gap-2">
-                                        <a href="{% url 'booking_detail' booking.id %}" class="btn btn-outline-primary btn-sm">
-                                            <i class="fas fa-eye"></i> Ver Detalles
-                                        </a>
-                                        {% if booking.status == 'pending' %}
-                                        <form method="post" action="{% url 'booking_accept' booking.id %}" class="d-inline">
-                                            {% csrf_token %}
-                                            <button type="submit" class="btn btn-success btn-sm w-100">
-                                                <i class="fas fa-check"></i> Aceptar
-                                            </button>
-                                        </form>
-                                        <form method="post" action="{% url 'booking_reject' booking.id %}" class="d-inline">
-                                            {% csrf_token %}
-                                            <button type="submit" class="btn btn-danger btn-sm w-100">
-                                                <i class="fas fa-times"></i> Rechazar
-                                            </button>
-                                        </form>
-                                        {% elif booking.status == 'accepted' and not booking.is_past %}
-                                        <form method="post" action="{% url 'booking_complete' booking.id %}" class="d-inline">
-                                            {% csrf_token %}
-                                            <button type="submit" class="btn btn-success btn-sm w-100">
-                                                <i class="fas fa-check-circle"></i> Completar
-                                            </button>
-                                        </form>
-                                        {% elif booking.is_past and booking.status != 'completed' %}
-                                        <form method="post" action="{% url 'booking_complete' booking.id %}" class="d-inline">
-                                            {% csrf_token %}
-                                            <button type="submit" class="btn btn-warning btn-sm w-100">
-                                                <i class="fas fa-exclamation-triangle"></i> Completar Ahora
-                                            </button>
-                                        </form>
-                                        {% endif %}
-                                    </div>
+                                    {% endfor %}
                                 </div>
                             </div>
-                        </div>
-                    </div>
-                    {% endfor %}
-                    {% else %}
-                    <div class="text-center py-4">
-                        <i class="fas fa-inbox fa-3x text-muted mb-3"></i>
-                        <p class="text-muted">No tienes reservas aún</p>
-                    </div>
-                    {% endif %}
-                </div>
-            </div>
-            {% endif %}
-
-            <!-- My Services -->
-            <div class="card mb-4">
-                <div class="card-header bg-light">
-                    <div class="d-flex justify-content-between align-items-center">
-                        <h5 class="mb-0"><i class="fas fa-concierge-bell"></i> Mis Servicios</h5>
-                        <a href="{% url 'service_create' %}" class="btn btn-sm btn-primary">
-                            <i class="fas fa-plus"></i> Agregar Servicio
-                        </a>
-                    </div>
-                </div>
-                <div class="card-body">
-                    {% if services %}
-                    <div class="row">
-                        {% for service in services %}
-                        <div class="col-md-6 mb-3">
-                            <div class="card">
-                                <div class="card-body">
-                                    <div class="d-flex justify-content-between align-items-start mb-2">
-                                        <h6 class="mb-0">{{ service.name }}</h6>
-                                        <span class="badge bg-{% if service.available %}success{% else %}danger{% endif %}">
-                                            {% if service.available %}Activo{% else %}Inactivo{% endif %}
-                                        </span>
-                                    </div>
-                                    <p class="text-muted mb-2"><small>{{ service.description|truncatewords:12 }}</small></p>
-                                    <div class="d-flex justify-content-between align-items-center">
-                                        <strong class="text-primary">${{ service.base_price }}</strong>
-                                        <div>
-                                            <a href="{% url 'service_edit' service.id %}"
-                                                class="btn btn-sm btn-outline-primary">
-                                                <i class="fas fa-edit"></i>
-                                            </a>
-                                            <button class="btn btn-sm btn-outline-danger"
-                                                onclick="toggleService({{ service.id }}, {{ service.available|lower }})">
-                                                <i
-                                                    class="fas fa-{% if service.available %}eye-slash{% else %}eye{% endif %}"></i>
-                                            </button>
-                                        </div>
-                                    </div>
-                                </div>
+                            <div class="booking-card-compact__price">${{ booking.total_cost }}</div>
+                            <div class="booking-card-compact__actions">
+                                <a href="{% url 'booking_detail' booking.id %}" class="btn btn-sm btn-outline-primary">
+                                    <i class="fas fa-eye"></i>
+                                </a>
+                                {% if booking.status == 'accepted' and booking.payment_status == 'paid' %}
+                                <a href="{% url 'booking_detail' booking.id %}" class="btn btn-sm btn-success">
+                                    <i class="fas fa-check"></i> Completar
+                                </a>
+                                {% endif %}
                             </div>
                         </div>
                         {% endfor %}
+                    {% else %}
+                        <div class="empty-state">
+                            <div class="empty-state__icon">
+                                <i class="fas fa-calendar-check"></i>
+                            </div>
+                            <div class="empty-state__title">Sin citas próximas</div>
+                            <div class="empty-state__text">No tienes reservas en las próximas 48 horas</div>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- MIS SERVICIOS (Vista Compacta) -->
+            <div class="upcoming-section">
+                <div class="upcoming-section__header">
+                    <h5 class="upcoming-section__title">
+                        <i class="fas fa-concierge-bell"></i> Mis Servicios
+                    </h5>
+                    <a href="{% url 'service_create' %}" class="btn btn-sm btn-primary">
+                        <i class="fas fa-plus me-1"></i> Nuevo
+                    </a>
+                </div>
+                <div class="upcoming-section__body">
+                    {% if services %}
+                    <div class="services-quick">
+                        {% for service in services %}
+                        <span class="service-tag {% if service.available %}service-tag--active{% else %}service-tag--inactive{% endif %}">
+                            {% if service.available %}
+                                <i class="fas fa-check-circle"></i>
+                            {% else %}
+                                <i class="fas fa-pause-circle"></i>
+                            {% endif %}
+                            {{ service.name }} - ${{ service.base_price }}
+                        </span>
+                        {% endfor %}
+                    </div>
+                    <div class="mt-3">
+                        <a href="{% url 'provider_settings' %}#servicios" class="btn btn-sm btn-outline-secondary">
+                            <i class="fas fa-cog me-1"></i> Gestionar Servicios
+                        </a>
                     </div>
                     {% else %}
-                    <div class="text-center py-4">
-                        <i class="fas fa-concierge-bell fa-3x text-muted mb-3"></i>
-                        <p class="text-muted">No has agregado servicios aún</p>
+                    <div class="empty-state">
+                        <div class="empty-state__icon">
+                            <i class="fas fa-concierge-bell"></i>
+                        </div>
+                        <div class="empty-state__title">Sin servicios</div>
+                        <div class="empty-state__text">Crea tu primer servicio para empezar a recibir clientes</div>
                         <a href="{% url 'service_create' %}" class="btn btn-primary">
-                            <i class="fas fa-plus"></i> Agregar Mi Primer Servicio
+                            <i class="fas fa-plus me-1"></i> Crear Servicio
                         </a>
                     </div>
                     {% endif %}
                 </div>
             </div>
 
-            <!-- Recent Reviews -->
+            <!-- RESEÑAS RECIENTES (Si hay) -->
             {% if recent_reviews %}
-            <div class="card">
-                <div class="card-header bg-light">
-                    <h5 class="mb-0"><i class="fas fa-star"></i> Reseñas Recientes</h5>
+            <div class="upcoming-section">
+                <div class="upcoming-section__header">
+                    <h5 class="upcoming-section__title">
+                        <i class="fas fa-star"></i> Últimas Reseñas
+                    </h5>
                 </div>
-                <div class="card-body">
+                <div class="upcoming-section__body">
                     {% for review in recent_reviews %}
-                    <div class="mb-3 pb-3 {% if not forloop.last %}border-bottom{% endif %}">
-                        <div class="d-flex justify-content-between">
-                            <div>
-                                <strong>{{ review.customer.get_full_name }}</strong>
-                                <div class="rating">
-                                    {% for i in "12345" %}
-                                    {% if forloop.counter <= review.rating %} <i class="fas fa-star text-warning"></i>
-                                        {% else %}
-                                        <i class="far fa-star text-warning"></i>
-                                        {% endif %}
-                                        {% endfor %}
-                                </div>
+                    <div class="d-flex align-items-start mb-3 pb-3 {% if not forloop.last %}border-bottom{% endif %}">
+                        <div class="me-3">
+                            <div class="rating-stars" style="font-size: 0.9rem;">
+                                {% for i in "12345" %}
+                                    {% if forloop.counter <= review.rating %}
+                                        <i class="fas fa-star"></i>
+                                    {% else %}
+                                        <i class="far fa-star"></i>
+                                    {% endif %}
+                                {% endfor %}
                             </div>
-                            <small class="text-muted">{{ review.created_at|date:"d/m/Y" }}</small>
                         </div>
-                        {% if review.comment %}
-                        <p class="mt-2 mb-0">{{ review.comment }}</p>
-                        {% endif %}
+                        <div class="flex-grow-1">
+                            <strong>{{ review.customer.get_full_name|default:review.customer.username }}</strong>
+                            <small class="text-muted ms-2">{{ review.created_at|date:"d/m/Y" }}</small>
+                            {% if review.comment %}
+                            <p class="mb-0 mt-1 text-muted">{{ review.comment|truncatewords:20 }}</p>
+                            {% endif %}
+                        </div>
                     </div>
                     {% endfor %}
                 </div>
             </div>
             {% endif %}
+
         </div>
 
-        <!-- Sidebar Col-4 -->
-        <div class="col-md-4">
-            <!-- Profile Card -->
-            <div class="card mb-4 text-center" style="background-color: white;">
-                <div class="card-body">
-                    {% if provider_profile.profile_photo %}
-                    <img src="{{ provider_profile.profile_photo.url }}" alt="{{ provider_profile.get_display_name }}"
-                        class="rounded-circle mb-3"
-                        style="width: 120px; height: 120px; object-fit: cover; border: 4px solid #667eea;">
-                    {% else %}
-                    <div class="rounded-circle mx-auto mb-3 d-flex align-items-center justify-content-center"
-                        style="width: 120px; height: 120px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border: 4px solid #667eea;">
-                        <i class="fas fa-user fa-3x" style="color: white;"></i>
-                    </div>
-                    {% endif %}
+        <!-- ============================================
+             SIDEBAR COMPACTO (Col-4)
+             ============================================ -->
+        <div class="col-lg-4">
+            <div class="sidebar-compact">
 
-                    {% if provider_profile.business_name %}
-                    <h5 class="mb-1" style="color: #3D3D3D;">{{ provider_profile.business_name }}</h5>
-                    <p class="text-muted small mb-2">{{ user.get_full_name }}</p>
-                    {% else %}
-                    <h5 class="mb-2" style="color: #3D3D3D;">{{ user.get_full_name }}</h5>
-                    {% endif %}
-
-                    <p class="text-muted mb-3">
-                        {{ provider_profile.category.icon }} {{ provider_profile.category.name }}
-                    </p>
-
-                    <a href="{% url 'provider_profile_edit' %}" class="btn btn-primary w-100 mb-2">
-                        <i class="fas fa-user-edit"></i> Editar Mi Perfil
-                    </a>
-                </div>
-            </div>
-
-            {% if provider_profile.status == 'approved' %}
-            <!-- Balance Card -->
-            <div class="card mb-4 border-success">
-                <div class="card-header bg-success text-white">
-                    <h5 class="mb-0"><i class="fas fa-wallet"></i> Saldo Disponible para Retirar</h5>
-                </div>
-                <div class="card-body text-center">
-                    <div class="display-4 text-success mb-3">${{ active_balance|default:"0.00" }}</div>
-                    <p class="text-muted mb-3">Dinero acumulado de servicios completados y pagados</p>
-                    {% if active_balance > 0 %}
-                    <a href="{% url 'provider_withdrawal_create' %}" class="btn btn-success btn-lg">
-                        <i class="fas fa-hand-holding-usd"></i> Solicitar Retiro
-                    </a>
-                    <a href="{% url 'provider_withdrawal_list' %}" class="btn btn-outline-success">
-                        <i class="fas fa-history"></i> Ver Mis Retiros
-                    </a>
-                    {% else %}
-                    <p class="text-muted"><small>Completa servicios y recibe pagos para generar saldo</small></p>
-                    {% endif %}
-                </div>
-            </div>
-            {% endif %}
-
-            <!-- Profile Stats -->
-            <div class="card mb-4">
-                <div class="card-header bg-light">
-                    <h5 class="mb-0"><i class="fas fa-chart-line"></i> Mi Rendimiento</h5>
-                </div>
-                <div class="card-body text-center">
-                    {% if rating_avg %}
-                    <div class="mb-3">
-                        <div class="display-4 text-warning">{{ rating_avg }}</div>
-                        <div class="rating">
-                            {% for i in "12345" %}
-                            {% if forloop.counter <= rating_avg %} <i class="fas fa-star"></i>
-                                {% else %}
-                                <i class="far fa-star"></i>
-                                {% endif %}
-                                {% endfor %}
+                <!-- Profile Mini -->
+                <div class="sidebar-card">
+                    <div class="profile-mini">
+                        {% if provider_profile.profile_photo %}
+                        <img src="{{ provider_profile.profile_photo.url }}" alt="{{ provider_profile.get_display_name }}" class="profile-mini__photo">
+                        {% else %}
+                        <div class="profile-mini__photo-placeholder">
+                            <i class="fas fa-user"></i>
                         </div>
-                        <p class="text-muted">{{ total_reviews }} reseñas</p>
-                    </div>
-                    {% else %}
-                    <i class="fas fa-star fa-3x text-muted mb-3"></i>
-                    <p class="text-muted">Aún no tienes reseñas</p>
-                    {% endif %}
-                    <hr>
-                    <div class="row text-center">
-                        <div class="col-6 mb-2">
-                            <h4 class="mb-0">{{ services|length }}</h4>
-                            <small class="text-muted">Servicios</small>
-                        </div>
-                        <div class="col-6 mb-2">
-                            <h4 class="mb-0">{{ completed_bookings }}</h4>
-                            <small class="text-muted">Trabajos</small>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Quick Actions -->
-            <div class="card mb-4">
-                <div class="card-header bg-light">
-                    <h5 class="mb-0"><i class="fas fa-bolt"></i> Acciones Rápidas</h5>
-                </div>
-                <div class="card-body">
-                    <div class="d-grid gap-2">
-                        <a href="{% url 'service_create' %}" class="btn btn-primary">
-                            <i class="fas fa-plus"></i> Agregar Servicio
-                        </a>
-                        {% if provider_profile.status == 'approved' %}
-                        <a href="{% url 'provider_locations_list' %}" class="btn btn-outline-primary">
-                            <i class="fas fa-map-marker-alt"></i> Mis Ubicaciones
-                        </a>
-                        <a href="{% url 'provider_settings_service_mode' %}" class="btn btn-outline-secondary">
-                            <i class="fas fa-cogs"></i> Modalidad de Atención
-                        </a>
-                        <a href="{% url 'bookings_list' %}" class="btn btn-outline-primary">
-                            <i class="fas fa-calendar-check"></i> Ver Reservas
-                        </a>
-                        <a href="{% url 'provider_coverage_manage' %}" class="btn btn-outline-info">
-                            <i class="fas fa-map-marked-alt"></i> Gestionar Cobertura
-                        </a>
-                        <a href="{% url 'provider_schedule_manage' %}" class="btn btn-outline-primary">
-                            <i class="fas fa-clock"></i> Gestionar Horarios
-                        </a>
-                        <a href="{% url 'provider_zone_costs_manage' %}" class="btn btn-outline-success">
-                            <i class="fas fa-dollar-sign"></i> Costos por Zona
-                        </a>
-                        <a href="{% url 'provider_unavailability_manage' %}" class="btn btn-outline-warning">
-                            <i class="fas fa-calendar-times"></i> Días de Inactividad
-                        </a>
-                        <a href="{% url 'provider_profile' provider_profile.slug %}" class="btn btn-outline-primary">
-                            <i class="fas fa-user"></i> Mi Perfil Público
-                        </a>
-                        <hr>
-                        <a href="{% url 'provider_bank_accounts' %}" class="btn btn-outline-success">
-                            <i class="fas fa-university"></i> Mis Cuentas Bancarias
-                        </a>
-                        <a href="{% url 'provider_withdrawal_list' %}" class="btn btn-outline-info">
-                            <i class="fas fa-exchange-alt"></i> Mis Retiros
-                        </a>
                         {% endif %}
-                        <hr>
-                        <form method="post" action="{% url 'provider_toggle_active' %}">
-                            {% csrf_token %}
-                            {% if provider_profile.is_active %}
-                            <button type="submit" class="btn btn-outline-danger w-100"
-                                onclick="return confirm('¿Desactivar tu perfil? No aparecerás en búsquedas.')">
-                                <i class="fas fa-pause-circle"></i> Desactivar Perfil
-                            </button>
-                            {% else %}
-                            <button type="submit" class="btn btn-success w-100">
-                                <i class="fas fa-play-circle"></i> Activar Perfil
-                            </button>
+                        <div class="profile-mini__info">
+                            <div class="profile-mini__name">
+                                {{ provider_profile.business_name|default:user.get_full_name }}
+                            </div>
+                            <div class="profile-mini__category">
+                                {{ provider_profile.category.icon }} {{ provider_profile.category.name }}
+                            </div>
+                            {% if provider_profile.status == 'approved' %}
+                            <span class="badge bg-success mt-1"><i class="fas fa-check-circle"></i> Verificado</span>
+                            {% elif provider_profile.status == 'pending' %}
+                            <span class="badge bg-warning text-dark mt-1"><i class="fas fa-clock"></i> En Revisión</span>
                             {% endif %}
-                        </form>
+                        </div>
+                    </div>
+                    <div class="px-3 pb-3">
+                        <a href="{% url 'provider_profile' provider_profile.slug %}" class="btn btn-outline-primary btn-sm w-100" target="_blank">
+                            <i class="fas fa-external-link-alt me-1"></i> Ver Perfil Público
+                        </a>
                     </div>
                 </div>
-            </div>
 
-            <!-- Profile Status -->
-            {% if provider_profile.status == 'pending' %}
-            <div class="card border-warning mb-4">
-                <div class="card-body">
-                    <h5 class="text-warning"><i class="fas fa-exclamation-triangle"></i> Perfil en Revisión</h5>
-                    <p class="mb-0">Tu perfil está siendo verificado. Te notificaremos cuando sea aprobado.</p>
+                <!-- Acciones Rápidas -->
+                <div class="sidebar-card">
+                    <div class="sidebar-card__header">
+                        <i class="fas fa-bolt text-warning"></i> Acciones Rápidas
+                    </div>
+                    <div class="sidebar-card__body">
+                        <div class="d-grid gap-2">
+                            <a href="{% url 'provider_settings' %}" class="btn btn-primary">
+                                <i class="fas fa-cog me-2"></i> Mi Configuración
+                            </a>
+                            <a href="{% url 'bookings_list' %}" class="btn btn-outline-primary">
+                                <i class="fas fa-calendar-check me-2"></i> Todas las Reservas
+                            </a>
+                            {% if provider_profile.status == 'approved' %}
+                            <a href="{% url 'provider_withdrawal_list' %}" class="btn btn-outline-success">
+                                <i class="fas fa-money-bill-wave me-2"></i> Mis Retiros
+                            </a>
+                            {% endif %}
+                        </div>
+                    </div>
                 </div>
-            </div>
-            {% elif provider_profile.status == 'rejected' %}
-            <div class="card border-danger mb-4">
-                <div class="card-body">
-                    <h5 class="text-danger"><i class="fas fa-times-circle"></i> Perfil Rechazado</h5>
-                    <p class="mb-3">Tu perfil no fue aprobado. Por favor contacta a soporte.</p>
-                    <a href="mailto:support@liberi.ec" class="btn btn-danger">
-                        <i class="fas fa-envelope"></i> Contactar Soporte
-                    </a>
-                </div>
-            </div>
-            {% endif %}
 
-            <!-- Tips -->
-            <div class="card">
-                <div class="card-header bg-light">
-                    <h5 class="mb-0"><i class="fas fa-lightbulb"></i> Consejos</h5>
+                <!-- Estadísticas Rápidas -->
+                <div class="sidebar-card">
+                    <div class="sidebar-card__header">
+                        <i class="fas fa-chart-bar text-info"></i> Este Mes
+                    </div>
+                    <div class="sidebar-card__body">
+                        <div class="row text-center">
+                            <div class="col-6 mb-3">
+                                <h4 class="mb-0 text-primary">{{ completed_bookings }}</h4>
+                                <small class="text-muted">Completadas</small>
+                            </div>
+                            <div class="col-6 mb-3">
+                                <h4 class="mb-0 text-success">${{ total_earnings|floatformat:0 }}</h4>
+                                <small class="text-muted">Ganancias</small>
+                            </div>
+                            <div class="col-6">
+                                <h4 class="mb-0">{{ services|length }}</h4>
+                                <small class="text-muted">Servicios</small>
+                            </div>
+                            <div class="col-6">
+                                <h4 class="mb-0">{{ total_reviews }}</h4>
+                                <small class="text-muted">Reseñas</small>
+                            </div>
+                        </div>
+                    </div>
                 </div>
-                <div class="card-body">
-                    <ul class="list-unstyled mb-0">
-                        <li class="mb-2"><i class="fas fa-check text-success"></i> Responde rápido a las reservas</li>
-                        <li class="mb-2"><i class="fas fa-check text-success"></i> Mantén tus servicios actualizados</li>
-                        <li class="mb-2"><i class="fas fa-check text-success"></i> Sé puntual en tus citas</li>
-                        <li class="mb-2"><i class="fas fa-check text-success"></i> Ofrece un servicio de calidad</li>
-                        <li class="mb-0"><i class="fas fa-check text-success"></i> Pide a tus clientes que te reseñen</li>
-                    </ul>
+
+                <!-- Tips -->
+                <div class="sidebar-card">
+                    <div class="sidebar-card__header">
+                        <i class="fas fa-lightbulb text-warning"></i> Consejos
+                    </div>
+                    <div class="sidebar-card__body">
+                        <ul class="list-unstyled mb-0 small">
+                            <li class="mb-2"><i class="fas fa-check text-success me-2"></i>Responde rápido a reservas</li>
+                            <li class="mb-2"><i class="fas fa-check text-success me-2"></i>Sé puntual en tus citas</li>
+                            <li class="mb-0"><i class="fas fa-check text-success me-2"></i>Pide reseñas a tus clientes</li>
+                        </ul>
+                    </div>
                 </div>
+
             </div>
         </div>
     </div>
 </div>
 
-<script>
-    function toggleService(serviceId, isAvailable) {
-        const action = isAvailable ? 'desactivar' : 'activar';
-        if (confirm(`¿Estás seguro de ${action} este servicio?`)) {
-            fetch(`/api/services/${serviceId}/`, {
-                method: 'PATCH',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRFToken': '{{ csrf_token }}',
-                    'Authorization': 'Bearer ' + localStorage.getItem('token')
-                },
-                body: JSON.stringify({
-                    available: !isAvailable
-                })
-            }).then(response => {
-                if (response.ok) {
-                    location.reload();
-                } else {
-                    alert('Error al actualizar el servicio');
-                }
-            });
-        }
-    }
-</script>
+<!-- Botón flotante de configuración -->
+<div class="quick-actions-floating d-lg-none">
+    <a href="{% url 'provider_settings' %}" class="quick-actions-btn">
+        <i class="fas fa-cog"></i>
+    </a>
+</div>
 
+<script>
+// Toggle para alertas colapsables
+document.querySelectorAll('.alert-collapsible__header').forEach(header => {
+    const toggle = header.querySelector('.alert-collapsible__toggle');
+    if (toggle) {
+        header.addEventListener('click', function() {
+            toggle.classList.toggle('collapsed');
+        });
+    }
+});
+</script>
 {% endblock %}

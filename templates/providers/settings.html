@@ -1,0 +1,945 @@
+{% extends 'base.html' %}
+
+{% block title %}Configuración - Proveedor - Liberi{% endblock %}
+
+{% block extra_css %}
+<style>
+/* ======================================
+   PROVIDER SETTINGS - TABS DESIGN
+   ====================================== */
+
+.settings-container {
+    max-width: 1000px;
+    margin: 0 auto;
+}
+
+/* Header */
+.settings-header {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 2rem;
+    border-radius: 16px 16px 0 0;
+    margin-bottom: 0;
+}
+
+.settings-header__title {
+    font-size: 1.75rem;
+    font-weight: 700;
+    margin-bottom: 0.5rem;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.settings-header__subtitle {
+    opacity: 0.9;
+    font-size: 0.95rem;
+}
+
+.settings-header__back {
+    color: white;
+    opacity: 0.8;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 1rem;
+    transition: opacity 0.2s;
+}
+
+.settings-header__back:hover {
+    opacity: 1;
+    color: white;
+}
+
+/* Tabs Navigation */
+.settings-tabs {
+    background: white;
+    border-radius: 0 0 16px 16px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+    overflow: hidden;
+}
+
+.settings-tabs .nav-tabs {
+    border-bottom: 2px solid #f0f0f0;
+    padding: 0 1rem;
+    background: #f8f9fa;
+}
+
+.settings-tabs .nav-link {
+    border: none;
+    border-bottom: 3px solid transparent;
+    color: #6c757d;
+    font-weight: 600;
+    padding: 1rem 1.5rem;
+    margin-bottom: -2px;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    transition: all 0.2s ease;
+}
+
+.settings-tabs .nav-link:hover {
+    color: #667eea;
+    border-color: transparent;
+    background: transparent;
+}
+
+.settings-tabs .nav-link.active {
+    color: #667eea;
+    background: white;
+    border-bottom-color: #667eea;
+}
+
+.settings-tabs .nav-link i {
+    font-size: 1.1rem;
+}
+
+.settings-tabs .tab-content {
+    padding: 2rem;
+}
+
+/* Tab Badge */
+.tab-badge {
+    font-size: 0.7rem;
+    padding: 0.2rem 0.5rem;
+    border-radius: 10px;
+    margin-left: 0.5rem;
+}
+
+.tab-badge--warning {
+    background: #fff3cd;
+    color: #856404;
+}
+
+.tab-badge--success {
+    background: #d4edda;
+    color: #155724;
+}
+
+/* Settings Section */
+.settings-section {
+    margin-bottom: 2rem;
+    padding-bottom: 2rem;
+    border-bottom: 1px solid #f0f0f0;
+}
+
+.settings-section:last-child {
+    border-bottom: none;
+    margin-bottom: 0;
+    padding-bottom: 0;
+}
+
+.settings-section__title {
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: #2c3e50;
+    margin-bottom: 0.5rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.settings-section__description {
+    color: #6c757d;
+    font-size: 0.9rem;
+    margin-bottom: 1.25rem;
+}
+
+/* Settings Card */
+.settings-card {
+    background: #f8f9fa;
+    border-radius: 12px;
+    padding: 1.25rem;
+    margin-bottom: 1rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    transition: all 0.2s ease;
+}
+
+.settings-card:hover {
+    background: #e9ecef;
+}
+
+.settings-card__info {
+    flex: 1;
+}
+
+.settings-card__title {
+    font-weight: 600;
+    color: #2c3e50;
+    margin-bottom: 0.25rem;
+}
+
+.settings-card__subtitle {
+    font-size: 0.85rem;
+    color: #6c757d;
+}
+
+.settings-card__action {
+    margin-left: 1rem;
+}
+
+/* Status Indicator */
+.status-indicator {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.35rem 0.75rem;
+    border-radius: 20px;
+    font-size: 0.8rem;
+    font-weight: 600;
+}
+
+.status-indicator--success {
+    background: #d4edda;
+    color: #155724;
+}
+
+.status-indicator--warning {
+    background: #fff3cd;
+    color: #856404;
+}
+
+.status-indicator--danger {
+    background: #f8d7da;
+    color: #721c24;
+}
+
+.status-indicator--info {
+    background: #cce5ff;
+    color: #004085;
+}
+
+/* Location Card */
+.location-card {
+    background: white;
+    border: 1px solid #e9ecef;
+    border-radius: 12px;
+    padding: 1rem;
+    margin-bottom: 0.75rem;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.location-card__icon {
+    width: 48px;
+    height: 48px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.25rem;
+}
+
+.location-card__icon--base {
+    background: rgba(40, 167, 69, 0.15);
+    color: #28a745;
+}
+
+.location-card__icon--local {
+    background: rgba(23, 162, 184, 0.15);
+    color: #17a2b8;
+}
+
+.location-card__info {
+    flex: 1;
+}
+
+.location-card__label {
+    font-weight: 600;
+    color: #2c3e50;
+}
+
+.location-card__address {
+    font-size: 0.85rem;
+    color: #6c757d;
+}
+
+.location-card__actions {
+    display: flex;
+    gap: 0.5rem;
+}
+
+/* Schedule Display */
+.schedule-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 0.75rem;
+}
+
+.schedule-item {
+    background: #f8f9fa;
+    border-radius: 8px;
+    padding: 0.75rem 1rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.schedule-item__day {
+    font-weight: 600;
+    color: #2c3e50;
+}
+
+.schedule-item__time {
+    font-size: 0.9rem;
+    color: #667eea;
+}
+
+/* Zone Cost Table */
+.zone-cost-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.75rem 1rem;
+    background: #f8f9fa;
+    border-radius: 8px;
+    margin-bottom: 0.5rem;
+}
+
+.zone-cost-item__name {
+    font-weight: 500;
+}
+
+.zone-cost-item__cost {
+    font-weight: 600;
+    color: #28a745;
+}
+
+/* Bank Account Card */
+.bank-account-card {
+    background: linear-gradient(135deg, #2c3e50 0%, #34495e 100%);
+    color: white;
+    border-radius: 12px;
+    padding: 1.25rem;
+    margin-bottom: 1rem;
+}
+
+.bank-account-card__header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+}
+
+.bank-account-card__bank {
+    font-size: 1.1rem;
+    font-weight: 600;
+}
+
+.bank-account-card__type {
+    font-size: 0.8rem;
+    opacity: 0.8;
+}
+
+.bank-account-card__number {
+    font-size: 1.25rem;
+    font-family: monospace;
+    letter-spacing: 2px;
+    margin-bottom: 0.5rem;
+}
+
+.bank-account-card__holder {
+    font-size: 0.9rem;
+    opacity: 0.9;
+}
+
+/* Empty State */
+.empty-state-mini {
+    text-align: center;
+    padding: 2rem;
+    background: #f8f9fa;
+    border-radius: 12px;
+    color: #6c757d;
+}
+
+.empty-state-mini__icon {
+    font-size: 2.5rem;
+    margin-bottom: 0.75rem;
+    opacity: 0.5;
+}
+
+.empty-state-mini__title {
+    font-weight: 600;
+    margin-bottom: 0.5rem;
+    color: #495057;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .settings-tabs .nav-tabs {
+        flex-wrap: nowrap;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+    
+    .settings-tabs .nav-link {
+        padding: 0.75rem 1rem;
+        white-space: nowrap;
+        font-size: 0.9rem;
+    }
+    
+    .settings-tabs .nav-link span {
+        display: none;
+    }
+    
+    .settings-tabs .tab-content {
+        padding: 1.25rem;
+    }
+    
+    .settings-card {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 1rem;
+    }
+    
+    .settings-card__action {
+        margin-left: 0;
+        width: 100%;
+    }
+    
+    .settings-card__action .btn {
+        width: 100%;
+    }
+    
+    .location-card {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+    
+    .location-card__actions {
+        width: 100%;
+        margin-top: 0.5rem;
+    }
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container mt-4 mb-5">
+    <div class="settings-container">
+
+        <!-- Header -->
+        <div class="settings-header">
+            <a href="{% url 'dashboard' %}" class="settings-header__back">
+                <i class="fas fa-arrow-left"></i> Volver al Dashboard
+            </a>
+            <h1 class="settings-header__title">
+                <i class="fas fa-cog"></i> Mi Configuración
+            </h1>
+            <p class="settings-header__subtitle">
+                Gestiona tu perfil, ubicaciones, horarios y métodos de pago
+            </p>
+        </div>
+
+        <!-- Tabs -->
+        <div class="settings-tabs">
+            <ul class="nav nav-tabs" id="settingsTabs" role="tablist">
+                <!-- Tab 1: Perfil -->
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link active" id="perfil-tab" data-bs-toggle="tab" data-bs-target="#perfil" type="button" role="tab">
+                        <i class="fas fa-user"></i>
+                        <span>Perfil</span>
+                    </button>
+                </li>
+                
+                <!-- Tab 2: Ubicaciones -->
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="ubicaciones-tab" data-bs-toggle="tab" data-bs-target="#ubicaciones" type="button" role="tab">
+                        <i class="fas fa-map-marker-alt"></i>
+                        <span>Ubicaciones</span>
+                        {% if not has_locations %}
+                        <span class="tab-badge tab-badge--warning">!</span>
+                        {% endif %}
+                    </button>
+                </li>
+                
+                <!-- Tab 3: Disponibilidad -->
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="disponibilidad-tab" data-bs-toggle="tab" data-bs-target="#disponibilidad" type="button" role="tab">
+                        <i class="fas fa-clock"></i>
+                        <span>Disponibilidad</span>
+                    </button>
+                </li>
+                
+                <!-- Tab 4: Pagos -->
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="pagos-tab" data-bs-toggle="tab" data-bs-target="#pagos" type="button" role="tab">
+                        <i class="fas fa-credit-card"></i>
+                        <span>Pagos</span>
+                    </button>
+                </li>
+            </ul>
+
+            <div class="tab-content" id="settingsTabsContent">
+                
+                <!-- ============================================
+                     TAB 1: PERFIL
+                     ============================================ -->
+                <div class="tab-pane fade show active" id="perfil" role="tabpanel">
+                    
+                    <!-- Información Básica -->
+                    <div class="settings-section">
+                        <h3 class="settings-section__title">
+                            <i class="fas fa-id-card text-primary"></i> Información Básica
+                        </h3>
+                        <p class="settings-section__description">
+                            Tu información personal y comercial visible para los clientes
+                        </p>
+                        
+                        <div class="settings-card">
+                            <div class="settings-card__info">
+                                <div class="settings-card__title">
+                                    {{ provider_profile.business_name|default:user.get_full_name }}
+                                </div>
+                                <div class="settings-card__subtitle">
+                                    {{ provider_profile.category.icon }} {{ provider_profile.category.name }} • {{ user.email }}
+                                </div>
+                            </div>
+                            <div class="settings-card__action">
+                                <a href="{% url 'provider_profile_edit' %}" class="btn btn-outline-primary btn-sm">
+                                    <i class="fas fa-edit"></i> Editar
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Modalidad de Atención -->
+                    <div class="settings-section">
+                        <h3 class="settings-section__title">
+                            <i class="fas fa-route text-info"></i> Modalidad de Atención
+                        </h3>
+                        <p class="settings-section__description">
+                            Define cómo atiendes a tus clientes
+                        </p>
+                        
+                        <div class="settings-card">
+                            <div class="settings-card__info">
+                                <div class="settings-card__title">
+                                    {% if provider_profile.service_mode == 'home' %}
+                                        <i class="fas fa-car text-success"></i> Solo a Domicilio
+                                    {% elif provider_profile.service_mode == 'local' %}
+                                        <i class="fas fa-store text-info"></i> Solo en Local
+                                    {% elif provider_profile.service_mode == 'both' %}
+                                        <i class="fas fa-arrows-alt text-warning"></i> Local y Domicilio
+                                    {% else %}
+                                        <span class="text-danger"><i class="fas fa-exclamation-triangle"></i> Sin configurar</span>
+                                    {% endif %}
+                                </div>
+                                <div class="settings-card__subtitle">
+                                    {% if provider_profile.service_mode == 'home' %}
+                                        Vas donde el cliente
+                                    {% elif provider_profile.service_mode == 'local' %}
+                                        Los clientes van a tu local
+                                    {% elif provider_profile.service_mode == 'both' %}
+                                        Ofreces ambas opciones
+                                    {% else %}
+                                        Debes configurar esto para publicar servicios
+                                    {% endif %}
+                                </div>
+                            </div>
+                            <div class="settings-card__action">
+                                <a href="{% url 'provider_settings_service_mode' %}" class="btn {% if not provider_profile.service_mode %}btn-danger{% else %}btn-outline-primary{% endif %} btn-sm">
+                                    <i class="fas fa-cog"></i> {% if provider_profile.service_mode %}Cambiar{% else %}Configurar{% endif %}
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Estado del Perfil -->
+                    <div class="settings-section">
+                        <h3 class="settings-section__title">
+                            <i class="fas fa-toggle-on text-success"></i> Estado del Perfil
+                        </h3>
+                        <p class="settings-section__description">
+                            Controla si apareces en las búsquedas de clientes
+                        </p>
+                        
+                        <div class="settings-card">
+                            <div class="settings-card__info">
+                                <div class="settings-card__title">
+                                    {% if provider_profile.is_active %}
+                                    <span class="status-indicator status-indicator--success">
+                                        <i class="fas fa-check-circle"></i> Perfil Activo
+                                    </span>
+                                    {% else %}
+                                    <span class="status-indicator status-indicator--warning">
+                                        <i class="fas fa-pause-circle"></i> Perfil Pausado
+                                    </span>
+                                    {% endif %}
+                                </div>
+                                <div class="settings-card__subtitle">
+                                    {% if provider_profile.is_active %}
+                                        Apareces en búsquedas y puedes recibir reservas
+                                    {% else %}
+                                        No apareces en búsquedas ni recibes nuevas reservas
+                                    {% endif %}
+                                </div>
+                            </div>
+                            <div class="settings-card__action">
+                                <form method="post" action="{% url 'provider_toggle_active' %}">
+                                    {% csrf_token %}
+                                    {% if provider_profile.is_active %}
+                                    <button type="submit" class="btn btn-outline-danger btn-sm" onclick="return confirm('¿Pausar tu perfil? No aparecerás en búsquedas.')">
+                                        <i class="fas fa-pause"></i> Pausar
+                                    </button>
+                                    {% else %}
+                                    <button type="submit" class="btn btn-success btn-sm">
+                                        <i class="fas fa-play"></i> Activar
+                                    </button>
+                                    {% endif %}
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+
+                <!-- ============================================
+                     TAB 2: UBICACIONES
+                     ============================================ -->
+                <div class="tab-pane fade" id="ubicaciones" role="tabpanel">
+                    
+                    <!-- Domicilio Base (si aplica) -->
+                    {% if provider_profile.service_mode == 'home' or provider_profile.service_mode == 'both' %}
+                    <div class="settings-section">
+                        <h3 class="settings-section__title">
+                            <i class="fas fa-home text-success"></i> Domicilio Base
+                        </h3>
+                        <p class="settings-section__description">
+                            Tu ubicación para calcular costos de movilización a domicilio
+                        </p>
+                        
+                        {% if base_location %}
+                        <div class="location-card">
+                            <div class="location-card__icon location-card__icon--base">
+                                <i class="fas fa-home"></i>
+                            </div>
+                            <div class="location-card__info">
+                                <div class="location-card__label">{{ base_location.label }}</div>
+                                <div class="location-card__address">
+                                    {{ base_location.address }}
+                                    {% if base_location.zone %}• {{ base_location.zone.name }}{% endif %}
+                                </div>
+                            </div>
+                            <div class="location-card__actions">
+                                <a href="{% url 'provider_location_edit' base_location.id %}" class="btn btn-sm btn-outline-primary">
+                                    <i class="fas fa-edit"></i>
+                                </a>
+                            </div>
+                        </div>
+                        {% else %}
+                        <div class="empty-state-mini">
+                            <div class="empty-state-mini__icon"><i class="fas fa-home"></i></div>
+                            <div class="empty-state-mini__title">Sin domicilio base</div>
+                            <p class="mb-3">Registra tu domicilio para ofrecer servicios a domicilio</p>
+                            <a href="{% url 'provider_location_create' 'base' %}" class="btn btn-success">
+                                <i class="fas fa-plus me-1"></i> Agregar Domicilio
+                            </a>
+                        </div>
+                        {% endif %}
+                    </div>
+                    {% endif %}
+
+                    <!-- Locales (si aplica) -->
+                    {% if provider_profile.service_mode == 'local' or provider_profile.service_mode == 'both' %}
+                    <div class="settings-section">
+                        <h3 class="settings-section__title">
+                            <i class="fas fa-store text-info"></i> Mis Locales
+                        </h3>
+                        <p class="settings-section__description">
+                            Ubicaciones donde atiendes clientes
+                        </p>
+                        
+                        {% if local_locations %}
+                            {% for location in local_locations %}
+                            <div class="location-card">
+                                <div class="location-card__icon location-card__icon--local">
+                                    <i class="fas fa-store"></i>
+                                </div>
+                                <div class="location-card__info">
+                                    <div class="location-card__label">
+                                        {{ location.label }}
+                                        {% if location.is_verified %}
+                                        <span class="badge bg-success ms-1"><i class="fas fa-check"></i></span>
+                                        {% else %}
+                                        <span class="badge bg-warning text-dark ms-1">Pendiente</span>
+                                        {% endif %}
+                                    </div>
+                                    <div class="location-card__address">
+                                        {{ location.address }}
+                                        {% if location.zone %}• {{ location.zone.name }}{% endif %}
+                                    </div>
+                                </div>
+                                <div class="location-card__actions">
+                                    <a href="{% url 'provider_location_edit' location.id %}" class="btn btn-sm btn-outline-primary">
+                                        <i class="fas fa-edit"></i>
+                                    </a>
+                                    <form method="post" action="{% url 'provider_location_delete' location.id %}" class="d-inline">
+                                        {% csrf_token %}
+                                        <button type="submit" class="btn btn-sm btn-outline-danger" onclick="return confirm('¿Eliminar este local?')">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                    </form>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        {% endif %}
+                        
+                        <a href="{% url 'provider_location_create' 'local' %}" class="btn btn-outline-info mt-2">
+                            <i class="fas fa-plus me-1"></i> Agregar Local
+                        </a>
+                    </div>
+                    {% endif %}
+
+                    <!-- Cobertura -->
+                    <div class="settings-section">
+                        <h3 class="settings-section__title">
+                            <i class="fas fa-map-marked-alt text-primary"></i> Zonas de Cobertura
+                        </h3>
+                        <p class="settings-section__description">
+                            Áreas donde ofreces tus servicios
+                        </p>
+                        
+                        {% if coverage_zones %}
+                        <div class="mb-3">
+                            {% for zone in coverage_zones %}
+                            <span class="badge bg-primary me-1 mb-1 py-2 px-3">
+                                <i class="fas fa-map-pin me-1"></i>{{ zone.name }}
+                            </span>
+                            {% endfor %}
+                        </div>
+                        {% else %}
+                        <p class="text-muted">No has configurado zonas de cobertura</p>
+                        {% endif %}
+                        
+                        <a href="{% url 'provider_coverage_manage' %}" class="btn btn-outline-primary">
+                            <i class="fas fa-cog me-1"></i> Gestionar Cobertura
+                        </a>
+                    </div>
+
+                    <!-- Costos por Zona -->
+                    <div class="settings-section">
+                        <h3 class="settings-section__title">
+                            <i class="fas fa-dollar-sign text-success"></i> Costos de Movilización
+                        </h3>
+                        <p class="settings-section__description">
+                            Precio de traslado por zona
+                        </p>
+                        
+                        {% if zone_costs %}
+                            {% for zc in zone_costs %}
+                            <div class="zone-cost-item">
+                                <span class="zone-cost-item__name">{{ zc.zone.name }}</span>
+                                <span class="zone-cost-item__cost">${{ zc.travel_cost }}</span>
+                            </div>
+                            {% endfor %}
+                        {% else %}
+                        <p class="text-muted mb-3">Usando costos por defecto del sistema</p>
+                        {% endif %}
+                        
+                        <a href="{% url 'provider_zone_costs_manage' %}" class="btn btn-outline-success">
+                            <i class="fas fa-edit me-1"></i> Configurar Costos
+                        </a>
+                    </div>
+
+                </div>
+
+                <!-- ============================================
+                     TAB 3: DISPONIBILIDAD
+                     ============================================ -->
+                <div class="tab-pane fade" id="disponibilidad" role="tabpanel">
+                    
+                    <!-- Horarios de Atención -->
+                    <div class="settings-section">
+                        <h3 class="settings-section__title">
+                            <i class="fas fa-clock text-primary"></i> Horarios de Atención
+                        </h3>
+                        <p class="settings-section__description">
+                            Días y horas en que estás disponible
+                        </p>
+                        
+                        {% if schedules %}
+                        <div class="schedule-grid">
+                            {% for schedule in schedules %}
+                            <div class="schedule-item">
+                                <span class="schedule-item__day">{{ schedule.get_day_of_week_display }}</span>
+                                <span class="schedule-item__time">{{ schedule.start_time|time:"H:i" }} - {{ schedule.end_time|time:"H:i" }}</span>
+                            </div>
+                            {% endfor %}
+                        </div>
+                        {% else %}
+                        <div class="empty-state-mini">
+                            <div class="empty-state-mini__icon"><i class="fas fa-clock"></i></div>
+                            <div class="empty-state-mini__title">Sin horarios configurados</div>
+                            <p>Configura tus horarios para que los clientes puedan reservar</p>
+                        </div>
+                        {% endif %}
+                        
+                        <div class="mt-3">
+                            <a href="{% url 'provider_schedule_manage' %}" class="btn btn-outline-primary">
+                                <i class="fas fa-cog me-1"></i> Gestionar Horarios
+                            </a>
+                        </div>
+                    </div>
+
+                    <!-- Días de Inactividad -->
+                    <div class="settings-section">
+                        <h3 class="settings-section__title">
+                            <i class="fas fa-calendar-times text-warning"></i> Días de Inactividad / Vacaciones
+                        </h3>
+                        <p class="settings-section__description">
+                            Bloquea días específicos donde no estarás disponible
+                        </p>
+                        
+                        {% if unavailabilities %}
+                        <div class="mb-3">
+                            {% for unavail in unavailabilities %}
+                            <div class="settings-card">
+                                <div class="settings-card__info">
+                                    <div class="settings-card__title">
+                                        {{ unavail.start_date|date:"d M Y" }} - {{ unavail.end_date|date:"d M Y" }}
+                                    </div>
+                                    <div class="settings-card__subtitle">
+                                        {{ unavail.reason|default:"Sin motivo especificado" }}
+                                    </div>
+                                </div>
+                                <div class="settings-card__action">
+                                    <form method="post" action="{% url 'provider_unavailability_delete' unavail.id %}">
+                                        {% csrf_token %}
+                                        <button type="submit" class="btn btn-sm btn-outline-danger">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                    </form>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                        {% else %}
+                        <p class="text-muted mb-3">No tienes días bloqueados</p>
+                        {% endif %}
+                        
+                        <a href="{% url 'provider_unavailability_manage' %}" class="btn btn-outline-warning">
+                            <i class="fas fa-plus me-1"></i> Agregar Inactividad
+                        </a>
+                    </div>
+
+                </div>
+
+                <!-- ============================================
+                     TAB 4: PAGOS
+                     ============================================ -->
+                <div class="tab-pane fade" id="pagos" role="tabpanel">
+                    
+                    <!-- Cuentas Bancarias -->
+                    <div class="settings-section">
+                        <h3 class="settings-section__title">
+                            <i class="fas fa-university text-primary"></i> Cuentas Bancarias
+                        </h3>
+                        <p class="settings-section__description">
+                            Cuentas donde recibirás tus pagos
+                        </p>
+                        
+                        {% if bank_accounts %}
+                            {% for account in bank_accounts %}
+                            <div class="bank-account-card">
+                                <div class="bank-account-card__header">
+                                    <div>
+                                        <div class="bank-account-card__bank">{{ account.bank.name }}</div>
+                                        <div class="bank-account-card__type">{{ account.get_account_type_display }}</div>
+                                    </div>
+                                    {% if account.is_primary %}
+                                    <span class="badge bg-success">Principal</span>
+                                    {% endif %}
+                                </div>
+                                <div class="bank-account-card__number">{{ account.account_number_masked }}</div>
+                                <div class="bank-account-card__holder">{{ account.owner_fullname }}</div>
+                            </div>
+                            {% endfor %}
+                        {% else %}
+                        <div class="empty-state-mini">
+                            <div class="empty-state-mini__icon"><i class="fas fa-university"></i></div>
+                            <div class="empty-state-mini__title">Sin cuentas bancarias</div>
+                            <p>Agrega una cuenta para poder recibir tus pagos</p>
+                        </div>
+                        {% endif %}
+                        
+                        <div class="mt-3">
+                            <a href="{% url 'provider_bank_accounts' %}" class="btn btn-outline-primary">
+                                <i class="fas fa-cog me-1"></i> Gestionar Cuentas
+                            </a>
+                        </div>
+                    </div>
+
+                    <!-- Historial de Retiros -->
+                    <div class="settings-section">
+                        <h3 class="settings-section__title">
+                            <i class="fas fa-exchange-alt text-success"></i> Historial de Retiros
+                        </h3>
+                        <p class="settings-section__description">
+                            Tus solicitudes de retiro de fondos
+                        </p>
+                        
+                        {% if recent_withdrawals %}
+                            {% for withdrawal in recent_withdrawals %}
+                            <div class="settings-card">
+                                <div class="settings-card__info">
+                                    <div class="settings-card__title">
+                                        ${{ withdrawal.requested_amount }} 
+                                        <span class="status-indicator {% if withdrawal.status == 'completed' %}status-indicator--success{% elif withdrawal.status == 'pending' %}status-indicator--warning{% else %}status-indicator--danger{% endif %} ms-2">
+                                            {{ withdrawal.get_status_display }}
+                                        </span>
+                                    </div>
+                                    <div class="settings-card__subtitle">
+                                        {{ withdrawal.created_at|date:"d/m/Y H:i" }}
+                                    </div>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        {% else %}
+                        <p class="text-muted mb-3">No has realizado retiros</p>
+                        {% endif %}
+                        
+                        <div class="d-flex gap-2">
+                            <a href="{% url 'provider_withdrawal_list' %}" class="btn btn-outline-info">
+                                <i class="fas fa-history me-1"></i> Ver Todos
+                            </a>
+                            {% if active_balance > 0 %}
+                            <a href="{% url 'provider_withdrawal_create' %}" class="btn btn-success">
+                                <i class="fas fa-hand-holding-usd me-1"></i> Solicitar Retiro
+                            </a>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                </div>
+
+            </div>
+        </div>
+
+    </div>
+</div>
+
+<script>
+// Activar tab desde URL hash
+document.addEventListener('DOMContentLoaded', function() {
+    const hash = window.location.hash;
+    if (hash) {
+        const tab = document.querySelector(`button[data-bs-target="${hash}"]`);
+        if (tab) {
+            new bootstrap.Tab(tab).show();
+        }
+    }
+    
+    // Actualizar hash al cambiar tab
+    document.querySelectorAll('button[data-bs-toggle="tab"]').forEach(button => {
+        button.addEventListener('shown.bs.tab', function(e) {
+            history.replaceState(null, null, e.target.dataset.bsTarget);
+        });
+    });
+});
+</script>
+{% endblock %}

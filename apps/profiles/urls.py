@@ -6,6 +6,9 @@ urlpatterns = [
     path('dashboard/customer/', views.dashboard_customer, name='dashboard_customer'),
     path('dashboard/provider/', views.dashboard_provider, name='dashboard_provider'),
     
+    # NUEVO: Settings unificado
+    path('provider/settings/', views.provider_settings, name='provider_settings'),
+    
     path('provider/profile/edit/', views.provider_profile_edit, name='provider_profile_edit'),
     path('provider/settings/service-mode/', views.provider_settings_service_mode, name='provider_settings_service_mode'),
     path('provider/toggle-active/', views.provider_toggle_active, name='provider_toggle_active'),
