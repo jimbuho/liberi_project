@@ -1,0 +1,484 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Únete a Liberi - Categorías</title>
+
+    <!-- Open Graph Meta Tags for Social Media Sharing -->
+    <meta property="og:title" content="Únete a Liberi - Ofrece tus servicios en Ecuador">
+    <meta property="og:description"
+        content="Miles de clientes buscan profesionales como tú. Registro 100% gratuito. Define tu zona de trabajo y establece tus propios precios.">
+    <meta property="og:image" content="https://liberi.app/static/images/logo-liberi.884f16fc9a4a.png">
+    <meta property="og:url" content="https://liberi.app/social/categorias/">
+    <meta property="og:type" content="website">
+    <meta property="og:site_name" content="Liberi">
+
+    <!-- Twitter Card Meta Tags -->
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="Únete a Liberi - Ofrece tus servicios en Ecuador">
+    <meta name="twitter:description" content="Miles de clientes buscan profesionales como tú. Registro 100% gratuito.">
+    <meta name="twitter:image" content="https://liberi.app/static/images/logo-liberi.884f16fc9a4a.png">
+
+    <link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --teal: #0D9488;
+            --teal-light: #14B8A6;
+            --teal-dark: #0F766E;
+            --cream: #FEFCE8;
+            --warm: #FEF3C7;
+            --orange: #F59E0B;
+            --dark: #1C1917;
+        }
+
+        body {
+            font-family: 'Sora', sans-serif;
+            background: linear-gradient(180deg, var(--cream) 0%, var(--warm) 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            position: relative;
+        }
+
+        body::before {
+            content: '';
+            position: absolute;
+            top: 10%;
+            left: 5%;
+            width: 200px;
+            height: 200px;
+            background: rgba(13, 148, 136, 0.08);
+            border-radius: 50%;
+            filter: blur(60px);
+        }
+
+        body::after {
+            content: '';
+            position: absolute;
+            bottom: 10%;
+            right: 5%;
+            width: 250px;
+            height: 250px;
+            background: rgba(245, 158, 11, 0.1);
+            border-radius: 50%;
+            filter: blur(60px);
+        }
+
+        .card {
+            width: 420px;
+            background: white;
+            border-radius: 28px;
+            overflow: hidden;
+            box-shadow:
+                0 4px 6px -1px rgba(0, 0, 0, 0.05),
+                0 20px 50px -15px rgba(13, 148, 136, 0.15);
+            position: relative;
+            z-index: 1;
+        }
+
+        .header {
+            background: linear-gradient(135deg, var(--teal) 0%, var(--teal-light) 100%);
+            padding: 35px 30px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .header::before {
+            content: '';
+            position: absolute;
+            top: -80px;
+            right: -80px;
+            width: 200px;
+            height: 200px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 50%;
+        }
+
+        .header::after {
+            content: '';
+            position: absolute;
+            bottom: -50px;
+            left: -50px;
+            width: 120px;
+            height: 120px;
+            background: rgba(255, 255, 255, 0.08);
+            border-radius: 50%;
+        }
+
+        .header-content {
+            position: relative;
+            z-index: 2;
+        }
+
+        .logo-row {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 20px;
+        }
+
+        .logo-container {
+            background: white;
+            padding: 8px 16px;
+            border-radius: 10px;
+            display: inline-flex;
+            align-items: center;
+        }
+
+        .logo-img {
+            height: 36px;
+        }
+
+        .pro-badge {
+            background: var(--orange);
+            color: white;
+            padding: 4px 10px;
+            border-radius: 6px;
+            font-size: 10px;
+            font-weight: 700;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+        }
+
+        .header h1 {
+            color: white;
+            font-size: 26px;
+            font-weight: 700;
+            line-height: 1.3;
+            margin-bottom: 8px;
+        }
+
+        .header p {
+            color: rgba(255, 255, 255, 0.85);
+            font-size: 14px;
+            font-weight: 400;
+        }
+
+        .categories {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 12px;
+            padding: 25px;
+            background: #F9FAFB;
+        }
+
+        .category {
+            background: white;
+            border-radius: 16px;
+            padding: 20px 12px;
+            text-align: center;
+            border: 2px solid transparent;
+            transition: all 0.3s ease;
+            cursor: pointer;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+        }
+
+        .category:hover {
+            border-color: var(--teal);
+            transform: translateY(-4px);
+            box-shadow: 0 8px 25px rgba(13, 148, 136, 0.15);
+        }
+
+        .category-icon {
+            width: 56px;
+            height: 56px;
+            margin: 0 auto 12px;
+            border-radius: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 28px;
+        }
+
+        .category:nth-child(1) .category-icon {
+            background: linear-gradient(135deg, #FDF2F8, #FCE7F3);
+        }
+
+        .category:nth-child(2) .category-icon {
+            background: linear-gradient(135deg, #ECFDF5, #D1FAE5);
+        }
+
+        .category:nth-child(3) .category-icon {
+            background: linear-gradient(135deg, #EFF6FF, #DBEAFE);
+        }
+
+        .category-name {
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--dark);
+            margin-bottom: 4px;
+        }
+
+        .category-count {
+            font-size: 11px;
+            color: #6B7280;
+        }
+
+        .more-categories {
+            text-align: center;
+            padding: 12px 25px 20px;
+            background: #F9FAFB;
+        }
+
+        .more-categories span {
+            display: inline-block;
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--teal);
+            padding: 8px 20px;
+            background: rgba(13, 148, 136, 0.08);
+            border-radius: 20px;
+        }
+
+        .benefits-section {
+            padding: 25px 30px;
+        }
+
+        .section-title {
+            font-size: 11px;
+            font-weight: 700;
+            color: #9CA3AF;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            margin-bottom: 18px;
+        }
+
+        .benefit-row {
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+        }
+
+        .benefit {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+        }
+
+        .benefit-check {
+            width: 28px;
+            height: 28px;
+            background: linear-gradient(135deg, var(--teal), var(--teal-light));
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 14px;
+            flex-shrink: 0;
+        }
+
+        .benefit-label {
+            font-size: 14px;
+            color: var(--dark);
+            font-weight: 500;
+        }
+
+        .cta-section {
+            padding: 20px 30px 35px;
+        }
+
+        .cta-button {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            width: 100%;
+            padding: 18px;
+            background: var(--dark);
+            color: white;
+            text-decoration: none;
+            border-radius: 14px;
+            font-weight: 600;
+            font-size: 15px;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .cta-button::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(135deg, var(--teal), var(--teal-light));
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .cta-button:hover::before {
+            opacity: 1;
+        }
+
+        .cta-button span {
+            position: relative;
+            z-index: 1;
+        }
+
+        .cta-button .arrow {
+            position: relative;
+            z-index: 1;
+            transition: transform 0.3s ease;
+        }
+
+        .cta-button:hover .arrow {
+            transform: translateX(4px);
+        }
+
+        .url-footer {
+            text-align: center;
+            padding: 20px;
+            background: #F9FAFB;
+            border-top: 1px solid #E5E7EB;
+        }
+
+        .url-box {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            background: white;
+            padding: 10px 20px;
+            border-radius: 10px;
+            border: 1px dashed #D1D5DB;
+        }
+
+        .url-box .globe {
+            font-size: 16px;
+        }
+
+        .url-box code {
+            font-family: 'Sora', monospace;
+            font-size: 13px;
+            color: var(--teal-dark);
+            font-weight: 600;
+        }
+
+        .floating-emoji {
+            position: absolute;
+            font-size: 24px;
+            opacity: 0.15;
+            animation: float 6s ease-in-out infinite;
+        }
+
+        .floating-emoji:nth-child(1) {
+            top: 15%;
+            left: 8%;
+            animation-delay: 0s;
+        }
+
+        .floating-emoji:nth-child(2) {
+            top: 25%;
+            right: 10%;
+            animation-delay: 1s;
+        }
+
+        .floating-emoji:nth-child(3) {
+            bottom: 20%;
+            left: 12%;
+            animation-delay: 2s;
+        }
+
+        @keyframes float {
+
+            0%,
+            100% {
+                transform: translateY(0) rotate(0deg);
+            }
+
+            50% {
+                transform: translateY(-15px) rotate(5deg);
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <span class="floating-emoji">💅</span>
+    <span class="floating-emoji">🧹</span>
+    <span class="floating-emoji">🔧</span>
+
+    <div class="card">
+        <div class="header">
+            <div class="header-content">
+                <div class="logo-row">
+                    <div class="logo-container">
+                        <img src="https://liberi.app/static/images/logo-liberi.884f16fc9a4a.png" alt="Liberi"
+                            class="logo-img">
+                    </div>
+                    <span class="pro-badge">Proveedor</span>
+                </div>
+                <h1>Ofrece tus servicios en Ecuador</h1>
+                <p>Miles de clientes buscan profesionales como tú</p>
+            </div>
+        </div>
+
+        <div class="categories">
+            <div class="category">
+                <div class="category-icon">💅</div>
+                <div class="category-name">Belleza</div>
+                <div class="category-count">Alta demanda</div>
+            </div>
+            <div class="category">
+                <div class="category-icon">🧹</div>
+                <div class="category-name">Limpieza</div>
+                <div class="category-count">Alta demanda</div>
+            </div>
+            <div class="category">
+                <div class="category-icon">🏠</div>
+                <div class="category-name">Hogar</div>
+                <div class="category-count">Alta demanda</div>
+            </div>
+        </div>
+
+        <div class="more-categories">
+            <span>¡Y muchas más!</span>
+        </div>
+
+        <div class="benefits-section">
+            <div class="section-title">Beneficios</div>
+            <div class="benefit-row">
+                <div class="benefit">
+                    <div class="benefit-check">✓</div>
+                    <span class="benefit-label">Registro 100% gratuito</span>
+                </div>
+                <div class="benefit">
+                    <div class="benefit-check">✓</div>
+                    <span class="benefit-label">Define tu zona de trabajo</span>
+                </div>
+                <div class="benefit">
+                    <div class="benefit-check">✓</div>
+                    <span class="benefit-label">Establece tus propios precios</span>
+                </div>
+                <div class="benefit">
+                    <div class="benefit-check">✓</div>
+                    <span class="benefit-label">Cobra de forma segura</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="cta-section">
+            <a href="https://liberi.app/register/provider/" class="cta-button">
+                <span>Registrarme ahora</span>
+                <span class="arrow">→</span>
+            </a>
+        </div>
+
+        <div class="url-footer">
+            <div class="url-box">
+                <span class="globe">🌐</span>
+                <code>liberi.app/register/provider</code>
+            </div>
+        </div>
+    </div>
+</body>
+
+</html>
