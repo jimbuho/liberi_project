@@ -4,7 +4,7 @@ from django.contrib.auth import login, authenticate, logout
 from django.contrib import messages
 from django.utils import timezone
 from django.conf import settings
-from apps.core.email_utils import send_mail
+from apps.core.email_utils import send_mail, run_task
 from django.db.models import Q, Avg, Count, Sum, F
 from datetime import timedelta, datetime
 from django.contrib.auth.models import User
@@ -273,33 +273,30 @@ def service_create(request):
             provider_profile = request.user.provider_profile
             service_count = Service.objects.filter(provider=request.user).count()
             
-            # Si es el primer servicio, cambiar estado a 'pending' y notificar admins
+            # Si es el primer servicio, intentar validar perfil
+            # Si es el primer servicio, intentar validar perfil
+            # Si es el primer servicio, intentar validar perfil
             if service_count == 1:
-                provider_profile.status = 'pending'
-                provider_profile.save()
+                from apps.core.verification import trigger_validation_if_eligible
                 
-                # Obtener todos los administradores
-                admin_users = User.objects.filter(is_staff=True, is_active=True)
-                admin_emails = [admin.email for admin in admin_users if admin.email]
+                triggered = trigger_validation_if_eligible(provider_profile)
                 
-                # Enviar notificación asincrónica
-                if admin_emails:
-                    try:
-                        from core.tasks import send_provider_approval_notification_task
-                        send_provider_approval_notification_task.delay(
-                            provider_id=request.user.id,
-                            admin_emails=admin_emails
+                if triggered:
+                    messages.success(
+                        request, 
+                        '✅ Servicio creado. Tu perfil ha entrado en proceso de verificación automática. '
+                        'Te notificaremos por correo cuando el proceso finalice.'
+                    )
+                else:
+                    # Si no se disparó (probablemente faltan documentos)
+                    if provider_profile.registration_step < 2:
+                        messages.success(
+                            request, 
+                            f'✅ Servicio "{name}" creado. '
+                            f'Por favor completa la verificación de identidad (subir cédula) para activar tu perfil.'
                         )
-                    except Exception as e:
-                        logger.error(f"Error enviando notificación a admins: {e}")
-                
-                # Mostrar mensaje especial al proveedor
-                messages.success(
-                    request,
-                    f'✅ Servicio "{name}" creado exitosamente. '
-                    f'Tu solicitud de aprobación ha sido enviada a nuestro equipo. '
-                    f'Recibirás una notificación cuando tu perfil sea revisado.'
-                )
+                    else:
+                        messages.success(request, 'Servicio creado exitosamente')
             else:
                 messages.success(request, 'Servicio creado exitosamente')
 

@@ -212,6 +212,50 @@ El Equipo de Liberi
         raise
 
 
+@shared_task
+def send_provider_rejection_notification_task(provider_email, provider_name, rejection_reasons):
+    """Notifica al proveedor que su perfil fue rechazado"""
+    subject = f'⚠️ Actualización sobre tu perfil de proveedor - Liberi'
+    
+    # Formatear razones
+    reasons_html = "<ul>"
+    for reason in rejection_reasons:
+        reasons_html += f"<li><strong>{reason.get('code', 'Error')}:</strong> {reason.get('message', '')}</li>"
+    reasons_html += "</ul>"
+    
+    message = f"""
+    Hola {provider_name},
+    
+    Hemos revisado tu perfil de proveedor y encontramos algunos puntos que necesitan ser corregidos antes de poder aprobarte.
+    
+    MOTIVOS DEL RECHAZO:
+    {reasons_html}
+    
+    Por favor, inicia sesión en tu panel para realizar las correcciones necesarias y solicitar una nueva verificación.
+    
+    Accede a tu panel: {settings.BASE_URL}/dashboard/
+    
+    Si tienes dudas, contáctanos a soporte@liberi.com
+    
+    ---
+    El Equipo de Liberi
+    """
+    
+    try:
+        send_html_email(
+            subject=subject,
+            text_content=message.replace('<ul>', '').replace('</ul>', '').replace('<li>', '- ').replace('</li>', '\n').replace('<strong>', '').replace('</strong>', ''),
+            html_content=message,
+            from_email=settings.DEFAULT_FROM_EMAIL,
+            recipient_list=[provider_email],
+            fail_silently=False,
+        )
+        logger.info(f"✅ Email de rechazo enviado a {provider_email}")
+    except Exception as e:
+        logger.error(f"❌ Error enviando email de rechazo: {e}")
+        raise
+
+
 # ============================================
 # NOTIFICACIONES DE RESERVAS
 # ============================================
@@ -999,4 +1043,53 @@ def send_password_reset_email_task(user_id, token):
         
     except Exception as e:
         logger.error(f"Error enviando email de reset: {e}")
+        raise
+
+@shared_task
+def validate_provider_profile_task(provider_profile_id):
+    """
+    Tarea asíncrona para validar el perfil del proveedor.
+    Simula el agente de IA y evita que la aprobación sea instantánea en la UI.
+    """
+    try:
+        from apps.core.models import ProviderProfile
+        from apps.core.verification import validate_provider_profile
+        from apps.core.tasks import send_provider_approval_confirmed_task, send_provider_rejection_notification_task
+        import json
+        
+        logger.info(f"🤖 [TASK] Iniciando tarea de validación para perfil ID: {provider_profile_id}")
+        print(f"🤖 [TASK] Iniciando tarea de validación para perfil ID: {provider_profile_id}")
+        
+        provider_profile = ProviderProfile.objects.get(pk=provider_profile_id)
+        
+        # Ejecutar validación
+        is_approved, rejections, warnings = validate_provider_profile(provider_profile)
+        
+        if is_approved:
+            provider_profile.status = 'approved'
+            provider_profile.save()
+            
+            # Notificar aprobación
+            send_provider_approval_confirmed_task.delay(
+                provider_email=provider_profile.user.email,
+                provider_name=provider_profile.user.get_full_name()
+            )
+            logger.info(f"✅ [TASK] Perfil {provider_profile.pk} aprobado y notificado.")
+            
+        elif rejections:
+            provider_profile.status = 'rejected'
+            provider_profile.rejection_reasons = json.dumps(rejections)
+            provider_profile.rejected_at = timezone.now()
+            provider_profile.save()
+            
+            # Notificar rechazo
+            send_provider_rejection_notification_task.delay(
+                provider_email=provider_profile.user.email,
+                provider_name=provider_profile.user.get_full_name(),
+                rejection_reasons=rejections
+            )
+            logger.info(f"❌ [TASK] Perfil {provider_profile.pk} rechazado y notificado.")
+            
+    except Exception as e:
+        logger.error(f"❌ [TASK] Error CRÍTICO en validate_provider_profile_task: {e}", exc_info=True)
         raise

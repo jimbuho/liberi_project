@@ -1,5 +1,6 @@
 from django.urls import path
 from . import views
+from apps.core import views_verification
 
 urlpatterns = [
     path('dashboard/', views.dashboard, name='dashboard'),
@@ -38,4 +39,7 @@ urlpatterns = [
     path('provider/coverage/', views.provider_coverage_manage, name='provider_coverage_manage'),
     path('provider/coverage/add/', views.provider_coverage_add, name='provider_coverage_add'),
     path('provider/coverage/remove/<int:zone_id>/', views.provider_coverage_remove, name='provider_coverage_remove'),
+    
+    # Verification
+    path('provider/reverification/', views_verification.request_reverification, name='request_reverification'),
 ]

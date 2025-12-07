@@ -31,6 +31,8 @@ class Profile(models.Model):
         'Teléfono Celular', 
         max_length=13, 
         unique=True,
+        null=True,
+        blank=True,
         validators=[validate_ecuador_phone],
         error_messages={
             'unique': 'Ya existe una cuenta registrada con este número de teléfono.'
@@ -132,6 +134,7 @@ class ProviderProfile(models.Model):
         ('pending', 'Pendiente'),
         ('approved', 'Aprobado'),
         ('rejected', 'Rechazado'),
+        ('resubmitted', 'Re-enviado'),
     ]
 
     slug = models.SlugField(
@@ -168,7 +171,26 @@ class ProviderProfile(models.Model):
     avg_travel_cost = models.DecimalField('Costo promedio de traslado', max_digits=6, 
                                           decimal_places=2, default=0)
     availability = models.JSONField('Disponibilidad', default=dict)
-    status = models.CharField('Estado', max_length=10, choices=STATUS_CHOICES, default='pending')
+    # VERIFICATION FIELDS
+    status = models.CharField('Estado', max_length=20, choices=STATUS_CHOICES, default='created')
+    
+    rejection_reasons = models.TextField(
+        null=True, 
+        blank=True,
+        help_text='JSON con motivos de rechazo'
+    )
+    
+    rejected_at = models.DateTimeField(null=True, blank=True)
+    resubmitted_at = models.DateTimeField(null=True, blank=True)
+    verified_at = models.DateTimeField(null=True, blank=True)
+    
+    verification_attempts = models.PositiveIntegerField(default=0)
+    
+    # Datos extraídos de documentos
+    extracted_id_name = models.CharField(max_length=200, null=True, blank=True)
+    extracted_id_number = models.CharField(max_length=20, null=True, blank=True)
+    extracted_id_expiry = models.DateField(null=True, blank=True)
+    facial_match_score = models.FloatField(null=True, blank=True)
     is_active = models.BooleanField('Activo', default=True)
     signed_contract_url = models.URLField('URL del contrato firmado', blank=True)
     id_card_front = SmartImageField('Cédula frontal', upload_to='documents/', 

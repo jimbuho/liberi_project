@@ -421,3 +421,30 @@ TWILIO_TEMPLATES = {
             'variables_count': 3,  # servicio, hora, booking_url
         },
     }
+
+# ============================================
+# PROVIDER VERIFICATION CONFIGURATION
+# ============================================
+PROVIDER_VERIFICATION_CONFIG = {
+    # Umbrales de similitud
+    'facial_match_threshold': 0.85,
+    'semantic_similarity_threshold': 0.3,
+    'category_match_threshold': 0.25,
+    
+    # Límites
+    'max_verification_attempts': 5,
+    'reverification_cooldown_hours': 1,
+    
+    # Longitudes de texto
+    'min_description_length': 50,
+    'max_description_length': 1000,
+    
+    # Moderación de contenido
+    'nudity_threshold': 0.7,
+    'violence_threshold': 0.7,
+    'drugs_threshold': 0.6,
+    
+    # Timeouts
+    'image_processing_timeout': 30,  # segundos
+    'text_analysis_timeout': 10,  # segundos
+}

@@ -151,6 +151,79 @@ def dashboard_provider(request):
     has_service_mode = provider_profile.service_mode in ['home', 'local', 'both']
     has_base_location = ProviderLocation.objects.filter(provider=request.user, location_type='base').exists()
     has_local_locations = ProviderLocation.objects.filter(provider=request.user, location_type='local').exists()
+
+    # --- ONBOARDING CHECKLIST LOGIC ---
+    # 1. Subir documentos
+    has_documents = bool(
+        provider_profile.id_card_front and 
+        provider_profile.id_card_back and 
+        provider_profile.selfie_with_id
+    )
+    
+    # 2. Subir primer servicio
+    has_services = services.exists()
+    
+    # 3. Ser verificado
+    is_verified = provider_profile.status == 'approved'
+    is_processing = provider_profile.status in ['pending', 'resubmitted']
+    is_rejected = provider_profile.status == 'rejected'
+    
+    verification_label = 'Verificación de perfil'
+    if is_verified:
+        verification_label = 'Perfil Verificado'
+    elif is_processing:
+        verification_label = 'Perfil en Verificación...'
+    elif is_rejected:
+        verification_label = 'Perfil Rechazado'
+    
+    # 4. Subir zonas de cobertura
+    has_coverage_zones = provider_profile.coverage_zones.exists()
+    
+    # 5. Cargar costos de movilización
+    has_zone_costs = ProviderZoneCost.objects.filter(provider=request.user).exists()
+    
+    # 6. Subir horarios
+    has_schedules = ProviderSchedule.objects.filter(provider=request.user).exists()
+    
+    raw_steps = [
+        {'id': 1, 'label': 'Subir documentos', 'done': has_documents, 'url': 'provider_register_step2'},
+        {'id': 2, 'label': 'Crear primer servicio', 'done': has_services, 'url': 'service_create'},
+        {'id': 3, 'label': verification_label, 'done': is_verified, 'url': None, 
+         'is_processing': is_processing, 'is_rejected': is_rejected},
+        {'id': 4, 'label': 'Crear ubicación base', 'done': has_base_location, 'url': 'provider_locations_list'},
+        {'id': 5, 'label': 'Definir zonas de cobertura', 'done': has_coverage_zones, 'url': 'provider_coverage_manage'},
+        {'id': 6, 'label': 'Configurar costos de traslado', 'done': has_zone_costs, 'url': 'provider_zone_costs_manage'},
+        {'id': 7, 'label': 'Configurar horarios', 'done': has_schedules, 'url': 'provider_schedule_manage'},
+    ]
+
+    onboarding_steps = []
+    previous_step_done = True # El primer paso siempre está desbloqueado
+
+    for step in raw_steps:
+        # Si el perfil fue rechazado, habilitamos los pasos anteriores para edición
+        if is_rejected and step['id'] < 3:
+             step['status'] = 'completed_editable' # Nuevo estado para permitir edición
+             step['locked'] = False
+        elif step['done']:
+            step['status'] = 'completed'
+            step['locked'] = False
+        elif previous_step_done:
+            step['status'] = 'current'
+            step['locked'] = False
+        else:
+            step['status'] = 'locked'
+            step['locked'] = True
+        
+        onboarding_steps.append(step)
+        # Para el paso de verificación, si está en proceso o rechazado, 
+        # bloqueamos los siguientes pasos (previous_step_done = False)
+        # pero el paso actual se muestra con su estado especial
+        previous_step_done = step['done']
+    
+    completed_steps_count = sum(1 for step in onboarding_steps if step['done'])
+    total_steps_count = len(onboarding_steps)
+    onboarding_progress = int((completed_steps_count / total_steps_count) * 100)
+    show_onboarding = completed_steps_count < total_steps_count
     
     context = {
         'provider_profile': provider_profile,
@@ -167,6 +240,9 @@ def dashboard_provider(request):
         'has_service_mode': has_service_mode,
         'has_base_location': has_base_location,
         'has_local_locations': has_local_locations,
+        'onboarding_steps': onboarding_steps,
+        'onboarding_progress': onboarding_progress,
+        'show_onboarding': show_onboarding,
     }
     return render(request, 'dashboard/provider.html', context)
 

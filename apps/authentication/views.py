@@ -445,23 +445,21 @@ def provider_register_step2(request):
             provider_profile.documents_verified = False  # Documentos aún no verificados
             provider_profile.save()
             
-            # Log de auditoría
-            AuditLog.objects.create(
-                user=request.user,
-                action='Documentos de identidad subidos',
-                metadata={
-                    'step': 2,
-                    'status': 'created',
-                    'next_step': 'create_first_service'
-                }
-            )
+            # TRIGGER VALIDATION: Si ya tiene servicio, validar ahora
+            from apps.core.verification import trigger_validation_if_eligible
             
-            # CORRECCIÓN: Mensaje indicando siguiente paso
-            messages.success(
-                request,
-                '¡Documentos subidos exitosamente! '
-                'Ahora crea tu primer servicio para solicitar la aprobación de tu perfil.'
-            )
+            triggered = trigger_validation_if_eligible(provider_profile)
+            
+            if triggered:
+                messages.success(request, '¡Documentos subidos! Tu perfil ha entrado en proceso de verificación.')
+            else:
+                # Si no se disparó (probablemente falta servicio)
+                if provider_profile.status == 'created':
+                    messages.success(
+                        request,
+                        '¡Documentos subidos exitosamente! '
+                        'Ahora crea tu primer servicio para solicitar la aprobación de tu perfil.'
+                    )
             return redirect('dashboard')
             
         except Exception as e:

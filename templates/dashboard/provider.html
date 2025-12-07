@@ -4,522 +4,652 @@
 
 {% block extra_css %}
 <style>
-/* ======================================
+    /* ======================================
    PROVIDER DASHBOARD - REORGANIZACIÓN UX
    ====================================== */
 
-/* Hero Cards Container */
-.hero-cards {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 1.5rem;
-    margin-bottom: 2rem;
-}
-
-/* Hero Card Base */
-.hero-card {
-    background: white;
-    border-radius: 16px;
-    padding: 1.5rem;
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
-    transition: all 0.3s ease;
-    position: relative;
-    overflow: hidden;
-}
-
-.hero-card:hover {
-    transform: translateY(-4px);
-    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.12);
-}
-
-/* Hero Card - Saldo (Principal) */
-.hero-card--saldo {
-    background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
-    color: white;
-    grid-column: span 1;
-}
-
-.hero-card--saldo .hero-card__icon {
-    background: rgba(255, 255, 255, 0.2);
-}
-
-.hero-card--saldo .hero-card__value {
-    font-size: 2.5rem;
-    font-weight: 700;
-}
-
-.hero-card--saldo .hero-card__action {
-    background: white;
-    color: #28a745;
-}
-
-.hero-card--saldo .hero-card__action:hover {
-    background: #f8f9fa;
-    transform: translateY(-2px);
-}
-
-/* Hero Card - Reservas */
-.hero-card--reservas {
-    border-left: 4px solid #ffc107;
-}
-
-.hero-card--reservas .hero-card__icon {
-    background: rgba(255, 193, 7, 0.15);
-    color: #ffc107;
-}
-
-/* Hero Card - Rating */
-.hero-card--rating {
-    border-left: 4px solid #667eea;
-}
-
-.hero-card--rating .hero-card__icon {
-    background: rgba(102, 126, 234, 0.15);
-    color: #667eea;
-}
-
-/* Hero Card Elements */
-.hero-card__header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    margin-bottom: 1rem;
-}
-
-.hero-card__icon {
-    width: 48px;
-    height: 48px;
-    border-radius: 12px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 1.5rem;
-}
-
-.hero-card__badge {
-    font-size: 0.75rem;
-    padding: 0.25rem 0.75rem;
-    border-radius: 20px;
-}
-
-.hero-card__label {
-    font-size: 0.9rem;
-    opacity: 0.8;
-    margin-bottom: 0.25rem;
-}
-
-.hero-card__value {
-    font-size: 2rem;
-    font-weight: 700;
-    margin-bottom: 0.5rem;
-}
-
-.hero-card__sublabel {
-    font-size: 0.8rem;
-    opacity: 0.7;
-}
-
-.hero-card__action {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.5rem;
-    padding: 0.5rem 1rem;
-    border-radius: 8px;
-    text-decoration: none;
-    font-weight: 600;
-    font-size: 0.85rem;
-    transition: all 0.2s ease;
-    margin-top: 0.75rem;
-}
-
-/* Rating Stars */
-.rating-stars {
-    display: flex;
-    gap: 0.25rem;
-    margin-bottom: 0.5rem;
-}
-
-.rating-stars i {
-    color: #ffc107;
-    font-size: 1.25rem;
-}
-
-/* Próximas Reservas Section */
-.upcoming-section {
-    background: white;
-    border-radius: 16px;
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
-    margin-bottom: 2rem;
-}
-
-.upcoming-section__header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 1.25rem 1.5rem;
-    border-bottom: 1px solid #f0f0f0;
-}
-
-.upcoming-section__title {
-    font-size: 1.1rem;
-    font-weight: 600;
-    color: #2c3e50;
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-}
-
-.upcoming-section__title i {
-    color: #667eea;
-}
-
-.upcoming-section__body {
-    padding: 1rem;
-}
-
-/* Booking Card Compact */
-.booking-card-compact {
-    display: flex;
-    align-items: center;
-    padding: 1rem;
-    border-radius: 12px;
-    background: #f8f9fa;
-    margin-bottom: 0.75rem;
-    transition: all 0.2s ease;
-}
-
-.booking-card-compact:hover {
-    background: #e9ecef;
-}
-
-.booking-card-compact:last-child {
-    margin-bottom: 0;
-}
-
-.booking-card-compact__time {
-    min-width: 100px;
-    text-align: center;
-    padding-right: 1rem;
-    border-right: 2px solid #dee2e6;
-    margin-right: 1rem;
-}
-
-.booking-card-compact__day {
-    font-size: 0.75rem;
-    color: #6c757d;
-    text-transform: uppercase;
-}
-
-.booking-card-compact__date {
-    font-size: 1.1rem;
-    font-weight: 700;
-    color: #2c3e50;
-}
-
-.booking-card-compact__hour {
-    font-size: 0.9rem;
-    color: #667eea;
-    font-weight: 600;
-}
-
-.booking-card-compact__info {
-    flex: 1;
-}
-
-.booking-card-compact__customer {
-    font-weight: 600;
-    color: #2c3e50;
-    margin-bottom: 0.25rem;
-}
-
-.booking-card-compact__services {
-    font-size: 0.85rem;
-    color: #6c757d;
-}
-
-.booking-card-compact__price {
-    font-size: 1.25rem;
-    font-weight: 700;
-    color: #28a745;
-    margin-right: 1rem;
-}
-
-.booking-card-compact__actions {
-    display: flex;
-    gap: 0.5rem;
-}
-
-/* Countdown Badge */
-.countdown-badge {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.25rem;
-    padding: 0.25rem 0.5rem;
-    border-radius: 4px;
-    font-size: 0.7rem;
-    font-weight: 600;
-}
-
-.countdown-badge--urgent {
-    background: #fff3cd;
-    color: #856404;
-}
-
-.countdown-badge--soon {
-    background: #cce5ff;
-    color: #004085;
-}
-
-/* Alertas Colapsables */
-.alerts-container {
-    margin-bottom: 1.5rem;
-}
-
-.alert-collapsible {
-    border-radius: 12px;
-    margin-bottom: 0.75rem;
-    overflow: hidden;
-}
-
-.alert-collapsible__header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 1rem 1.25rem;
-    cursor: pointer;
-    user-select: none;
-}
-
-.alert-collapsible__header:hover {
-    opacity: 0.9;
-}
-
-.alert-collapsible__title {
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
-    font-weight: 600;
-}
-
-.alert-collapsible__toggle {
-    transition: transform 0.3s ease;
-}
-
-.alert-collapsible__toggle.collapsed {
-    transform: rotate(-90deg);
-}
-
-.alert-collapsible__body {
-    padding: 0 1.25rem 1rem;
-}
-
-/* Quick Actions Floating */
-.quick-actions-floating {
-    position: fixed;
-    bottom: 2rem;
-    right: 2rem;
-    z-index: 100;
-}
-
-.quick-actions-btn {
-    width: 56px;
-    height: 56px;
-    border-radius: 50%;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    color: white;
-    border: none;
-    box-shadow: 0 4px 20px rgba(102, 126, 234, 0.4);
-    cursor: pointer;
-    transition: all 0.3s ease;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 1.5rem;
-}
-
-.quick-actions-btn:hover {
-    transform: scale(1.1);
-    box-shadow: 0 6px 25px rgba(102, 126, 234, 0.5);
-}
-
-/* Sidebar Compact */
-.sidebar-compact {
-    position: sticky;
-    top: 80px;
-}
-
-.sidebar-card {
-    background: white;
-    border-radius: 16px;
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
-    margin-bottom: 1.5rem;
-    overflow: hidden;
-}
-
-.sidebar-card__header {
-    padding: 1rem 1.25rem;
-    border-bottom: 1px solid #f0f0f0;
-    font-weight: 600;
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-}
-
-.sidebar-card__body {
-    padding: 1rem 1.25rem;
-}
-
-/* Profile Mini Card */
-.profile-mini {
-    display: flex;
-    align-items: center;
-    gap: 1rem;
-    padding: 1rem;
-}
-
-.profile-mini__photo {
-    width: 60px;
-    height: 60px;
-    border-radius: 50%;
-    object-fit: cover;
-    border: 3px solid #667eea;
-}
-
-.profile-mini__photo-placeholder {
-    width: 60px;
-    height: 60px;
-    border-radius: 50%;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: white;
-    font-size: 1.5rem;
-}
-
-.profile-mini__info {
-    flex: 1;
-}
-
-.profile-mini__name {
-    font-weight: 600;
-    color: #2c3e50;
-    margin-bottom: 0.25rem;
-}
-
-.profile-mini__category {
-    font-size: 0.85rem;
-    color: #6c757d;
-}
-
-/* Services Quick List */
-.services-quick {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.5rem;
-}
-
-.service-tag {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.25rem;
-    padding: 0.35rem 0.75rem;
-    background: #f0f0f0;
-    border-radius: 20px;
-    font-size: 0.8rem;
-    color: #495057;
-}
-
-.service-tag--active {
-    background: #d4edda;
-    color: #155724;
-}
-
-.service-tag--inactive {
-    background: #f8d7da;
-    color: #721c24;
-}
-
-/* Empty State */
-.empty-state {
-    text-align: center;
-    padding: 3rem 2rem;
-    color: #6c757d;
-}
-
-.empty-state__icon {
-    font-size: 4rem;
-    margin-bottom: 1rem;
-    opacity: 0.5;
-}
-
-.empty-state__title {
-    font-size: 1.25rem;
-    font-weight: 600;
-    margin-bottom: 0.5rem;
-    color: #495057;
-}
-
-.empty-state__text {
-    margin-bottom: 1.5rem;
-}
-
-/* Responsive */
-@media (max-width: 992px) {
+    /* Hero Cards Container */
     .hero-cards {
-        grid-template-columns: 1fr;
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 1.5rem;
+        margin-bottom: 2rem;
     }
-    
+
+    /* Hero Card Base */
+    .hero-card {
+        background: white;
+        border-radius: 16px;
+        padding: 1.5rem;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+        transition: all 0.3s ease;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .hero-card:hover {
+        transform: translateY(-4px);
+        box-shadow: 0 8px 30px rgba(0, 0, 0, 0.12);
+    }
+
+    /* Hero Card - Saldo (Principal) */
     .hero-card--saldo {
+        background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+        color: white;
         grid-column: span 1;
     }
-    
-    .quick-actions-floating {
-        bottom: 1rem;
-        right: 1rem;
-    }
-}
 
-@media (max-width: 768px) {
-    .booking-card-compact {
-        flex-direction: column;
-        align-items: flex-start;
+    .hero-card--saldo .hero-card__icon {
+        background: rgba(255, 255, 255, 0.2);
     }
-    
-    .booking-card-compact__time {
-        border-right: none;
-        border-bottom: 2px solid #dee2e6;
-        padding-right: 0;
-        padding-bottom: 0.75rem;
-        margin-right: 0;
-        margin-bottom: 0.75rem;
-        width: 100%;
+
+    .hero-card--saldo .hero-card__value {
+        font-size: 2.5rem;
+        font-weight: 700;
+    }
+
+    .hero-card--saldo .hero-card__action {
+        background: white;
+        color: #28a745;
+    }
+
+    .hero-card--saldo .hero-card__action:hover {
+        background: #f8f9fa;
+        transform: translateY(-2px);
+    }
+
+    /* Hero Card - Reservas */
+    .hero-card--reservas {
+        border-left: 4px solid #ffc107;
+    }
+
+    .hero-card--reservas .hero-card__icon {
+        background: rgba(255, 193, 7, 0.15);
+        color: #ffc107;
+    }
+
+    /* Hero Card - Rating */
+    .hero-card--rating {
+        border-left: 4px solid #667eea;
+    }
+
+    .hero-card--rating .hero-card__icon {
+        background: rgba(102, 126, 234, 0.15);
+        color: #667eea;
+    }
+
+    /* Hero Card Elements */
+    .hero-card__header {
         display: flex;
-        gap: 1rem;
         align-items: center;
+        justify-content: space-between;
+        margin-bottom: 1rem;
     }
-    
+
+    .hero-card__icon {
+        width: 48px;
+        height: 48px;
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.5rem;
+    }
+
+    .hero-card__badge {
+        font-size: 0.75rem;
+        padding: 0.25rem 0.75rem;
+        border-radius: 20px;
+    }
+
+    .hero-card__label {
+        font-size: 0.9rem;
+        opacity: 0.8;
+        margin-bottom: 0.25rem;
+    }
+
+    .hero-card__value {
+        font-size: 2rem;
+        font-weight: 700;
+        margin-bottom: 0.5rem;
+    }
+
+    .hero-card__sublabel {
+        font-size: 0.8rem;
+        opacity: 0.7;
+    }
+
+    .hero-card__action {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.5rem 1rem;
+        border-radius: 8px;
+        text-decoration: none;
+        font-weight: 600;
+        font-size: 0.85rem;
+        transition: all 0.2s ease;
+        margin-top: 0.75rem;
+    }
+
+    /* Rating Stars */
+    .rating-stars {
+        display: flex;
+        gap: 0.25rem;
+        margin-bottom: 0.5rem;
+    }
+
+    .rating-stars i {
+        color: #ffc107;
+        font-size: 1.25rem;
+    }
+
+    /* Próximas Reservas Section */
+    .upcoming-section {
+        background: white;
+        border-radius: 16px;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+        margin-bottom: 2rem;
+    }
+
+    .upcoming-section__header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 1.25rem 1.5rem;
+        border-bottom: 1px solid #f0f0f0;
+    }
+
+    .upcoming-section__title {
+        font-size: 1.1rem;
+        font-weight: 600;
+        color: #2c3e50;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .upcoming-section__title i {
+        color: #667eea;
+    }
+
+    .upcoming-section__body {
+        padding: 1rem;
+    }
+
+    /* Booking Card Compact */
+    .booking-card-compact {
+        display: flex;
+        align-items: center;
+        padding: 1rem;
+        border-radius: 12px;
+        background: #f8f9fa;
+        margin-bottom: 0.75rem;
+        transition: all 0.2s ease;
+    }
+
+    .booking-card-compact:hover {
+        background: #e9ecef;
+    }
+
+    .booking-card-compact:last-child {
+        margin-bottom: 0;
+    }
+
+    .booking-card-compact__time {
+        min-width: 100px;
+        text-align: center;
+        padding-right: 1rem;
+        border-right: 2px solid #dee2e6;
+        margin-right: 1rem;
+    }
+
+    .booking-card-compact__day {
+        font-size: 0.75rem;
+        color: #6c757d;
+        text-transform: uppercase;
+    }
+
+    .booking-card-compact__date {
+        font-size: 1.1rem;
+        font-weight: 700;
+        color: #2c3e50;
+    }
+
+    .booking-card-compact__hour {
+        font-size: 0.9rem;
+        color: #667eea;
+        font-weight: 600;
+    }
+
+    .booking-card-compact__info {
+        flex: 1;
+    }
+
+    .booking-card-compact__customer {
+        font-weight: 600;
+        color: #2c3e50;
+        margin-bottom: 0.25rem;
+    }
+
+    .booking-card-compact__services {
+        font-size: 0.85rem;
+        color: #6c757d;
+    }
+
     .booking-card-compact__price {
-        margin-right: 0;
-        margin-top: 0.75rem;
+        font-size: 1.25rem;
+        font-weight: 700;
+        color: #28a745;
+        margin-right: 1rem;
     }
-    
+
     .booking-card-compact__actions {
-        width: 100%;
-        margin-top: 0.75rem;
+        display: flex;
+        gap: 0.5rem;
     }
-}
+
+    /* Countdown Badge */
+    .countdown-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.25rem;
+        padding: 0.25rem 0.5rem;
+        border-radius: 4px;
+        font-size: 0.7rem;
+        font-weight: 600;
+    }
+
+    .countdown-badge--urgent {
+        background: #fff3cd;
+        color: #856404;
+    }
+
+    .countdown-badge--soon {
+        background: #cce5ff;
+        color: #004085;
+    }
+
+    /* Alertas Colapsables */
+    .alerts-container {
+        margin-bottom: 1.5rem;
+    }
+
+    .alert-collapsible {
+        border-radius: 12px;
+        margin-bottom: 0.75rem;
+        overflow: hidden;
+    }
+
+    .alert-collapsible__header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 1rem 1.25rem;
+        cursor: pointer;
+        user-select: none;
+    }
+
+    .alert-collapsible__header:hover {
+        opacity: 0.9;
+    }
+
+    .alert-collapsible__title {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        font-weight: 600;
+    }
+
+    .alert-collapsible__toggle {
+        transition: transform 0.3s ease;
+    }
+
+    .alert-collapsible__toggle.collapsed {
+        transform: rotate(-90deg);
+    }
+
+    .alert-collapsible__body {
+        padding: 0 1.25rem 1rem;
+    }
+
+    /* Quick Actions Floating */
+    .quick-actions-floating {
+        position: fixed;
+        bottom: 2rem;
+        right: 2rem;
+        z-index: 100;
+    }
+
+    .quick-actions-btn {
+        width: 56px;
+        height: 56px;
+        border-radius: 50%;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border: none;
+        box-shadow: 0 4px 20px rgba(102, 126, 234, 0.4);
+        cursor: pointer;
+        transition: all 0.3s ease;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.5rem;
+    }
+
+    .quick-actions-btn:hover {
+        transform: scale(1.1);
+        box-shadow: 0 6px 25px rgba(102, 126, 234, 0.5);
+    }
+
+    /* Sidebar Compact */
+    .sidebar-compact {
+        position: sticky;
+        top: 80px;
+    }
+
+    .sidebar-card {
+        background: white;
+        border-radius: 16px;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+        margin-bottom: 1.5rem;
+        overflow: hidden;
+    }
+
+    .sidebar-card__header {
+        padding: 1rem 1.25rem;
+        border-bottom: 1px solid #f0f0f0;
+        font-weight: 600;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .sidebar-card__body {
+        padding: 1rem 1.25rem;
+    }
+
+    /* Profile Mini Card */
+    .profile-mini {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        padding: 1rem;
+    }
+
+    .profile-mini__photo {
+        width: 60px;
+        height: 60px;
+        border-radius: 50%;
+        object-fit: cover;
+        border: 3px solid #667eea;
+    }
+
+    .profile-mini__photo-placeholder {
+        width: 60px;
+        height: 60px;
+        border-radius: 50%;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-size: 1.5rem;
+    }
+
+    .profile-mini__info {
+        flex: 1;
+    }
+
+    .profile-mini__name {
+        font-weight: 600;
+        color: #2c3e50;
+        margin-bottom: 0.25rem;
+    }
+
+    .profile-mini__category {
+        font-size: 0.85rem;
+        color: #6c757d;
+    }
+
+    /* Services Quick List */
+    .services-quick {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+    }
+
+    .service-tag {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.25rem;
+        padding: 0.35rem 0.75rem;
+        background: #f0f0f0;
+        border-radius: 20px;
+        font-size: 0.8rem;
+        color: #495057;
+    }
+
+    .service-tag--active {
+        background: #d4edda;
+        color: #155724;
+    }
+
+    .service-tag--inactive {
+        background: #f8d7da;
+        color: #721c24;
+    }
+
+    /* Empty State */
+    .empty-state {
+        text-align: center;
+        padding: 3rem 2rem;
+        color: #6c757d;
+    }
+
+    .empty-state__icon {
+        font-size: 4rem;
+        margin-bottom: 1rem;
+        opacity: 0.5;
+    }
+
+    .empty-state__title {
+        font-size: 1.25rem;
+        font-weight: 600;
+        margin-bottom: 0.5rem;
+        color: #495057;
+    }
+
+    .empty-state__text {
+        margin-bottom: 1.5rem;
+    }
+
+    /* Responsive */
+    @media (max-width: 992px) {
+        .hero-cards {
+            grid-template-columns: 1fr;
+        }
+
+        .hero-card--saldo {
+            grid-column: span 1;
+        }
+
+        .quick-actions-floating {
+            bottom: 1rem;
+            right: 1rem;
+        }
+    }
+
+    @media (max-width: 768px) {
+        .booking-card-compact {
+            flex-direction: column;
+            align-items: flex-start;
+        }
+
+        .booking-card-compact__time {
+            border-right: none;
+            border-bottom: 2px solid #dee2e6;
+            padding-right: 0;
+            padding-bottom: 0.75rem;
+            margin-right: 0;
+            margin-bottom: 0.75rem;
+            width: 100%;
+            display: flex;
+            gap: 1rem;
+            align-items: center;
+        }
+
+        .booking-card-compact__price {
+            margin-right: 0;
+            margin-top: 0.75rem;
+        }
+
+        .booking-card-compact__actions {
+            width: 100%;
+            margin-top: 0.75rem;
+        }
+    }
 </style>
 {% endblock %}
 
 {% block content %}
 <div class="container mt-4 mb-5">
-    
+
     <!-- ============================================
          ALERTAS CRÍTICAS COLAPSABLES (Solo las importantes)
          ============================================ -->
+    <!-- ============================================
+         ONBOARDING CHECKLIST (Solo si no está completo)
+         ============================================ -->
+    {% if show_onboarding %}
+    <div class="card border-0 shadow-sm mb-4" style="border-radius: 16px; overflow: hidden;">
+        <div class="card-header bg-white border-0 pt-4 pb-2 px-4">
+            <div class="d-flex justify-content-between align-items-center mb-2">
+                <h5 class="mb-0 fw-bold text-dark">
+                    <i class="fas fa-clipboard-list text-primary me-2"></i>Tu Camino al Éxito
+                </h5>
+                <span class="badge bg-primary rounded-pill px-3 py-2">{{ onboarding_progress }}% Completado</span>
+            </div>
+            <div class="progress" style="height: 8px; border-radius: 4px;">
+                <div class="progress-bar bg-primary" role="progressbar" style="width: {{ onboarding_progress }}%"
+                    aria-valuenow="{{ onboarding_progress }}" aria-valuemin="0" aria-valuemax="100"></div>
+            </div>
+        </div>
+        <div class="card-body px-4 pb-4">
+            <p class="text-muted mb-4">Completa estos pasos para activar tu perfil y empezar a recibir reservas.</p>
+
+            <div class="row g-3">
+                {% for step in onboarding_steps %}
+                <div class="col-md-6 col-lg-4">
+                    <div class="d-flex align-items-center p-3 rounded-3 
+                        {% if step.status == 'completed' %}bg-light border border-success
+                        {% elif step.status == 'completed_editable' %}bg-white border border-success shadow-sm
+                        {% elif step.status == 'current' %}bg-white border border-primary shadow-sm
+                        {% else %}bg-light border text-muted{% endif %}"
+                        style="transition: all 0.2s; height: 100%; {% if step.locked %}opacity: 0.7;{% endif %}">
+
+                        <div class="flex-shrink-0 me-3">
+                            {% if step.status == 'completed' or step.status == 'completed_editable' %}
+                            <div class="rounded-circle bg-success text-white d-flex align-items-center justify-content-center"
+                                style="width: 32px; height: 32px;">
+                                <i class="fas fa-check"></i>
+                            </div>
+                            {% elif step.status == 'locked' %}
+                            <div class="rounded-circle bg-secondary text-white d-flex align-items-center justify-content-center"
+                                style="width: 32px; height: 32px;">
+                                <i class="fas fa-lock"></i>
+                            </div>
+                            {% else %}
+                            <div class="rounded-circle bg-primary text-white d-flex align-items-center justify-content-center"
+                                style="width: 32px; height: 32px; font-weight: bold;">
+                                {{ step.id }}
+                            </div>
+                            {% endif %}
+                        </div>
+
+                        <div class="flex-grow-1">
+                            <h6 class="mb-0 
+                                {% if step.status == 'completed' %}text-success text-decoration-line-through
+                                {% elif step.status == 'completed_editable' %}text-success fw-bold
+                                {% elif step.status == 'current' %}text-primary fw-bold
+                                {% else %}text-muted{% endif %}">
+                                {{ step.label }}
+                            </h6>
+
+                            {% if step.status == 'completed_editable' and step.url %}
+                            <a href="{% url step.url %}"
+                                class="small text-success text-decoration-underline mt-1 d-inline-block">
+                                <i class="fas fa-edit me-1"></i>Modificar
+                            </a>
+                            {% endif %}
+
+                            {% if step.is_processing %}
+                            <small class="text-muted d-block mt-1" style="font-size: 0.8rem; line-height: 1.2;">
+                                <i class="fas fa-spinner fa-spin me-1"></i>Este proceso puede tomar algunos minutos, te
+                                enviaremos un correo.
+                            </small>
+                            {% endif %}
+
+                            {% if step.is_rejected %}
+                            <small class="d-block mt-1">
+                                <a href="#" data-bs-toggle="modal" data-bs-target="#rejectionModal"
+                                    class="text-danger fw-bold text-decoration-underline small">
+                                    <i class="fas fa-info-circle me-1"></i>Revisar observaciones
+                                </a>
+                            </small>
+                            {% endif %}
+
+                            {% if step.status == 'current' and step.url %}
+                            <a href="{% url step.url %}"
+                                class="small text-primary text-decoration-none mt-1 d-inline-block fw-bold">
+                                Completar ahora <i class="fas fa-arrow-right ms-1"></i>
+                            </a>
+                            {% elif step.status == 'current' and not step.url and not step.is_processing and not step.is_rejected %}
+                            <small class="text-warning d-block mt-1 fw-bold">
+                                <i class="fas fa-clock me-1"></i>Esperando acción
+                            </small>
+                            {% elif step.status == 'locked' %}
+                            <small class="text-muted d-block mt-1">
+                                <i class="fas fa-lock me-1"></i>Bloqueado
+                            </small>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
     <div class="alerts-container">
-        
+
+        {% if provider_profile.status == 'rejected' %}
+        <!-- Alerta Crítica: Perfil Rechazado -->
+        <div class="alert alert-danger mb-3" style="border-radius: 12px;">
+            <div class="d-flex align-items-center justify-content-between">
+                <div>
+                    <i class="fas fa-times-circle fa-2x me-3"></i>
+                    <span>
+                        <strong>Tu perfil ha sido rechazado.</strong><br>
+                        Revisa los motivos y corrige la información para solicitar una nueva verificación.
+                    </span>
+                </div>
+                <a href="{% url 'request_reverification' %}" class="btn btn-light text-danger fw-bold">
+                    Ver Motivos y Corregir
+                </a>
+            </div>
+        </div>
+        {% endif %}
+
+        {% if provider_profile.status == 'resubmitted' %}
+        <!-- Alerta: Perfil Re-enviado -->
+        <div class="alert alert-info mb-3" style="border-radius: 12px;">
+            <i class="fas fa-sync-alt fa-spin me-2"></i>
+            <strong>Tu solicitud de re-verificación está siendo procesada.</strong> Te notificaremos pronto.
+        </div>
+        {% endif %}
+
         {% if not has_service_mode %}
         <!-- Alerta Crítica: Sin Modalidad -->
         <div class="alert-collapsible alert alert-danger mb-0">
@@ -596,7 +726,7 @@
          3 HERO CARDS PRINCIPALES
          ============================================ -->
     <div class="hero-cards">
-        
+
         <!-- HERO CARD 1: SALDO DISPONIBLE -->
         <div class="hero-card hero-card--saldo">
             <div class="hero-card__header">
@@ -649,12 +779,11 @@
             {% if rating_avg > 0 %}
             <div class="rating-stars">
                 {% for i in "12345" %}
-                    {% if forloop.counter <= rating_avg %}
-                        <i class="fas fa-star"></i>
+                {% if forloop.counter <= rating_avg %} <i class="fas fa-star"></i>
                     {% else %}
-                        <i class="far fa-star"></i>
+                    <i class="far fa-star"></i>
                     {% endif %}
-                {% endfor %}
+                    {% endfor %}
             </div>
             <div class="hero-card__value">{{ rating_avg }}</div>
             <div class="hero-card__sublabel">{{ total_reviews }} reseña{{ total_reviews|pluralize }}</div>
@@ -686,56 +815,72 @@
                 </div>
                 <div class="upcoming-section__body">
                     {% if upcoming_bookings %}
-                        {% for booking in upcoming_bookings %}
-                        <div class="booking-card-compact">
-                            <div class="booking-card-compact__time">
-                                <div class="booking-card-compact__day">{{ booking.scheduled_time|date:"D" }}</div>
-                                <div class="booking-card-compact__date">{{ booking.scheduled_time|date:"d M" }}</div>
-                                <div class="booking-card-compact__hour">{{ booking.scheduled_time|date:"H:i" }}</div>
-                                {% if booking.hours_until <= 2 %}
-                                <span class="countdown-badge countdown-badge--urgent">
-                                    <i class="fas fa-bell"></i> ¡{{ booking.hours_until }}h!
+                    {% for booking in upcoming_bookings %}
+                    <div class="booking-card-compact">
+                        <div class="booking-card-compact__time">
+                            <div class="booking-card-compact__day">{{ booking.scheduled_time|date:"D" }}</div>
+                            <div class="booking-card-compact__date">{{ booking.scheduled_time|date:"d M" }}</div>
+                            <div class="booking-card-compact__hour">{{ booking.scheduled_time|date:"H:i" }}</div>
+                            {% if booking.hours_until <= 2 %} <span class="countdown-badge countdown-badge--urgent">
+                                <i class="fas fa-bell"></i> ¡{{ booking.hours_until }}h!
                                 </span>
-                                {% elif booking.hours_until <= 24 %}
+                                {% elif booking.days_until == 0 %}
                                 <span class="countdown-badge countdown-badge--soon">
-                                    <i class="fas fa-clock"></i> {{ booking.hours_until }}h
+                                    <i class="fas fa-clock"></i> Hoy
                                 </span>
                                 {% endif %}
-                            </div>
-                            <div class="booking-card-compact__info">
-                                <div class="booking-card-compact__customer">
-                                    <i class="fas fa-user me-1"></i>{{ booking.customer.get_full_name|default:booking.customer.username }}
-                                </div>
-                                <div class="booking-card-compact__services">
-                                    {% for service in booking.service_list %}
-                                        {{ service.name }}{% if not forloop.last %}, {% endif %}
-                                    {% endfor %}
-                                </div>
-                            </div>
-                            <div class="booking-card-compact__price">${{ booking.total_cost }}</div>
-                            <div class="booking-card-compact__actions">
-                                <a href="{% url 'booking_detail' booking.id %}" class="btn btn-sm btn-outline-primary">
-                                    <i class="fas fa-eye"></i>
-                                </a>
-                                {% if booking.status == 'accepted' and booking.payment_status == 'paid' %}
-                                <a href="{% url 'booking_detail' booking.id %}" class="btn btn-sm btn-success">
-                                    <i class="fas fa-check"></i> Completar
-                                </a>
-                                {% endif %}
+                        </div>
+                        <div class="booking-card-compact__info">
+                            <div class="booking-card-compact__customer">{{ booking.customer.get_full_name }}</div>
+                            <div class="booking-card-compact__services">
+                                {{ booking.get_services_display|truncatechars:40 }}
                             </div>
                         </div>
-                        {% endfor %}
+                        <div class="booking-card-compact__price">${{ booking.total_cost }}</div>
+                        <div class="booking-card-compact__actions">
+                            <a href="{% url 'booking_detail' booking.slug %}" class="btn btn-sm btn-light text-primary">
+                                <i class="fas fa-chevron-right"></i>
+                            </a>
+                        </div>
+                    </div>
+                    {% endfor %}
                     {% else %}
-                        <div class="empty-state">
-                            <div class="empty-state__icon">
-                                <i class="fas fa-calendar-check"></i>
-                            </div>
-                            <div class="empty-state__title">Sin citas próximas</div>
-                            <div class="empty-state__text">No tienes reservas en las próximas 48 horas</div>
-                        </div>
+                    <div class="text-center py-4 text-muted">
+                        <i class="far fa-calendar-times fa-2x mb-2 opacity-50"></i>
+                        <p class="mb-0">No tienes reservas para las próximas 48 horas</p>
+                    </div>
                     {% endif %}
                 </div>
             </div>
+
+            <!-- Modal de Observaciones -->
+            <div class="modal fade" id="rejectionModal" tabindex="-1" aria-hidden="true">
+                <div class="modal-dialog modal-dialog-centered">
+                    <div class="modal-content border-0 shadow-lg" style="border-radius: 16px;">
+                        <div class="modal-header border-0 pb-0">
+                            <h5 class="modal-title text-danger fw-bold">
+                                <i class="fas fa-exclamation-triangle me-2"></i>Observaciones de Rechazo
+                            </h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                        </div>
+                        <div class="modal-body pt-4">
+                            <p class="text-muted mb-3">Tu perfil no pudo ser verificado por las siguientes razones:</p>
+                            <div class="bg-light p-3 rounded-3 border border-danger border-opacity-25 text-dark">
+                                {{ provider_profile.rejection_reasons|linebreaks }}
+                            </div>
+                            <p class="small text-muted mt-3 mb-0">
+                                Por favor, corrige estos puntos en los pasos anteriores y vuelve a solicitar la
+                                verificación.
+                            </p>
+                        </div>
+                        <div class="modal-footer border-0 pt-0">
+                            <button type="button" class="btn btn-secondary rounded-pill px-4"
+                                data-bs-dismiss="modal">Entendido</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
 
             <!-- MIS SERVICIOS (Vista Compacta con acciones) -->
             <div class="upcoming-section">
@@ -769,16 +914,20 @@
                                     <td><span class="text-success fw-bold">${{ service.base_price }}</span></td>
                                     <td>
                                         {% if service.available %}
-                                        <span class="badge bg-success"><i class="fas fa-check-circle"></i> Activo</span>
+                                        <span class="badge bg-success"><i class="fas fa-check-circle"></i>
+                                            Activo</span>
                                         {% else %}
-                                        <span class="badge bg-secondary"><i class="fas fa-pause-circle"></i> Inactivo</span>
+                                        <span class="badge bg-secondary"><i class="fas fa-pause-circle"></i>
+                                            Inactivo</span>
                                         {% endif %}
                                     </td>
                                     <td class="text-end">
-                                        <a href="{% url 'service_edit' service.id %}" class="btn btn-sm btn-outline-primary" title="Editar">
+                                        <a href="{% url 'service_edit' service.id %}"
+                                            class="btn btn-sm btn-outline-primary" title="Editar">
                                             <i class="fas fa-edit"></i>
                                         </a>
-                                        <a href="{% url 'service_detail' service.service_code %}" class="btn btn-sm btn-outline-info" title="Ver" target="_blank">
+                                        <a href="{% url 'service_detail' service.service_code %}"
+                                            class="btn btn-sm btn-outline-info" title="Ver" target="_blank">
                                             <i class="fas fa-eye"></i>
                                         </a>
                                     </td>
@@ -816,12 +965,11 @@
                         <div class="me-3">
                             <div class="rating-stars" style="font-size: 0.9rem;">
                                 {% for i in "12345" %}
-                                    {% if forloop.counter <= review.rating %}
-                                        <i class="fas fa-star"></i>
+                                {% if forloop.counter <= review.rating %} <i class="fas fa-star"></i>
                                     {% else %}
-                                        <i class="far fa-star"></i>
+                                    <i class="far fa-star"></i>
                                     {% endif %}
-                                {% endfor %}
+                                    {% endfor %}
                             </div>
                         </div>
                         <div class="flex-grow-1">
@@ -849,7 +997,8 @@
                 <div class="sidebar-card">
                     <div class="profile-mini">
                         {% if provider_profile.profile_photo %}
-                        <img src="{{ provider_profile.profile_photo.url }}" alt="{{ provider_profile.get_display_name }}" class="profile-mini__photo">
+                        <img src="{{ provider_profile.profile_photo.url }}"
+                            alt="{{ provider_profile.get_display_name }}" class="profile-mini__photo">
                         {% else %}
                         <div class="profile-mini__photo-placeholder">
                             <i class="fas fa-user"></i>
@@ -863,14 +1012,17 @@
                                 {{ provider_profile.category.icon }} {{ provider_profile.category.name }}
                             </div>
                             {% if provider_profile.status == 'approved' %}
-                            <span class="badge bg-success mt-1"><i class="fas fa-check-circle"></i> Verificado</span>
+                            <span class="badge bg-success mt-1"><i class="fas fa-check-circle"></i>
+                                Verificado</span>
                             {% elif provider_profile.status == 'pending' %}
-                            <span class="badge bg-warning text-dark mt-1"><i class="fas fa-clock"></i> En Revisión</span>
+                            <span class="badge bg-warning text-dark mt-1"><i class="fas fa-clock"></i> En
+                                Revisión</span>
                             {% endif %}
                         </div>
                     </div>
                     <div class="px-3 pb-3">
-                        <a href="{% url 'provider_profile' provider_profile.slug %}" class="btn btn-outline-primary btn-sm w-100" target="_blank">
+                        <a href="{% url 'provider_profile' provider_profile.slug %}"
+                            class="btn btn-outline-primary btn-sm w-100" target="_blank">
                             <i class="fas fa-external-link-alt me-1"></i> Ver Perfil Público
                         </a>
                     </div>
@@ -932,9 +1084,14 @@
                     </div>
                     <div class="sidebar-card__body">
                         <ul class="list-unstyled mb-0 small">
-                            <li class="mb-2"><i class="fas fa-check text-success me-2"></i>Responde rápido a reservas</li>
-                            <li class="mb-2"><i class="fas fa-check text-success me-2"></i>Sé puntual en tus citas</li>
-                            <li class="mb-0"><i class="fas fa-check text-success me-2"></i>Pide reseñas a tus clientes</li>
+                            <li class="mb-2"><i class="fas fa-check text-success me-2"></i>Responde rápido a
+                                reservas
+                            </li>
+                            <li class="mb-2"><i class="fas fa-check text-success me-2"></i>Sé puntual en tus citas
+                            </li>
+                            <li class="mb-0"><i class="fas fa-check text-success me-2"></i>Pide reseñas a tus
+                                clientes
+                            </li>
                         </ul>
                     </div>
                 </div>
@@ -952,14 +1109,14 @@
 </div>
 
 <script>
-// Toggle para alertas colapsables
-document.querySelectorAll('.alert-collapsible__header').forEach(header => {
-    const toggle = header.querySelector('.alert-collapsible__toggle');
-    if (toggle) {
-        header.addEventListener('click', function() {
-            toggle.classList.toggle('collapsed');
-        });
-    }
-});
+    // Toggle para alertas colapsables
+    document.querySelectorAll('.alert-collapsible__header').forEach(header => {
+        const toggle = header.querySelector('.alert-collapsible__toggle');
+        if (toggle) {
+            header.addEventListener('click', function () {
+                toggle.classList.toggle('collapsed');
+            });
+        }
+    });
 </script>
 {% endblock %}

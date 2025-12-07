@@ -1,0 +1,52 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container py-5">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card shadow">
+                <div class="card-header bg-danger text-white">
+                    <h4 class="mb-0">Solicitud de Nueva Verificación</h4>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-warning">
+                        <i class="fas fa-exclamation-triangle"></i>
+                        Tu perfil fue rechazado anteriormente. Por favor, revisa los motivos y realiza las correcciones
+                        necesarias antes de solicitar una nueva revisión.
+                    </div>
+
+                    {% if rejection_reasons %}
+                    <h5 class="mt-4">Motivos del Rechazo:</h5>
+                    <ul class="list-group mb-4">
+                        {% for reason in rejection_reasons %}
+                        <li class="list-group-item list-group-item-danger">
+                            <strong>{{ reason.code }}:</strong> {{ reason.message }}
+                        </li>
+                        {% endfor %}
+                    </ul>
+                    {% else %}
+                    <p>No se encontraron motivos específicos registrados.</p>
+                    {% endif %}
+
+                    <hr>
+
+                    <h5 class="mt-4">¿Ya realizaste las correcciones?</h5>
+                    <p>Asegúrate de haber actualizado tu perfil, fotos o documentos según lo indicado.</p>
+
+                    <form method="post" class="mt-3">
+                        {% csrf_token %}
+                        <div class="d-grid gap-2">
+                            <button type="submit" class="btn btn-primary btn-lg">
+                                <i class="fas fa-sync-alt"></i> Solicitar Nueva Verificación
+                            </button>
+                            <a href="{% url 'dashboard' %}" class="btn btn-outline-secondary">
+                                Volver al Dashboard
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
