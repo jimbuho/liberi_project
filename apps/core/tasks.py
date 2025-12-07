@@ -1089,7 +1089,68 @@ def validate_provider_profile_task(provider_profile_id):
                 rejection_reasons=rejections
             )
             logger.info(f"❌ [TASK] Perfil {provider_profile.pk} rechazado y notificado.")
+        
+        # Notificar a admins el resultado
+        send_validation_result_to_admin_task.delay(
+            provider_profile_id=provider_profile.pk,
+            is_approved=is_approved,
+            rejection_reasons=rejections if not is_approved else None
+        )
             
     except Exception as e:
         logger.error(f"❌ [TASK] Error CRÍTICO en validate_provider_profile_task: {e}", exc_info=True)
         raise
+
+@shared_task
+def send_validation_result_to_admin_task(provider_profile_id, is_approved, rejection_reasons=None):
+    """
+    Notifica a los administradores sobre el resultado de la validación automática.
+    """
+    try:
+        provider_profile = ProviderProfile.objects.get(pk=provider_profile_id)
+        provider = provider_profile.user
+        
+        admin_users = User.objects.filter(is_staff=True, is_active=True)
+        admin_emails = [admin.email for admin in admin_users if admin.email]
+        
+        if not admin_emails:
+            logger.warning("No hay emails de admin configurados para notificación de validación")
+            return
+
+        status_text = "APROBADO" if is_approved else "RECHAZADO"
+        subject = f'🤖 Resultado Validación Automática: {status_text} - {provider.get_full_name()}'
+        
+        reasons_text = ""
+        if not is_approved and rejection_reasons:
+             reasons_text = "\nMOTIVOS DEL RECHAZO:\n"
+             for reason in rejection_reasons:
+                 reasons_text += f"- {reason.get('code', 'Error')}: {reason.get('message', '')}\n"
+
+        message = f"""
+Reporte de Validación Automática de Proveedor
+
+DETALLES DEL PROVEEDOR:
+- Nombre: {provider.get_full_name()}
+- Email: {provider.email}
+- Negocio: {provider_profile.business_name or 'N/A'}
+- Categoría: {provider_profile.category.name if provider_profile.category else 'N/A'}
+
+RESULTADO: {status_text}
+{reasons_text}
+Link al perfil: {settings.BASE_URL}/admin/core/providerprofile/{provider_profile.id}/change/
+
+---
+Sistema de Validación Automática Liberi
+        """
+        
+        send_mail(
+            subject=subject,
+            message=message,
+            from_email=settings.DEFAULT_FROM_EMAIL,
+            recipient_list=admin_emails,
+            fail_silently=False,
+        )
+        logger.info(f"✅ Notificación de validación enviada a admins para {provider.email}")
+        
+    except Exception as e:
+        logger.error(f"❌ Error enviando notificación de validación a admins: {e}")

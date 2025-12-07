@@ -8,6 +8,9 @@ urlpatterns = [
     path('providers/', views.providers_list, name='providers_list'),
     path('providers/<slug:slug>/', views.provider_profile, name='provider_profile'),
     
+    # Landing pages
+    path('social/categorias/', views.landing_categories, name='landing_categories'),
+    
     # AJAX endpoints
     path('ajax/set-city/', views.set_current_city_ajax, name='set_current_city_ajax'),
     path('ajax/set-zone/', views.set_current_zone, name='set_current_zone'),

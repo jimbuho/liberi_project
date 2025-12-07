@@ -588,3 +588,8 @@ def detect_user_location(request):
         })
     except ValueError:
         return JsonResponse({'error': 'Coordenadas inválidas'}, status=400)
+
+
+def landing_categories(request):
+    """Landing page para compartir categorías en redes sociales"""
+    return render(request, 'landings/categories.html')
