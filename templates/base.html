@@ -17,7 +17,7 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
     <!-- Custom CSS -->
-    <link rel="stylesheet" href="{% static 'css/liberi.css' %}?v=3.2">
+    <link rel="stylesheet" href="{% static 'css/liberi.css' %}?v=3.3">
 
     <!-- Meta Tags Dinámicos -->
     <meta property="og:type" content="{% block og_type %}website{% endblock %}">
@@ -235,34 +235,34 @@
                         </a>
                         <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="userDropdown">
                             {% if user.provider_profile and user.provider_profile.status != 'approved' %}
-                                <!-- Proveedor con perfil incompleto -->
-                                <li>
-                                    <a class="dropdown-item disabled" href="#">
-                                        <i class="fas fa-hourglass-half text-warning"></i> Perfil en Proceso
-                                    </a>
-                                </li>
-                                <li>
-                                    <small class="dropdown-item-text text-muted px-3">
-                                        Completa tu perfil para acceder al dashboard
-                                    </small>
-                                </li>
+                            <!-- Proveedor con perfil incompleto -->
+                            <li>
+                                <a class="dropdown-item disabled" href="#">
+                                    <i class="fas fa-hourglass-half text-warning"></i> Perfil en Proceso
+                                </a>
+                            </li>
+                            <li>
+                                <small class="dropdown-item-text text-muted px-3">
+                                    Completa tu perfil para acceder al dashboard
+                                </small>
+                            </li>
                             {% else %}
-                                <!-- Usuario normal o proveedor aprobado -->
-                                <li>
-                                    <a class="dropdown-item" href="{% url 'dashboard' %}">
-                                        <i class="fas fa-tachometer-alt"></i> Dashboard
-                                    </a>
-                                </li>
-                                <li>
-                                    <a class="dropdown-item" href="{% url 'bookings_list' %}">
-                                        <i class="fas fa-calendar-check"></i> Mis Reservas
-                                    </a>
-                                </li>
-                                <li>
-                                    <a class="dropdown-item" href="{% url 'change_password' %}">
-                                        <i class="fas fa-lock"></i> Cambiar Contraseña
-                                    </a>
-                                </li>
+                            <!-- Usuario normal o proveedor aprobado -->
+                            <li>
+                                <a class="dropdown-item" href="{% url 'dashboard' %}">
+                                    <i class="fas fa-tachometer-alt"></i> Dashboard
+                                </a>
+                            </li>
+                            <li>
+                                <a class="dropdown-item" href="{% url 'bookings_list' %}">
+                                    <i class="fas fa-calendar-check"></i> Mis Reservas
+                                </a>
+                            </li>
+                            <li>
+                                <a class="dropdown-item" href="{% url 'change_password' %}">
+                                    <i class="fas fa-lock"></i> Cambiar Contraseña
+                                </a>
+                            </li>
                             {% endif %}
                             <li>
                                 <hr class="dropdown-divider">
@@ -604,6 +604,12 @@
         }
     </script>
     {% endif %}
+
+    <!-- WhatsApp Floating Button -->
+    <a href="https://wa.me/593958840107?text=Hola%20Liberi,%20necesito%20ayuda%20con..." class="whatsapp-float"
+        target="_blank" rel="noopener noreferrer">
+        <i class="fab fa-whatsapp my-float"></i>
+    </a>
 
     {% block extra_js %}{% endblock %}
 </body>

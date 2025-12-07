@@ -225,6 +225,9 @@ def provider_settings(request):
         provider=request.user
     ).order_by('-created_at')[:5]
     
+    # Agregar en provider_settings(), antes del context:
+    services = Service.objects.filter(provider=request.user).order_by('-created_at')
+
     active_balance = get_active_balance(request.user)
     
     context = {
@@ -242,6 +245,7 @@ def provider_settings(request):
         'bank_accounts': bank_accounts,
         'recent_withdrawals': recent_withdrawals,
         'active_balance': active_balance,
+        'services': services,
     }
     return render(request, 'providers/settings.html', context)
 

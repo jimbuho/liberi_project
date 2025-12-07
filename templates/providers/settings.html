@@ -445,8 +445,16 @@
                         <span>Perfil</span>
                     </button>
                 </li>
+
+                <!-- Tab 2: Servicios -->
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="servicios-tab" data-bs-toggle="tab" data-bs-target="#servicios" type="button" role="tab">
+                        <i class="fas fa-concierge-bell"></i>
+                        <span>Servicios</span>
+                    </button>
+                </li>
                 
-                <!-- Tab 2: Ubicaciones -->
+                <!-- Tab 3: Ubicaciones -->
                 <li class="nav-item" role="presentation">
                     <button class="nav-link" id="ubicaciones-tab" data-bs-toggle="tab" data-bs-target="#ubicaciones" type="button" role="tab">
                         <i class="fas fa-map-marker-alt"></i>
@@ -457,7 +465,7 @@
                     </button>
                 </li>
                 
-                <!-- Tab 3: Disponibilidad -->
+                <!-- Tab 4: Disponibilidad -->
                 <li class="nav-item" role="presentation">
                     <button class="nav-link" id="disponibilidad-tab" data-bs-toggle="tab" data-bs-target="#disponibilidad" type="button" role="tab">
                         <i class="fas fa-clock"></i>
@@ -465,13 +473,14 @@
                     </button>
                 </li>
                 
-                <!-- Tab 4: Pagos -->
+                <!-- Tab 5: Pagos -->
                 <li class="nav-item" role="presentation">
                     <button class="nav-link" id="pagos-tab" data-bs-toggle="tab" data-bs-target="#pagos" type="button" role="tab">
                         <i class="fas fa-credit-card"></i>
                         <span>Pagos</span>
                     </button>
                 </li>
+
             </ul>
 
             <div class="tab-content" id="settingsTabsContent">
@@ -599,7 +608,72 @@
                 </div>
 
                 <!-- ============================================
-                     TAB 2: UBICACIONES
+                    TAB 2: SERVICIOS
+                    ============================================ -->
+                <div class="tab-pane fade" id="servicios" role="tabpanel">
+                    
+                    <div class="settings-section">
+                        <div class="d-flex justify-content-between align-items-center mb-4">
+                            <div>
+                                <h3 class="settings-section__title">
+                                    <i class="fas fa-concierge-bell text-primary"></i> Mis Servicios
+                                </h3>
+                                <p class="settings-section__description mb-0">
+                                    Gestiona los servicios que ofreces a tus clientes
+                                </p>
+                            </div>
+                            <a href="{% url 'service_create' %}" class="btn btn-primary">
+                                <i class="fas fa-plus me-1"></i> Nuevo Servicio
+                            </a>
+                        </div>
+                        
+                        {% if services %}
+                        <div class="row">
+                            {% for service in services %}
+                            <div class="col-md-6 mb-3">
+                                <div class="card h-100">
+                                    <div class="card-body">
+                                        <div class="d-flex justify-content-between align-items-start mb-2">
+                                            <h5 class="card-title mb-0">{{ service.name }}</h5>
+                                            {% if service.available %}
+                                            <span class="badge bg-success">Activo</span>
+                                            {% else %}
+                                            <span class="badge bg-secondary">Inactivo</span>
+                                            {% endif %}
+                                        </div>
+                                        <p class="text-muted small mb-2">{{ service.description|truncatewords:15 }}</p>
+                                        <div class="d-flex justify-content-between align-items-center">
+                                            <div>
+                                                <span class="h5 text-success mb-0">${{ service.base_price }}</span>
+                                                <small class="text-muted ms-2">{{ service.duration_minutes }} min</small>
+                                            </div>
+                                            <div>
+                                                <a href="{% url 'service_edit' service.id %}" class="btn btn-sm btn-outline-primary">
+                                                    <i class="fas fa-edit"></i> Editar
+                                                </a>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                        {% else %}
+                        <div class="empty-state-mini">
+                            <div class="empty-state-mini__icon"><i class="fas fa-concierge-bell"></i></div>
+                            <div class="empty-state-mini__title">Sin servicios</div>
+                            <p>Crea tu primer servicio para empezar a recibir clientes</p>
+                            <a href="{% url 'service_create' %}" class="btn btn-primary">
+                                <i class="fas fa-plus me-1"></i> Crear Servicio
+                            </a>
+                        </div>
+                        {% endif %}
+                    </div>
+
+                </div>
+
+                <!-- ============================================
+                     TAB 3: UBICACIONES
                      ============================================ -->
                 <div class="tab-pane fade" id="ubicaciones" role="tabpanel">
                     
@@ -749,7 +823,7 @@
                 </div>
 
                 <!-- ============================================
-                     TAB 3: DISPONIBILIDAD
+                     TAB 4: DISPONIBILIDAD
                      ============================================ -->
                 <div class="tab-pane fade" id="disponibilidad" role="tabpanel">
                     
@@ -830,7 +904,7 @@
                 </div>
 
                 <!-- ============================================
-                     TAB 4: PAGOS
+                     TAB 5: PAGOS
                      ============================================ -->
                 <div class="tab-pane fade" id="pagos" role="tabpanel">
                     
