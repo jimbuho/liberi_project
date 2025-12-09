@@ -62,12 +62,15 @@ class VerificationHelpers:
                 # Verificar si tiene path local válido
                 try:
                     local_path = image_field_or_path.path
-                    if os.path.exists(local_path):
+                    # CRÍTICO: Verificar que el path sea realmente local y exista
+                    # A veces Supabase storage retorna paths como '/app/media/https://...'
+                    if local_path and not 'http' in local_path and os.path.exists(local_path):
                         logger.info(f"Using local file: {local_path}")
                         yield local_path
                         return
-                except (ValueError, AttributeError, NotImplementedError):
+                except (ValueError, AttributeError, NotImplementedError) as e:
                     # No hay path local válido, usar URL
+                    logger.debug(f"No local path available ({e}), using URL")
                     pass
                 
                 # Descargar desde URL remota
@@ -567,89 +570,103 @@ class VerificationHelpers:
         """
         Internal method to compare faces from local files.
         """
-        try:
-            import face_recognition
-            import numpy as np
-            
-            # Load images
-            image1 = face_recognition.load_image_file(image1_path)
-            image2 = face_recognition.load_image_file(image2_path)
-            
-            # Get face encodings
-            face_encodings1 = face_recognition.face_encodings(image1)
-            face_encodings2 = face_recognition.face_encodings(image2)
-            
-            if not face_encodings1:
-                logger.warning(f"No face detected in first image")
-                return {
-                    'similarity': 0.0,
-                    'is_match': False,
-                    'threshold': threshold,
-                    'confidence': 0.0,
-                    'error': 'No face detected in first image',
-                }
-            
-            if not face_encodings2:
-                logger.warning(f"No face detected in second image")
-                return {
-                    'similarity': 0.0,
-                    'is_match': False,
-                    'threshold': threshold,
-                    'confidence': 0.0,
-                    'error': 'No face detected in second image',
-                }
-            
-            # Compare faces (use first detected face in each image)
-            face_encoding1 = face_encodings1[0]
-            face_encoding2 = face_encodings2[0]
-            
-            # Calculate face distance (lower is more similar)
-            face_distance = face_recognition.face_distance([face_encoding2], face_encoding1)[0]
-            
-            # Convert distance to similarity score (0-1, higher is more similar)
-            # face_distance ranges from 0 (identical) to ~1.0 (very different)
-            similarity = 1.0 - face_distance
-            
-            # Ensure similarity is between 0 and 1
-            similarity = max(0.0, min(1.0, similarity))
-            
-            is_match = similarity >= threshold
-            
-            logger.info(f"Face comparison: similarity={similarity:.3f}, threshold={threshold}, match={is_match}")
-            
-            return {
-                'similarity': float(similarity),
-                'is_match': is_match,
-                'threshold': threshold,
-                'confidence': 0.95,
-                'face_distance': float(face_distance),
-            }
-            
-        except ImportError as e:
-            logger.warning(f"face_recognition not available: {e}, using mock comparison")
-            # Mock response for development
-            mock_similarity = 0.90  # 90% match
-            return {
-                'similarity': mock_similarity,
-                'is_match': mock_similarity >= threshold,
-                'threshold': threshold,
-                'confidence': 0.95,
-                'mock': True,
-                'error': str(e),
-            }
-        except Exception as e:
-            # CRÍTICO: Capturar CUALQUIER excepción para evitar que Celery worker se caiga
-            logger.error(f"Error en comparación facial (usando mock): {e}", exc_info=True)
-            # Mock response cuando face_recognition falla
-            mock_similarity = 0.90  # 90% match
-            return {
-                'similarity': mock_similarity,
-                'is_match': mock_similarity >= threshold,
-                'threshold': threshold,
-                'confidence': 0.50,  # Baja confianza porque es mock
-                'mock': True,
-                'error': f'Face recognition failed: {str(e)}',
-            }
+        # TEMPORAL: Desactivar face_recognition completamente hasta instalar face_recognition_models
+        # El worker de Celery se cae cuando intenta usar face_recognition sin los modelos
+        logger.warning("face_recognition temporalmente desactivado (falta face_recognition_models), usando mock comparison")
+        mock_similarity = 0.90  # 90% match
+        return {
+            'similarity': mock_similarity,
+            'is_match': mock_similarity >= threshold,
+            'threshold': threshold,
+            'confidence': 0.50,  # Baja confianza porque es mock
+            'mock': True,
+            'reason': 'face_recognition_models not installed - using mock',
+        }
+        
+        # TODO: Descomentar cuando se instale: pip install git+https://github.com/ageitgey/face_recognition_models
+        # try:
+        #     import face_recognition
+        #     import numpy as np
+        #     
+        #     # Load images
+        #     image1 = face_recognition.load_image_file(image1_path)
+        #     image2 = face_recognition.load_image_file(image2_path)
+        #     
+        #     # Get face encodings
+        #     face_encodings1 = face_recognition.face_encodings(image1)
+        #     face_encodings2 = face_recognition.face_encodings(image2)
+        #     
+        #     if not face_encodings1:
+        #         logger.warning(f"No face detected in first image")
+        #         return {
+        #             'similarity': 0.0,
+        #             'is_match': False,
+        #             'threshold': threshold,
+        #             'confidence': 0.0,
+        #             'error': 'No face detected in first image',
+        #         }
+        #     
+        #     if not face_encodings2:
+        #         logger.warning(f"No face detected in second image")
+        #         return {
+        #             'similarity': 0.0,
+        #             'is_match': False,
+        #             'threshold': threshold,
+        #             'confidence': 0.0,
+        #             'error': 'No face detected in second image',
+        #         }
+        #     
+        #     # Compare faces (use first detected face in each image)
+        #     face_encoding1 = face_encodings1[0]
+        #     face_encoding2 = face_encodings2[0]
+        #     
+        #     # Calculate face distance (lower is more similar)
+        #     face_distance = face_recognition.face_distance([face_encoding2], face_encoding1)[0]
+        #     
+        #     # Convert distance to similarity score (0-1, higher is more similar)
+        #     # face_distance ranges from 0 (identical) to ~1.0 (very different)
+        #     similarity = 1.0 - face_distance
+        #     
+        #     # Ensure similarity is between 0 and 1
+        #     similarity = max(0.0, min(1.0, similarity))
+        #     
+        #     is_match = similarity >= threshold
+        #     
+        #     logger.info(f"Face comparison: similarity={similarity:.3f}, threshold={threshold}, match={is_match}")
+        #     
+        #     return {
+        #         'similarity': float(similarity),
+        #         'is_match': is_match,
+        #         'threshold': threshold,
+        #         'confidence': 0.95,
+        #         'face_distance': float(face_distance),
+        #     }
+        #     
+        # except ImportError as e:
+        #     logger.warning(f"face_recognition not available: {e}, using mock comparison")
+        #     # Mock response for development
+        #     mock_similarity = 0.90  # 90% match
+        #     return {
+        #         'similarity': mock_similarity,
+        #         'is_match': mock_similarity >= threshold,
+        #         'threshold': threshold,
+        #         'confidence': 0.95,
+        #         'mock': True,
+        #         'error': str(e),
+        #     }
+        # except Exception as e:
+        #     # CRÍTICO: Capturar CUALQUIER excepción para evitar que Celery worker se caiga
+        #     logger.error(f"Error en comparación facial (usando mock): {e}", exc_info=True)
+        #     # Mock response cuando face_recognition falla
+        #     mock_similarity = 0.90  # 90% match
+        #     return {
+        #         'similarity': mock_similarity,
+        #         'is_match': mock_similarity >= threshold,
+        #         'threshold': threshold,
+        #         'confidence': 0.50,  # Baja confianza porque es mock
+        #         'mock': True,
+        #         'error': f'Face recognition failed: {str(e)}',
+        #     }
     
     # ============================================
     # IMAGE CONTENT MODERATION
