@@ -796,10 +796,28 @@ class VerificationHelpers:
         # Check for service nouns
         has_service_nouns = any(noun in text_lower for noun in service_nouns)
         
+        # Educational/Client-benefit keywords (common in tutoring, coaching, etc.)
+        educational_keywords = [
+            'aprender', 'aprende', 'enseñ', 'clase', 'clases', 'tutoría', 'tutorías',
+            'curso', 'cursos', 'capacit', 'entrenamient', 'formación',
+            'programar', 'programación', 'desarrollo', 'habilidad', 'habilidades',
+            'carrera', 'impulsar', 'mejorar', 'dominar', 'aprendizaje',
+        ]
+        
+        # Client-focused verbs (segunda persona - common in marketing)
+        client_focused_verbs = [
+            'quieres', 'puedes', 'necesitas', 'buscas', 'deseas',
+            'aprende', 'mejora', 'desarrolla', 'domina', 'obtén',
+        ]
+        
+        has_educational = any(keyword in text_lower for keyword in educational_keywords)
+        has_client_focus = any(verb in text_lower for verb in client_focused_verbs)
+        
         # Personal-only indicators (red flags)
         personal_only = [
             'soy alto', 'soy bajo', 'soy moreno', 'soy blanco',
-            'tengo ojos', 'mi color favorito', 'me gusta',
+            'tengo ojos', 'mi color favorito', 'me gusta bailar',
+            'me gusta cantar', 'soy fan de',
         ]
         
         is_personal_only = any(phrase in text_lower for phrase in personal_only)
@@ -810,7 +828,8 @@ class VerificationHelpers:
                 'reason': 'Descripción enfocada en características personales, no en servicios',
             }
         
-        if has_service_verbs or has_service_nouns:
+        # Accept if: has service language OR educational/client-focused language
+        if has_service_verbs or has_service_nouns or has_educational or has_client_focus:
             return {
                 'is_professional': True,
                 'reason': 'Descripción enfocada en servicios',
