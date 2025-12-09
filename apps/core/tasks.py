@@ -1057,48 +1057,99 @@ def validate_provider_profile_task(provider_profile_id):
         from apps.core.tasks import send_provider_approval_confirmed_task, send_provider_rejection_notification_task
         import json
         
-        logger.info(f"🤖 [TASK] Iniciando tarea de validación para perfil ID: {provider_profile_id}")
+        logger.info(f"🤖 [TASK] ========== INICIANDO VALIDACIÓN ==========")
+        logger.info(f"🤖 [TASK] Perfil ID: {provider_profile_id}")
         print(f"🤖 [TASK] Iniciando tarea de validación para perfil ID: {provider_profile_id}")
         
         provider_profile = ProviderProfile.objects.get(pk=provider_profile_id)
+        logger.info(f"🤖 [TASK] Proveedor: {provider_profile.user.get_full_name()} ({provider_profile.user.email})")
         
         # Ejecutar validación
+        logger.info(f"🤖 [TASK] Ejecutando validación del agente...")
         is_approved, rejections, warnings = validate_provider_profile(provider_profile)
         
+        logger.info(f"🤖 [TASK] Validación completada: is_approved={is_approved}, rejections={len(rejections)}, warnings={len(warnings)}")
+        
         if is_approved:
+            # ============================
+            # APROBACIÓN
+            # ============================
+            logger.info(f"✅ [TASK] RESULTADO: APROBADO - Actualizando estado del perfil...")
+            
+            # CRÍTICO: Actualizar estado PRIMERO, antes de enviar emails
             provider_profile.status = 'approved'
+            provider_profile.rejection_reasons = None
             provider_profile.save()
+            logger.info(f"✅ [TASK] Estado guardado exitosamente: {provider_profile.status}")
             
-            # Notificar aprobación
-            send_provider_approval_confirmed_task.delay(
-                provider_email=provider_profile.user.email,
-                provider_name=provider_profile.user.get_full_name()
-            )
-            logger.info(f"✅ [TASK] Perfil {provider_profile.pk} aprobado y notificado.")
+            # Enviar email de aprobación (en segundo plano, no bloquea)
+            try:
+                send_provider_approval_confirmed_task.delay(
+                    provider_email=provider_profile.user.email,
+                    provider_name=provider_profile.user.get_full_name()
+                )
+                logger.info(f"✅ [TASK] Email de aprobación encolado")
+            except Exception as email_error:
+                logger.error(f"⚠️ [TASK] Error al encolar email de aprobación: {email_error}")
+                # No reraising - el perfil ya está aprobado
             
-        elif rejections:
+        else:
+            # ============================
+            # RECHAZO
+            # ============================
+            logger.info(f"❌ [TASK] RESULTADO: RECHAZADO - {len(rejections)} razones")
+            for idx, reason in enumerate(rejections, 1):
+                logger.info(f"   {idx}. {reason.get('code', 'UNKNOWN')}: {reason.get('message', '')[:100]}")
+            
+            # CRÍTICO: Actualizar estado PRIMERO, antes de enviar emails
             provider_profile.status = 'rejected'
             provider_profile.rejection_reasons = json.dumps(rejections)
             provider_profile.rejected_at = timezone.now()
             provider_profile.save()
+            logger.info(f"❌ [TASK] Estado guardado exitosamente: {provider_profile.status}")
             
-            # Notificar rechazo
-            send_provider_rejection_notification_task.delay(
-                provider_email=provider_profile.user.email,
-                provider_name=provider_profile.user.get_full_name(),
-                rejection_reasons=rejections
-            )
-            logger.info(f"❌ [TASK] Perfil {provider_profile.pk} rechazado y notificado.")
+            # Enviar email de rechazo (en segundo plano, no bloquea)
+            try:
+                send_provider_rejection_notification_task.delay(
+                    provider_email=provider_profile.user.email,
+                    provider_name=provider_profile.user.get_full_name(),
+                    rejection_reasons=rejections
+                )
+                logger.info(f"❌ [TASK] Email de rechazo encolado")
+            except Exception as email_error:
+                logger.error(f"⚠️ [TASK] Error al encolar email de rechazo: {email_error}")
+                # No reraising - el perfil ya está rechazado
         
-        # Notificar a admins el resultado
-        send_validation_result_to_admin_task.delay(
-            provider_profile_id=provider_profile.pk,
-            is_approved=is_approved,
-            rejection_reasons=rejections if not is_approved else None
-        )
+        # Notificar a admins el resultado (no crítico)
+        try:
+            send_validation_result_to_admin_task.delay(
+                provider_profile_id=provider_profile.pk,
+                is_approved=is_approved,
+                rejection_reasons=rejections if not is_approved else None
+            )
+            logger.info(f"📧 [TASK] Notificación a admins encolada")
+        except Exception as admin_email_error:
+            logger.error(f"⚠️ [TASK] Error al encolar email a admins: {admin_email_error}")
+            # No reraising - esto no debe bloquear la tarea
+        
+        # FINAL: Log de confirmación de que la tarea terminó exitosamente
+        logger.info(f"🏁 [TASK] ========== VALIDACIÓN COMPLETADA ==========")
+        logger.info(f"🏁 [TASK] Perfil {provider_profile_id}: Estado final = {provider_profile.status}")
+        print(f"🏁 [TASK] Validación completada para perfil {provider_profile_id}: {provider_profile.status}")
+        
+        return {
+            'provider_profile_id': provider_profile_id,
+            'status': provider_profile.status,
+            'is_approved': is_approved,
+            'rejection_count': len(rejections),
+        }
             
+    except ProviderProfile.DoesNotExist:
+        logger.error(f"❌ [TASK] ERROR: ProviderProfile {provider_profile_id} no existe")
+        raise
     except Exception as e:
         logger.error(f"❌ [TASK] Error CRÍTICO en validate_provider_profile_task: {e}", exc_info=True)
+        print(f"❌ [TASK] Error CRÍTICO: {e}")
         raise
 
 @shared_task

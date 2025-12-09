@@ -20,11 +20,9 @@ def validate_provider_profile(provider_profile):
     security_alerts = []
     
     logger.info(f"🔍 [AGENTE VERIFICACIÓN] Iniciando análisis para proveedor: {provider_profile.user.username} (ID: {provider_profile.pk})")
-    if MODO_DEBUG: print(f"🔍 [AGENTE VERIFICACIÓN] Iniciando análisis para proveedor: {provider_profile.user.username} (ID: {provider_profile.pk})")
     
     # Obtener primer servicio
     logger.info("🔍 [AGENTE VERIFICACIÓN] Buscando primer servicio creado...")
-    if MODO_DEBUG: print("🔍 [AGENTE VERIFICACIÓN] Buscando primer servicio creado...")
     first_service = Service.objects.filter(
         provider=provider_profile.user,
         available=True
@@ -32,7 +30,6 @@ def validate_provider_profile(provider_profile):
     
     if not first_service:
         logger.warning("❌ [AGENTE VERIFICACIÓN] FALLO: No se encontró ningún servicio activo.")
-        if MODO_DEBUG: print("❌ [AGENTE VERIFICACIÓN] FALLO: No se encontró ningún servicio activo.")
         rejection_reasons.append({
             'code': 'NO_SERVICE',
             'message': 'Debes crear al menos un servicio antes de solicitar verificación.'
@@ -40,27 +37,22 @@ def validate_provider_profile(provider_profile):
         return False, rejection_reasons, warnings
     
     logger.info(f"✅ [AGENTE VERIFICACIÓN] Servicio encontrado: {first_service.name}")
-    if MODO_DEBUG: print(f"✅ [AGENTE VERIFICACIÓN] Servicio encontrado: {first_service.name}")
 
     # FASE 1: Validaciones de Completitud
     logger.info("🔍 [AGENTE VERIFICACIÓN] FASE 1: Validando completitud del perfil...")
-    if MODO_DEBUG: print("🔍 [AGENTE VERIFICACIÓN] FASE 1: Validando completitud del perfil...")
     completeness_result = validate_profile_completeness(provider_profile)
     if completeness_result['rejections']:
         logger.warning(f"❌ [AGENTE VERIFICACIÓN] FASE 1 FALLÓ: {len(completeness_result['rejections'])} errores encontrados.")
-        if MODO_DEBUG: print(f"❌ [AGENTE VERIFICACIÓN] FASE 1 FALLÓ: {len(completeness_result['rejections'])} errores encontrados.")
         for rej in completeness_result['rejections']:
             logger.warning(f"   - {rej['code']}: {rej['message']}")
     else:
         logger.info("✅ [AGENTE VERIFICACIÓN] FASE 1 APROBADA: Perfil completo.")
-        if MODO_DEBUG: print("✅ [AGENTE VERIFICACIÓN] FASE 1 APROBADA: Perfil completo.")
         
     rejection_reasons.extend(completeness_result['rejections'])
     
     # Si falla completitud básica, retornar temprano
     if rejection_reasons:
         logger.info("🛑 [AGENTE VERIFICACIÓN] Deteniendo validación por fallos en FASE 1.")
-        if MODO_DEBUG: print("🛑 [AGENTE VERIFICACIÓN] Deteniendo validación por fallos en FASE 1.")
         return False, rejection_reasons, warnings
 
     # FASE 2: Validaciones de Documentos (MOCK)
@@ -74,24 +66,20 @@ def validate_provider_profile(provider_profile):
             logger.warning(f"   - {rej['code']}: {rej['message']}")
             print(f"   - {rej['code']}: {rej['message']}")
     else:
-        logger.info("✅ [AGENTE VERIFICACIÓN] FASE 2 APROBADA: Documentos válidos.")    
-        if MODO_DEBUG: print("✅ [AGENTE VERIFICACIÓN] FASE 2 APROBADA: Documentos válidos.")
+        logger.info("✅ [AGENTE VERIFICACIÓN] FASE 2 APROBADA: Documentos válidos.")
         
     rejection_reasons.extend(documents_result['rejections'])
     
     # FASE 3: Validaciones de Coherencia (MOCK)
     logger.info("🔍 [AGENTE VERIFICACIÓN] FASE 3: Analizando coherencia semántica (IA NLP)...")
-    if MODO_DEBUG: print("🔍 [AGENTE VERIFICACIÓN] FASE 3: Analizando coherencia semántica (IA NLP)...")
     coherence_result = validate_coherence(provider_profile, first_service)
     rejection_reasons.extend(coherence_result['rejections'])
     warnings.extend(coherence_result['warnings'])
     if not coherence_result['rejections']:
          logger.info("✅ [AGENTE VERIFICACIÓN] FASE 3 APROBADA: Coherencia validada.")
-         if MODO_DEBUG: print("✅ [AGENTE VERIFICACIÓN] FASE 3 APROBADA: Coherencia validada.")
     
     # FASE 4: Validaciones de Contenido Prohibido (Imágenes) (MOCK)
     logger.info("🔍 [AGENTE VERIFICACIÓN] FASE 4: Moderación de contenido visual (IA Safety)...")
-    if MODO_DEBUG: print("🔍 [AGENTE VERIFICACIÓN] FASE 4: Moderación de contenido visual (IA Safety)...")
     image_content_result = validate_image_content(provider_profile, first_service)
     rejection_reasons.extend(image_content_result['rejections'])
     security_alerts.extend(image_content_result['alerts'])
@@ -106,8 +94,7 @@ def validate_provider_profile(provider_profile):
     rejection_reasons.extend(text_content_result['rejections'])
     security_alerts.extend(text_content_result['alerts'])
     if not text_content_result['rejections']:
-         logger.info("✅ [AGENTE VERIFICACIÓN] FASE 5 APROBADA: Texto seguro.") 
-         if MODO_DEBUG: print("✅ [AGENTE VERIFICACIÓN] FASE 5 APROBADA: Texto seguro.")
+         logger.info("✅ [AGENTE VERIFICACIÓN] FASE 5 APROBADA: Texto seguro.")
     
     # Procesar alertas de seguridad (TODO)
     # if security_alerts:
@@ -118,10 +105,8 @@ def validate_provider_profile(provider_profile):
     
     if is_approved:
         logger.info("🎉 [AGENTE VERIFICACIÓN] RESULTADO FINAL: APROBADO. El perfil cumple con todos los requisitos.")
-        if MODO_DEBUG: print("🎉 [AGENTE VERIFICACIÓN] RESULTADO FINAL: APROBADO. El perfil cumple con todos los requisitos.")
     else:
         logger.info(f"🚫 [AGENTE VERIFICACIÓN] RESULTADO FINAL: RECHAZADO. Se encontraron {len(rejection_reasons)} motivos de rechazo.")
-        if MODO_DEBUG: print(f"🚫 [AGENTE VERIFICACIÓN] RESULTADO FINAL: RECHAZADO. Se encontraron {len(rejection_reasons)} motivos de rechazo.")
     
     return is_approved, rejection_reasons, warnings
 
