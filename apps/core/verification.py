@@ -213,6 +213,7 @@ def validate_profile_completeness(provider_profile):
 def validate_identity_documents(provider_profile):
     """
     Valida documentos de identidad (OCR, reconocimiento facial, calidad de imagen).
+    NOTA: Ahora usa FieldFiles directamente para soportar Supabase Storage.
     """
     rejections = []
     
@@ -231,11 +232,13 @@ def validate_identity_documents(provider_profile):
     if MODO_DEBUG: print("   ✅ Imágenes de cédula presentes")
     
     # CRITERIO 4: Validar calidad de imágenes de cédula
+    # CAMBIO PRINCIPAL: Pasar el FieldFile directamente, no .path
     logger.info("   - Validando calidad de imagen de cédula frontal...")
     if MODO_DEBUG: print("   - Validando calidad de imagen de cédula frontal...")
     
     try:
-        front_quality = VerificationHelpers.check_image_quality(provider_profile.id_card_front.path)
+        # Usar el FieldFile directamente - el helper descargará si es remoto
+        front_quality = VerificationHelpers.check_image_quality(provider_profile.id_card_front)
         if not front_quality['is_valid']:
             logger.warning(f"   ❌ Problemas con cédula frontal: {front_quality['issues']}")
             if MODO_DEBUG: print(f"   ❌ Problemas con cédula frontal: {front_quality['issues']}")
@@ -249,7 +252,11 @@ def validate_identity_documents(provider_profile):
             logger.info("   ✅ Calidad de cédula frontal aceptable")
             if MODO_DEBUG: print("   ✅ Calidad de cédula frontal aceptable")
         
-        back_quality = VerificationHelpers.check_image_quality(provider_profile.id_card_back.path)
+        # Validar cédula posterior
+        logger.info("   - Validando calidad de imagen de cédula posterior...")
+        if MODO_DEBUG: print("   - Validando calidad de imagen de cédula posterior...")
+        
+        back_quality = VerificationHelpers.check_image_quality(provider_profile.id_card_back)
         if not back_quality['is_valid']:
             logger.warning(f"   ❌ Problemas con cédula posterior: {back_quality['issues']}")
             if MODO_DEBUG: print(f"   ❌ Problemas con cédula posterior: {back_quality['issues']}")
@@ -266,12 +273,13 @@ def validate_identity_documents(provider_profile):
         logger.error(f"   ⚠️ Error al validar calidad de imágenes: {e}")
         if MODO_DEBUG: print(f"   ⚠️ Error al validar calidad de imágenes: {e}")
     
-    # OCR: Extraer información de la cédula (mock por ahora)
+    # OCR: Extraer información de la cédula
     logger.info("   - Extrayendo información de cédula (OCR)...")
     if MODO_DEBUG: print("   - Extrayendo información de cédula (OCR)...")
     
     try:
-        id_info = VerificationHelpers.extract_id_card_info(provider_profile.id_card_front.path, 'front')
+        # Usar FieldFile directamente
+        id_info = VerificationHelpers.extract_id_card_info(provider_profile.id_card_front, 'front')
         
         if id_info['success']:
             # Guardar información extraída
@@ -347,9 +355,9 @@ def validate_identity_documents(provider_profile):
         logger.info("   ✅ Selfie presente")
         if MODO_DEBUG: print("   ✅ Selfie presente")
         
-        # Validar calidad de selfie
+        # Validar calidad de selfie - usar FieldFile directamente
         try:
-            selfie_quality = VerificationHelpers.check_image_quality(provider_profile.selfie_with_id.path)
+            selfie_quality = VerificationHelpers.check_image_quality(provider_profile.selfie_with_id)
             if not selfie_quality['is_valid']:
                 logger.warning(f"   ❌ Problemas con selfie: {selfie_quality['issues']}")
                 if MODO_DEBUG: print(f"   ❌ Problemas con selfie: {selfie_quality['issues']}")
@@ -364,13 +372,13 @@ def validate_identity_documents(provider_profile):
                 logger.info("   ✅ Calidad de selfie aceptable")
                 if MODO_DEBUG: print("   ✅ Calidad de selfie aceptable")
                 
-                # Comparación facial
+                # Comparación facial - usar FieldFiles directamente
                 logger.info("   - Comparando rostro en selfie vs cédula...")
                 if MODO_DEBUG: print("   - Comparando rostro en selfie vs cédula...")
                 
                 face_comparison = VerificationHelpers.compare_faces(
-                    provider_profile.selfie_with_id.path,
-                    provider_profile.id_card_front.path
+                    provider_profile.selfie_with_id,
+                    provider_profile.id_card_front
                 )
                 
                 provider_profile.facial_match_score = face_comparison['similarity']
@@ -455,6 +463,7 @@ def validate_coherence(provider_profile, service):
 def validate_image_content(provider_profile, service):
     """
     Valida contenido prohibido en imágenes (contacto, contenido inapropiado).
+    NOTA: Ahora usa FieldFiles directamente para soportar Supabase Storage.
     """
     rejections = []
     alerts = []
@@ -462,20 +471,21 @@ def validate_image_content(provider_profile, service):
     
     images_to_check = []
     
-    # Recopilar imágenes a verificar
+    # Recopilar imágenes a verificar - guardar FieldFile, no .path
     if provider_profile.profile_photo:
-        images_to_check.append(('profile_photo', provider_profile.profile_photo.path, 'Foto de perfil'))
+        images_to_check.append(('profile_photo', provider_profile.profile_photo, 'Foto de perfil'))
     
     if service.image:
-        images_to_check.append(('service_image', service.image.path, 'Imagen del servicio'))
+        images_to_check.append(('service_image', service.image, 'Imagen del servicio'))
     
     # CRITERIO 8: Sin datos de contacto en imágenes
     logger.info("   - Escaneando imágenes por información de contacto (OCR)...")
     if MODO_DEBUG: print("   - Escaneando imágenes por información de contacto (OCR)...")
     
-    for img_type, img_path, img_label in images_to_check:
+    for img_type, img_field, img_label in images_to_check:
         try:
-            contact_result = VerificationHelpers.detect_contact_info_in_image(img_path)
+            # Usar FieldFile directamente
+            contact_result = VerificationHelpers.detect_contact_info_in_image(img_field)
             
             if contact_result['found']:
                 logger.warning(f"   ❌ Información de contacto detectada en {img_label}: {contact_result['types']}")
@@ -494,9 +504,10 @@ def validate_image_content(provider_profile, service):
     logger.info("   - Moderando contenido de imágenes...")
     if MODO_DEBUG: print("   - Moderando contenido de imágenes...")
     
-    for img_type, img_path, img_label in images_to_check:
+    for img_type, img_field, img_label in images_to_check:
         try:
-            moderation_result = VerificationHelpers.moderate_image_content(img_path)
+            # Usar FieldFile directamente
+            moderation_result = VerificationHelpers.moderate_image_content(img_field)
             
             if not moderation_result['is_safe']:
                 logger.warning(f"   ❌ Contenido inapropiado en {img_label}: {moderation_result['labels']}")

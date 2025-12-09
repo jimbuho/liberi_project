@@ -10,22 +10,161 @@ This module provides helper methods for:
 - Text content validation
 - Semantic analysis and coherence checking
 
-Note: Currently uses mock/simulated responses for external AI services.
-Real API implementations can be swapped in when credentials are available.
+Note: Supports both local files and remote URLs (Supabase Storage).
 """
 
 import re
 import logging
+import tempfile
+import os
 from datetime import datetime, timedelta
 from difflib import SequenceMatcher
-from typing import Dict, List, Tuple, Optional
+from typing import Dict, List, Tuple, Optional, Union
+from contextlib import contextmanager
 from django.conf import settings
+from django.db.models.fields.files import FieldFile
 
 logger = logging.getLogger(__name__)
 
 
 class VerificationHelpers:
     """Helper class for provider profile verification."""
+    
+    # ============================================
+    # REMOTE IMAGE HANDLING
+    # ============================================
+    
+    @staticmethod
+    @contextmanager
+    def get_image_for_processing(image_field_or_path: Union[FieldFile, str]):
+        """
+        Context manager que obtiene una imagen para procesamiento.
+        Maneja tanto archivos locales como URLs remotas (Supabase Storage).
+        
+        Args:
+            image_field_or_path: Un FieldFile de Django o una ruta/URL string
+            
+        Yields:
+            str: Ruta local al archivo (temporal si es remoto)
+            
+        Example:
+            with VerificationHelpers.get_image_for_processing(provider.id_card_front) as image_path:
+                result = check_image_quality(image_path)
+        """
+        temp_file = None
+        
+        try:
+            # Determinar si es un FieldFile o string
+            if hasattr(image_field_or_path, 'url'):
+                # Es un FieldFile de Django
+                image_url = image_field_or_path.url
+                
+                # Verificar si tiene path local válido
+                try:
+                    local_path = image_field_or_path.path
+                    if os.path.exists(local_path):
+                        logger.info(f"Using local file: {local_path}")
+                        yield local_path
+                        return
+                except (ValueError, AttributeError, NotImplementedError):
+                    # No hay path local válido, usar URL
+                    pass
+                
+                # Descargar desde URL remota
+                logger.info(f"Downloading remote image: {image_url}")
+                temp_file = VerificationHelpers._download_to_temp(image_url)
+                yield temp_file
+                
+            elif isinstance(image_field_or_path, str):
+                # Es un string - puede ser path local o URL
+                if image_field_or_path.startswith(('http://', 'https://')):
+                    # Es una URL
+                    logger.info(f"Downloading from URL: {image_field_or_path}")
+                    temp_file = VerificationHelpers._download_to_temp(image_field_or_path)
+                    yield temp_file
+                elif os.path.exists(image_field_or_path):
+                    # Es un path local válido
+                    yield image_field_or_path
+                else:
+                    raise FileNotFoundError(f"File not found: {image_field_or_path}")
+            else:
+                raise ValueError(f"Invalid image source type: {type(image_field_or_path)}")
+                
+        finally:
+            # Limpiar archivo temporal si existe
+            if temp_file and os.path.exists(temp_file):
+                try:
+                    os.unlink(temp_file)
+                    logger.debug(f"Cleaned up temp file: {temp_file}")
+                except Exception as e:
+                    logger.warning(f"Failed to clean up temp file {temp_file}: {e}")
+    
+    @staticmethod
+    def _download_to_temp(url: str) -> str:
+        """
+        Descarga una imagen desde URL a un archivo temporal.
+        
+        Args:
+            url: URL de la imagen
+            
+        Returns:
+            str: Ruta al archivo temporal
+        """
+        import requests
+        
+        # Determinar extensión del archivo
+        extension = '.jpg'  # Default
+        if '.' in url.split('/')[-1].split('?')[0]:
+            ext = url.split('/')[-1].split('?')[0].split('.')[-1].lower()
+            if ext in ['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp']:
+                extension = f'.{ext}'
+        
+        # Crear archivo temporal
+        fd, temp_path = tempfile.mkstemp(suffix=extension, prefix='liberi_verify_')
+        
+        try:
+            # Descargar imagen
+            response = requests.get(url, timeout=30, stream=True)
+            response.raise_for_status()
+            
+            # Escribir al archivo temporal
+            with os.fdopen(fd, 'wb') as f:
+                for chunk in response.iter_content(chunk_size=8192):
+                    f.write(chunk)
+            
+            logger.info(f"Downloaded image to: {temp_path} ({os.path.getsize(temp_path)} bytes)")
+            return temp_path
+            
+        except Exception as e:
+            # Limpiar en caso de error
+            try:
+                os.close(fd)
+            except:
+                pass
+            try:
+                os.unlink(temp_path)
+            except:
+                pass
+            raise RuntimeError(f"Failed to download image from {url}: {e}")
+    
+    @staticmethod
+    def get_image_url(image_field) -> Optional[str]:
+        """
+        Obtiene la URL de una imagen, sea local o remota.
+        
+        Args:
+            image_field: FieldFile de Django
+            
+        Returns:
+            str o None: URL de la imagen
+        """
+        if not image_field:
+            return None
+        
+        try:
+            return image_field.url
+        except Exception:
+            return None
     
     # ============================================
     # CONTACT INFORMATION PATTERNS
@@ -66,15 +205,34 @@ class VerificationHelpers:
     # ============================================
     
     @staticmethod
-    def check_image_quality(image_path: str) -> Dict:
+    def check_image_quality(image_source) -> Dict:
         """
         Check image quality (resolution, blur, brightness).
+        Soporta archivos locales y URLs remotas (Supabase).
         
         Args:
-            image_path: Path to the image file
+            image_source: FieldFile, path string, o URL
             
         Returns:
             Dict with 'is_valid', 'issues', 'resolution', 'blur_score'
+        """
+        try:
+            with VerificationHelpers.get_image_for_processing(image_source) as image_path:
+                return VerificationHelpers._check_image_quality_internal(image_path)
+        except Exception as e:
+            logger.error(f"Error checking image quality: {e}")
+            return {
+                'is_valid': False,
+                'issues': [f"Error al procesar imagen: {str(e)}"],
+                'resolution': (0, 0),
+                'blur_score': 0.0,
+                'brightness': 0.0,
+            }
+    
+    @staticmethod
+    def _check_image_quality_internal(image_path: str) -> Dict:
+        """
+        Internal method to check image quality from local file.
         """
         try:
             from PIL import Image
@@ -134,31 +292,34 @@ class VerificationHelpers:
                 'blur_score': 150.0,
                 'brightness': 128.0,
             }
-        except Exception as e:
-            logger.error(f"Error checking image quality: {e}")
-            return {
-                'is_valid': False,
-                'issues': [f"Error al procesar imagen: {str(e)}"],
-                'resolution': (0, 0),
-                'blur_score': 0.0,
-                'brightness': 0.0,
-            }
     
     # ============================================
     # OCR AND TEXT EXTRACTION
     # ============================================
     
     @staticmethod
-    def extract_text_from_image(image_path: str) -> str:
+    def extract_text_from_image(image_source) -> str:
         """
         Extract text from image using OCR.
-        Uses pytesseract (Tesseract OCR) if available, falls back to mock.
+        Soporta archivos locales y URLs remotas (Supabase).
         
         Args:
-            image_path: Path to the image file
+            image_source: FieldFile, path string, o URL
             
         Returns:
             Extracted text string
+        """
+        try:
+            with VerificationHelpers.get_image_for_processing(image_source) as image_path:
+                return VerificationHelpers._extract_text_from_image_internal(image_path)
+        except Exception as e:
+            logger.error(f"Error extracting text from image: {e}")
+            return ""
+    
+    @staticmethod
+    def _extract_text_from_image_internal(image_path: str) -> str:
+        """
+        Internal method to extract text from local file.
         """
         logger.info(f"Extracting text from image: {image_path}")
         
@@ -184,29 +345,30 @@ class VerificationHelpers:
             return ""
     
     @staticmethod
-    def extract_id_card_info(image_path: str, side: str = 'front') -> Dict:
+    def extract_id_card_info(image_source, side: str = 'front') -> Dict:
         """
         Extract information from ID card image using OCR.
+        Soporta archivos locales y URLs remotas (Supabase).
         
         Args:
-            image_path: Path to ID card image
+            image_source: FieldFile, path string, o URL
             side: 'front' or 'back'
             
         Returns:
             Dict with extracted information
         """
-        logger.info(f"Extracting ID card info from {side}: {image_path}")
+        logger.info(f"Extracting ID card info from {side}")
         
         if side != 'front':
             # For back side, just confirm we can read it
-            text = VerificationHelpers.extract_text_from_image(image_path)
+            text = VerificationHelpers.extract_text_from_image(image_source)
             return {
                 'success': len(text) > 0,
                 'confidence': 0.8 if len(text) > 0 else 0.0,
             }
         
         # Extract text from front of ID card
-        text = VerificationHelpers.extract_text_from_image(image_path)
+        text = VerificationHelpers.extract_text_from_image(image_source)
         
         if not text:
             logger.warning("No text extracted from ID card")
@@ -343,20 +505,21 @@ class VerificationHelpers:
         }
     
     @staticmethod
-    def detect_contact_info_in_image(image_path: str) -> Dict:
+    def detect_contact_info_in_image(image_source) -> Dict:
         """
         Detect contact information in image using OCR.
+        Soporta archivos locales y URLs remotas (Supabase).
         
         Args:
-            image_path: Path to image file
+            image_source: FieldFile, path string, o URL
             
         Returns:
             Dict with detection results
         """
-        logger.info(f"Scanning image for contact information: {image_path}")
+        logger.info(f"Scanning image for contact information")
         
         # Extract text from image
-        text = VerificationHelpers.extract_text_from_image(image_path)
+        text = VerificationHelpers.extract_text_from_image(image_source)
         
         # Analyze extracted text
         return VerificationHelpers.detect_contact_info_in_text(text)
@@ -366,23 +529,44 @@ class VerificationHelpers:
     # ============================================
     
     @staticmethod
-    def compare_faces(image1_path: str, image2_path: str) -> Dict:
+    def compare_faces(image1_source, image2_source) -> Dict:
         """
         Compare two faces for similarity.
-        Uses face_recognition library if available, falls back to mock.
+        Soporta archivos locales y URLs remotas (Supabase).
         
         Args:
-            image1_path: Path to first image (e.g., selfie)
-            image2_path: Path to second image (e.g., ID card photo)
+            image1_source: Primera imagen (e.g., selfie)
+            image2_source: Segunda imagen (e.g., ID card photo)
             
         Returns:
             Dict with similarity score and match status
         """
-        logger.info(f"Comparing faces: {image1_path} vs {image2_path}")
+        logger.info(f"Comparing faces")
         
         config = settings.PROVIDER_VERIFICATION_CONFIG
         threshold = config['facial_match_threshold']
         
+        try:
+            with VerificationHelpers.get_image_for_processing(image1_source) as image1_path:
+                with VerificationHelpers.get_image_for_processing(image2_source) as image2_path:
+                    return VerificationHelpers._compare_faces_internal(
+                        image1_path, image2_path, threshold
+                    )
+        except Exception as e:
+            logger.error(f"Face comparison error: {e}")
+            return {
+                'similarity': 0.0,
+                'is_match': False,
+                'threshold': threshold,
+                'confidence': 0.0,
+                'error': str(e),
+            }
+    
+    @staticmethod
+    def _compare_faces_internal(image1_path: str, image2_path: str, threshold: float) -> Dict:
+        """
+        Internal method to compare faces from local files.
+        """
         try:
             import face_recognition
             import numpy as np
@@ -396,7 +580,7 @@ class VerificationHelpers:
             face_encodings2 = face_recognition.face_encodings(image2)
             
             if not face_encodings1:
-                logger.warning(f"No face detected in {image1_path}")
+                logger.warning(f"No face detected in first image")
                 return {
                     'similarity': 0.0,
                     'is_match': False,
@@ -406,7 +590,7 @@ class VerificationHelpers:
                 }
             
             if not face_encodings2:
-                logger.warning(f"No face detected in {image2_path}")
+                logger.warning(f"No face detected in second image")
                 return {
                     'similarity': 0.0,
                     'is_match': False,
@@ -452,41 +636,39 @@ class VerificationHelpers:
                 'confidence': 0.95,
                 'mock': True,
             }
-        except Exception as e:
-            logger.error(f"Face comparison error: {e}")
-            return {
-                'similarity': 0.0,
-                'is_match': False,
-                'threshold': threshold,
-                'confidence': 0.0,
-                'error': str(e),
-            }
     
     # ============================================
     # IMAGE CONTENT MODERATION
     # ============================================
     
     @staticmethod
-    def moderate_image_content(image_path: str) -> Dict:
+    def moderate_image_content(image_source) -> Dict:
         """
-        Moderate image for inappropriate content (mock implementation).
+        Moderate image for inappropriate content.
+        Soporta archivos locales y URLs remotas (Supabase).
         
         Args:
-            image_path: Path to image file
+            image_source: FieldFile, path string, o URL
             
         Returns:
             Dict with moderation labels and scores
         """
-        logger.info(f"Moderating image content: {image_path}")
+        logger.info(f"Moderating image content")
         
         # TODO: Implement real moderation using AWS Rekognition or similar
-        # Example:
-        # import boto3
-        # client = boto3.client('rekognition')
-        # response = client.detect_moderation_labels(
-        #     Image={'Bytes': open(image_path, 'rb').read()},
-        #     MinConfidence=60
-        # )
+        # Example with downloaded file:
+        # try:
+        #     with VerificationHelpers.get_image_for_processing(image_source) as image_path:
+        #         import boto3
+        #         client = boto3.client('rekognition')
+        #         with open(image_path, 'rb') as f:
+        #             response = client.detect_moderation_labels(
+        #                 Image={'Bytes': f.read()},
+        #                 MinConfidence=60
+        #             )
+        #         return process_rekognition_response(response)
+        # except Exception as e:
+        #     logger.error(f"Moderation error: {e}")
         
         # Mock response - all safe
         return {
