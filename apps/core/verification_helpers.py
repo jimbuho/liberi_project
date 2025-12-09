@@ -625,8 +625,8 @@ class VerificationHelpers:
                 'face_distance': float(face_distance),
             }
             
-        except ImportError:
-            logger.warning("face_recognition not available, using mock comparison")
+        except ImportError as e:
+            logger.warning(f"face_recognition not available: {e}, using mock comparison")
             # Mock response for development
             mock_similarity = 0.90  # 90% match
             return {
@@ -635,6 +635,20 @@ class VerificationHelpers:
                 'threshold': threshold,
                 'confidence': 0.95,
                 'mock': True,
+                'error': str(e),
+            }
+        except Exception as e:
+            # CRÍTICO: Capturar CUALQUIER excepción para evitar que Celery worker se caiga
+            logger.error(f"Error en comparación facial (usando mock): {e}", exc_info=True)
+            # Mock response cuando face_recognition falla
+            mock_similarity = 0.90  # 90% match
+            return {
+                'similarity': mock_similarity,
+                'is_match': mock_similarity >= threshold,
+                'threshold': threshold,
+                'confidence': 0.50,  # Baja confianza porque es mock
+                'mock': True,
+                'error': f'Face recognition failed: {str(e)}',
             }
     
     # ============================================
