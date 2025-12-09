@@ -1,8 +1,10 @@
 import logging
 import re
+import json
 from django.conf import settings
 from django.utils import timezone
 from .models import ProviderProfile, Service
+from .verification_helpers import VerificationHelpers
 
 logger = logging.getLogger(__name__)
 
@@ -166,21 +168,55 @@ def validate_profile_completeness(provider_profile):
         logger.info(f"   ✅ Longitud de descripción correcta ({len(description)} chars)")
         if MODO_DEBUG: print(f"   ✅ Longitud de descripción correcta ({len(description)} chars)")
         
-    # TODO: NLP check for professional content
+        # NLP check for professional content
+        logger.info("   - Analizando contenido profesional de la descripción...")
+        if MODO_DEBUG: print("   - Analizando contenido profesional de la descripción...")
+        prof_check = VerificationHelpers.is_professional_description(description)
+        if not prof_check['is_professional']:
+            logger.warning(f"   ❌ {prof_check['reason']}")
+            if MODO_DEBUG: print(f"   ❌ {prof_check['reason']}")
+            rejections.append({
+                'code': 'PROFILE_DESCRIPTION_NOT_PROFESSIONAL',
+                'message': 'La descripción de tu perfil debe enfocarse en los servicios que ofreces, '
+                          'no en características personales. Por favor, describe qué servicios realizas, '
+                          'tu experiencia y qué pueden esperar tus clientes.'
+            })
+        else:
+            logger.info("   ✅ Descripción profesional")
+            if MODO_DEBUG: print("   ✅ Descripción profesional")
     
-    # CRITERIO 3: Coherencia Descripción-Categoría (Placeholder)
-    # Se implementará con NLP en fases posteriores
+    # CRITERIO 3: Coherencia Descripción-Categoría
+    if provider_profile.category and description:
+        logger.info("   - Validando coherencia descripción-categoría...")
+        if MODO_DEBUG: print("   - Validando coherencia descripción-categoría...")
+        
+        category_match = VerificationHelpers.validate_category_description_match(
+            provider_profile.category.name,
+            description
+        )
+        
+        if not category_match['is_match']:
+            logger.warning(f"   ❌ Descripción no coincide con categoría (similitud: {category_match['similarity']:.2f})")
+            if MODO_DEBUG: print(f"   ❌ Descripción no coincide con categoría (similitud: {category_match['similarity']:.2f})")
+            rejections.append({
+                'code': 'DESCRIPTION_CATEGORY_MISMATCH',
+                'message': f'La descripción de tu perfil no parece coincidir con la categoría '
+                          f'"{provider_profile.category.name}" que seleccionaste. Por favor, verifica que '
+                          f'tu descripción refleje los servicios de esta categoría o selecciona una categoría diferente.'
+            })
+        else:
+            logger.info(f"   ✅ Coherencia categoría-descripción validada (similitud: {category_match['similarity']:.2f})")
+            if MODO_DEBUG: print(f"   ✅ Coherencia categoría-descripción validada (similitud: {category_match['similarity']:.2f})")
     
     return {'rejections': rejections}
 
 def validate_identity_documents(provider_profile):
     """
-    MOCK: Valida documentos de identidad (OCR, reconocimiento facial).
+    Valida documentos de identidad (OCR, reconocimiento facial, calidad de imagen).
     """
     rejections = []
-    # TODO: Integrar AWS Rekognition / Textract
     
-    # Simulación: Si no hay fotos de cédula, rechazar
+    # Verificar que existan los documentos
     logger.info("   - Verificando documentos de identidad (Frontal/Dorso)...")
     if not provider_profile.id_card_front or not provider_profile.id_card_back:
         logger.warning("   ❌ Faltan imágenes de la cédula")
@@ -189,10 +225,116 @@ def validate_identity_documents(provider_profile):
             'code': 'ID_DOCUMENTS_MISSING',
             'message': 'Faltan fotografías de tu cédula de identidad.'
         })
-    else:
-        logger.info("   ✅ Imágenes de cédula presentes")
-        if MODO_DEBUG: print("   ✅ Imágenes de cédula presentes")
+        return {'rejections': rejections}  # No continuar si faltan documentos
+    
+    logger.info("   ✅ Imágenes de cédula presentes")
+    if MODO_DEBUG: print("   ✅ Imágenes de cédula presentes")
+    
+    # CRITERIO 4: Validar calidad de imágenes de cédula
+    logger.info("   - Validando calidad de imagen de cédula frontal...")
+    if MODO_DEBUG: print("   - Validando calidad de imagen de cédula frontal...")
+    
+    try:
+        front_quality = VerificationHelpers.check_image_quality(provider_profile.id_card_front.path)
+        if not front_quality['is_valid']:
+            logger.warning(f"   ❌ Problemas con cédula frontal: {front_quality['issues']}")
+            if MODO_DEBUG: print(f"   ❌ Problemas con cédula frontal: {front_quality['issues']}")
+            rejections.append({
+                'code': 'ID_CARD_FRONT_QUALITY',
+                'message': f'La fotografía de tu cédula (frontal) no es lo suficientemente clara. '
+                          f'Problemas detectados: {", ".join(front_quality["issues"])}. '
+                          f'Por favor, toma una nueva foto con buena iluminación y enfoque.'
+            })
+        else:
+            logger.info("   ✅ Calidad de cédula frontal aceptable")
+            if MODO_DEBUG: print("   ✅ Calidad de cédula frontal aceptable")
         
+        back_quality = VerificationHelpers.check_image_quality(provider_profile.id_card_back.path)
+        if not back_quality['is_valid']:
+            logger.warning(f"   ❌ Problemas con cédula posterior: {back_quality['issues']}")
+            if MODO_DEBUG: print(f"   ❌ Problemas con cédula posterior: {back_quality['issues']}")
+            rejections.append({
+                'code': 'ID_CARD_BACK_QUALITY',
+                'message': f'La fotografía de tu cédula (posterior) no es lo suficientemente clara. '
+                          f'Problemas detectados: {", ".join(back_quality["issues"])}. '
+                          f'Por favor, toma una nueva foto con buena iluminación y enfoque.'
+            })
+        else:
+            logger.info("   ✅ Calidad de cédula posterior aceptable")
+            if MODO_DEBUG: print("   ✅ Calidad de cédula posterior aceptable")
+    except Exception as e:
+        logger.error(f"   ⚠️ Error al validar calidad de imágenes: {e}")
+        if MODO_DEBUG: print(f"   ⚠️ Error al validar calidad de imágenes: {e}")
+    
+    # OCR: Extraer información de la cédula (mock por ahora)
+    logger.info("   - Extrayendo información de cédula (OCR)...")
+    if MODO_DEBUG: print("   - Extrayendo información de cédula (OCR)...")
+    
+    try:
+        id_info = VerificationHelpers.extract_id_card_info(provider_profile.id_card_front.path, 'front')
+        
+        if id_info['success']:
+            # Guardar información extraída
+            provider_profile.extracted_id_name = id_info.get('name')
+            provider_profile.extracted_id_number = id_info.get('id_number')
+            provider_profile.extracted_id_expiry = id_info.get('expiry_date')
+            provider_profile.save(update_fields=['extracted_id_name', 'extracted_id_number', 'extracted_id_expiry'])
+            
+            # Validar nombre coincide
+            if id_info.get('name'):
+                user_full_name = f"{provider_profile.user.first_name} {provider_profile.user.last_name}"
+                name_similarity = VerificationHelpers.calculate_name_similarity(
+                    id_info['name'], user_full_name
+                )
+                
+                if name_similarity < 0.8:  # 80% similarity threshold
+                    logger.warning(f"   ❌ Nombre no coincide: '{id_info['name']}' vs '{user_full_name}' (similitud: {name_similarity:.2f})")
+                    if MODO_DEBUG: print(f"   ❌ Nombre no coincide: '{id_info['name']}' vs '{user_full_name}' (similitud: {name_similarity:.2f})")
+                    rejections.append({
+                        'code': 'ID_NAME_MISMATCH',
+                        'message': f'El nombre en tu cédula ({id_info["name"]}) no coincide con el nombre '
+                                  f'registrado en tu perfil ({user_full_name}). Por favor, verifica que '
+                                  f'los datos de tu perfil coincidan exactamente con tu documento de identidad.'
+                    })
+                else:
+                    logger.info(f"   ✅ Nombre validado (similitud: {name_similarity:.2f})")
+                    if MODO_DEBUG: print(f"   ✅ Nombre validado (similitud: {name_similarity:.2f})")
+            
+            # Validar número de cédula
+            if id_info.get('id_number'):
+                if not VerificationHelpers.validate_ecuadorian_cedula(id_info['id_number']):
+                    logger.warning(f"   ❌ Número de cédula inválido: {id_info['id_number']}")
+                    if MODO_DEBUG: print(f"   ❌ Número de cédula inválido: {id_info['id_number']}")
+                    rejections.append({
+                        'code': 'INVALID_CEDULA_NUMBER',
+                        'message': 'El número de cédula extraído no es válido según el algoritmo ecuatoriano.'
+                    })
+                else:
+                    logger.info(f"   ✅ Número de cédula válido: {id_info['id_number']}")
+                    if MODO_DEBUG: print(f"   ✅ Número de cédula válido: {id_info['id_number']}")
+            
+            # Validar fecha de expiración
+            if id_info.get('expiry_date'):
+                from datetime import date
+                if id_info['expiry_date'] < date.today():
+                    logger.warning(f"   ❌ Cédula expirada: {id_info['expiry_date']}")
+                    if MODO_DEBUG: print(f"   ❌ Cédula expirada: {id_info['expiry_date']}")
+                    rejections.append({
+                        'code': 'ID_EXPIRED',
+                        'message': f'Tu cédula de identidad ha expirado (fecha de expiración: {id_info["expiry_date"]}). '
+                                  f'Por favor, actualiza tu documento y sube las nuevas fotografías.'
+                    })
+                else:
+                    logger.info(f"   ✅ Cédula vigente hasta: {id_info['expiry_date']}")
+                    if MODO_DEBUG: print(f"   ✅ Cédula vigente hasta: {id_info['expiry_date']}")
+        else:
+            logger.info("   ℹ️ OCR no disponible o no pudo extraer información (modo mock)")
+            if MODO_DEBUG: print("   ℹ️ OCR no disponible o no pudo extraer información (modo mock)")
+    except Exception as e:
+        logger.error(f"   ⚠️ Error en extracción OCR: {e}")
+        if MODO_DEBUG: print(f"   ⚠️ Error en extracción OCR: {e}")
+    
+    # CRITERIO 5: Verificar selfie con cédula
     logger.info("   - Verificando selfie de seguridad...")
     if not provider_profile.selfie_with_id:
         logger.warning("   ❌ Falta selfie con cédula")
@@ -205,47 +347,281 @@ def validate_identity_documents(provider_profile):
         logger.info("   ✅ Selfie presente")
         if MODO_DEBUG: print("   ✅ Selfie presente")
         
+        # Validar calidad de selfie
+        try:
+            selfie_quality = VerificationHelpers.check_image_quality(provider_profile.selfie_with_id.path)
+            if not selfie_quality['is_valid']:
+                logger.warning(f"   ❌ Problemas con selfie: {selfie_quality['issues']}")
+                if MODO_DEBUG: print(f"   ❌ Problemas con selfie: {selfie_quality['issues']}")
+                rejections.append({
+                    'code': 'SELFIE_QUALITY',
+                    'message': f'La calidad de tu selfie de verificación no es suficiente. '
+                              f'Problemas: {", ".join(selfie_quality["issues"])}. '
+                              f'Por favor, toma una nueva foto con buena iluminación y asegúrate de que '
+                              f'tanto tu rostro como tu cédula sean claramente visibles.'
+                })
+            else:
+                logger.info("   ✅ Calidad de selfie aceptable")
+                if MODO_DEBUG: print("   ✅ Calidad de selfie aceptable")
+                
+                # Comparación facial
+                logger.info("   - Comparando rostro en selfie vs cédula...")
+                if MODO_DEBUG: print("   - Comparando rostro en selfie vs cédula...")
+                
+                face_comparison = VerificationHelpers.compare_faces(
+                    provider_profile.selfie_with_id.path,
+                    provider_profile.id_card_front.path
+                )
+                
+                provider_profile.facial_match_score = face_comparison['similarity']
+                provider_profile.save(update_fields=['facial_match_score'])
+                
+                if not face_comparison['is_match']:
+                    logger.warning(f"   ❌ Rostros no coinciden (similitud: {face_comparison['similarity']:.2f})")
+                    if MODO_DEBUG: print(f"   ❌ Rostros no coinciden (similitud: {face_comparison['similarity']:.2f})")
+                    rejections.append({
+                        'code': 'FACE_MISMATCH',
+                        'message': 'El rostro en tu selfie no coincide con la fotografía de tu cédula. '
+                                  'Por favor, asegúrate de tomarte la foto tú mismo(a) sosteniendo tu cédula '
+                                  'original junto a tu rostro, y que tu rostro sea claramente visible.'
+                    })
+                else:
+                    logger.info(f"   ✅ Verificación facial exitosa (similitud: {face_comparison['similarity']:.2f})")
+                    if MODO_DEBUG: print(f"   ✅ Verificación facial exitosa (similitud: {face_comparison['similarity']:.2f})")
+        except Exception as e:
+            logger.error(f"   ⚠️ Error en verificación de selfie: {e}")
+            if MODO_DEBUG: print(f"   ⚠️ Error en verificación de selfie: {e}")
+    
     return {'rejections': rejections}
 
 def validate_coherence(provider_profile, service):
     """
-    MOCK: Valida coherencia entre perfil y servicio.
+    Valida coherencia semántica entre perfil, servicio y categoría.
     """
     rejections = []
     warnings = []
-    # TODO: Integrar NLP para análisis semántico
-    logger.info("   - [MOCK] Analizando coherencia entre categoría y descripción...")
-    if MODO_DEBUG: print("   - [MOCK] Analizando coherencia entre categoría y descripción...")
-    logger.info("   ✅ Coherencia validada (Simulado)")
-    if MODO_DEBUG: print("   ✅ Coherencia validada (Simulado)")
+    config = settings.PROVIDER_VERIFICATION_CONFIG
+    
+    # CRITERIO 6: Servicio relacionado con descripción del perfil
+    logger.info("   - Validando coherencia servicio-perfil...")
+    if MODO_DEBUG: print("   - Validando coherencia servicio-perfil...")
+    
+    service_text = f"{service.name} {service.description}"
+    profile_desc = provider_profile.description or ""
+    
+    similarity = VerificationHelpers.calculate_semantic_similarity(service_text, profile_desc)
+    threshold = config['semantic_similarity_threshold']
+    
+    if similarity < threshold:
+        logger.warning(f"   ⚠️ Servicio no muy relacionado con perfil (similitud: {similarity:.2f})")
+        if MODO_DEBUG: print(f"   ⚠️ Servicio no muy relacionado con perfil (similitud: {similarity:.2f})")
+        # Esto es una advertencia, no un rechazo bloqueante
+        warnings.append({
+            'code': 'SERVICE_PROFILE_LOW_COHERENCE',
+            'message': f'Tu servicio "{service.name}" no parece estar muy relacionado con la '
+                      f'descripción de tu perfil. Considera actualizar tu descripción de perfil '
+                      f'para que refleje mejor los servicios que ofreces.'
+        })
+    else:
+        logger.info(f"   ✅ Coherencia servicio-perfil validada (similitud: {similarity:.2f})")
+        if MODO_DEBUG: print(f"   ✅ Coherencia servicio-perfil validada (similitud: {similarity:.2f})")
+    
+    # CRITERIO 7: Servicio relacionado con categoría
+    if provider_profile.category:
+        logger.info("   - Validando coherencia servicio-categoría...")
+        if MODO_DEBUG: print("   - Validando coherencia servicio-categoría...")
+        
+        category_match = VerificationHelpers.validate_service_category_match(
+            service.name,
+            service.description,
+            provider_profile.category.name
+        )
+        
+        if not category_match['is_match']:
+            logger.warning(f"   ❌ Servicio no coincide con categoría (similitud: {category_match['similarity']:.2f})")
+            if MODO_DEBUG: print(f"   ❌ Servicio no coincide con categoría (similitud: {category_match['similarity']:.2f})")
+            rejections.append({
+                'code': 'SERVICE_CATEGORY_MISMATCH',
+                'message': f'Tu servicio "{service.name}" no corresponde a la categoría '
+                          f'"{provider_profile.category.name}" que seleccionaste. Por favor, crea un servicio '
+                          f'que corresponda a tu categoría o contacta soporte para cambiar de categoría.'
+            })
+        else:
+            logger.info(f"   ✅ Coherencia servicio-categoría validada (similitud: {category_match['similarity']:.2f})")
+            if MODO_DEBUG: print(f"   ✅ Coherencia servicio-categoría validada (similitud: {category_match['similarity']:.2f})")
     
     return {'rejections': rejections, 'warnings': warnings}
 
 def validate_image_content(provider_profile, service):
     """
-    MOCK: Valida contenido prohibido en imágenes.
+    Valida contenido prohibido en imágenes (contacto, contenido inapropiado).
     """
     rejections = []
     alerts = []
-    # TODO: Integrar AWS Rekognition Moderation
-    logger.info("   - [MOCK] Escaneando imágenes por contenido inapropiado...")
-    if MODO_DEBUG: print("   - [MOCK] Escaneando imágenes por contenido inapropiado...")
-    logger.info("   ✅ Imágenes limpias (Simulado)")
-    if MODO_DEBUG: print("   ✅ Imágenes limpias (Simulado)")
+    config = settings.PROVIDER_VERIFICATION_CONFIG
+    
+    images_to_check = []
+    
+    # Recopilar imágenes a verificar
+    if provider_profile.profile_photo:
+        images_to_check.append(('profile_photo', provider_profile.profile_photo.path, 'Foto de perfil'))
+    
+    if service.image:
+        images_to_check.append(('service_image', service.image.path, 'Imagen del servicio'))
+    
+    # CRITERIO 8: Sin datos de contacto en imágenes
+    logger.info("   - Escaneando imágenes por información de contacto (OCR)...")
+    if MODO_DEBUG: print("   - Escaneando imágenes por información de contacto (OCR)...")
+    
+    for img_type, img_path, img_label in images_to_check:
+        try:
+            contact_result = VerificationHelpers.detect_contact_info_in_image(img_path)
+            
+            if contact_result['found']:
+                logger.warning(f"   ❌ Información de contacto detectada en {img_label}: {contact_result['types']}")
+                if MODO_DEBUG: print(f"   ❌ Información de contacto detectada en {img_label}: {contact_result['types']}")
+                rejections.append({
+                    'code': 'CONTACT_INFO_IN_IMAGE',
+                    'message': f'Detectamos información de contacto en tu {img_label} (teléfono, email, '
+                              f'redes sociales o página web). Por política de Liberi, las imágenes no '
+                              f'pueden contener datos de contacto. Por favor, sube nuevas imágenes sin esta información.'
+                })
+        except Exception as e:
+            logger.warning(f"   ⚠️ Error al escanear {img_label}: {e}")
+            if MODO_DEBUG: print(f"   ⚠️ Error al escanear {img_label}: {e}")
+    
+    # CRITERIO 9: Sin contenido prohibido en imágenes
+    logger.info("   - Moderando contenido de imágenes...")
+    if MODO_DEBUG: print("   - Moderando contenido de imágenes...")
+    
+    for img_type, img_path, img_label in images_to_check:
+        try:
+            moderation_result = VerificationHelpers.moderate_image_content(img_path)
+            
+            if not moderation_result['is_safe']:
+                logger.warning(f"   ❌ Contenido inapropiado en {img_label}: {moderation_result['labels']}")
+                if MODO_DEBUG: print(f"   ❌ Contenido inapropiado en {img_label}: {moderation_result['labels']}")
+                
+                # Verificar umbrales específicos
+                scores = moderation_result['scores']
+                violations = []
+                
+                if scores.get('nudity', 0) >= config['nudity_threshold']:
+                    violations.append('desnudos o contenido sexual')
+                if scores.get('violence', 0) >= config['violence_threshold']:
+                    violations.append('violencia o armas')
+                if scores.get('drugs', 0) >= config['drugs_threshold']:
+                    violations.append('drogas')
+                
+                if violations:
+                    rejections.append({
+                        'code': 'INAPPROPRIATE_IMAGE_CONTENT',
+                        'message': f'Detectamos contenido inapropiado en tu {img_label}: {', '.join(violations)}. '
+                                  f'Liberi no permite imágenes que contengan desnudos, contenido sexual, violencia, '
+                                  f'armas, drogas o contenido perturbador. Por favor, reemplaza las imágenes con '
+                                  f'contenido apropiado y profesional.'
+                    })
+                    
+                    # Alerta de seguridad
+                    alerts.append({
+                        'type': 'inappropriate_content',
+                        'image': img_label,
+                        'violations': violations,
+                        'scores': scores,
+                    })
+        except Exception as e:
+            logger.warning(f"   ⚠️ Error al moderar {img_label}: {e}")
+            if MODO_DEBUG: print(f"   ⚠️ Error al moderar {img_label}: {e}")
+    
+    if not rejections:
+        logger.info("   ✅ Imágenes limpias")
+        if MODO_DEBUG: print("   ✅ Imágenes limpias")
     
     return {'rejections': rejections, 'alerts': alerts}
 
 def validate_text_content(provider_profile, service):
     """
-    MOCK: Valida contenido prohibido en texto.
+    Valida contenido prohibido en texto (contacto, contenido ilegal).
     """
     rejections = []
     alerts = []
-    # TODO: Integrar NLP para detección de contenido ilegal/contacto
-    logger.info("   - [MOCK] Escaneando texto por PII o contenido prohibido...")
-    if MODO_DEBUG: print("   - [MOCK] Escaneando texto por PII o contenido prohibido...")
-    logger.info("   ✅ Texto limpio (Simulado)")
-    if MODO_DEBUG: print("   ✅ Texto limpio (Simulado)")
+    
+    # Recopilar textos a verificar
+    texts_to_check = [
+        ('profile_description', provider_profile.description or '', 'descripción de perfil'),
+        ('business_name', provider_profile.business_name or '', 'nombre comercial'),
+        ('service_name', service.name, 'nombre del servicio'),
+        ('service_description', service.description, 'descripción del servicio'),
+    ]
+    
+    # CRITERIO 10: Sin datos de contacto en texto
+    logger.info("   - Escaneando texto por información de contacto...")
+    if MODO_DEBUG: print("   - Escaneando texto por información de contacto...")
+    
+    for text_type, text, text_label in texts_to_check:
+        if not text:
+            continue
+        
+        contact_result = VerificationHelpers.detect_contact_info_in_text(text)
+        
+        if contact_result['found']:
+            logger.warning(f"   ❌ Información de contacto en {text_label}: {contact_result['types']}")
+            if MODO_DEBUG: print(f"   ❌ Información de contacto en {text_label}: {contact_result['types']}")
+            
+            contact_types_es = {
+                'phone': 'teléfono',
+                'email': 'email',
+                'url': 'página web',
+                'social_media': 'redes sociales'
+            }
+            
+            detected_types = [contact_types_es.get(t, t) for t in contact_result['types']]
+            
+            rejections.append({
+                'code': 'CONTACT_INFO_IN_TEXT',
+                'message': f'Tu {text_label} contiene información de contacto ({', '.join(detected_types)}). '
+                          f'Por política de Liberi, toda comunicación debe realizarse a través de la plataforma. '
+                          f'Por favor, elimina esta información de tus descripciones.'
+            })
+            break  # Solo reportar una vez
+    
+    # CRITERIO 11: Sin contenido ilegal o prohibido
+    logger.info("   - Escaneando texto por contenido ilegal...")
+    if MODO_DEBUG: print("   - Escaneando texto por contenido ilegal...")
+    
+    for text_type, text, text_label in texts_to_check:
+        if not text:
+            continue
+        
+        illegal_result = VerificationHelpers.detect_illegal_content_in_text(text)
+        
+        if illegal_result['found']:
+            logger.error(f"   🚨 CONTENIDO ILEGAL DETECTADO en {text_label}: {illegal_result['categories']}")
+            if MODO_DEBUG: print(f"   🚨 CONTENIDO ILEGAL DETECTADO en {text_label}: {illegal_result['categories']}")
+            
+            rejections.append({
+                'code': 'ILLEGAL_CONTENT_DETECTED',
+                'message': 'El contenido de tu perfil o servicio contiene referencias a actividades '
+                          'ilegales o prohibidas. Liberi es una plataforma para servicios legales '
+                          'y profesionales. Tu cuenta ha sido marcada para revisión adicional. '
+                          'Si crees que esto es un error, por favor contacta a soporte.'
+            })
+            
+            # Alerta de seguridad CRÍTICA
+            alerts.append({
+                'type': 'illegal_content',
+                'severity': 'CRITICAL',
+                'location': text_label,
+                'categories': illegal_result['categories'],
+                'keywords': illegal_result['keywords'],
+                'text_sample': text[:200],  # Primeros 200 caracteres para revisión
+            })
+            
+            break  # Detener al primer contenido ilegal
+    
+    if not rejections:
+        logger.info("   ✅ Texto limpio")
+        if MODO_DEBUG: print("   ✅ Texto limpio")
     
     return {'rejections': rejections, 'alerts': alerts}
 

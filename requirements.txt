@@ -78,3 +78,16 @@ wcwidth==0.2.14
 websockets==15.0.1
 whitenoise==6.6.0
 yarl==1.22.0
+# ============================================
+# OCR y Reconocimiento Facial
+# ============================================
+# Tesseract OCR para extracción de texto de imágenes
+pytesseract==0.3.13
+
+# Reconocimiento facial (basado en dlib)
+# NOTA: dlib puede tardar en compilar (~5-10 min en primera instalación)
+dlib==19.24.6
+face-recognition==1.3.0
+
+# NumPy (requerido por face_recognition, probablemente ya instalado)
+numpy==1.26.4

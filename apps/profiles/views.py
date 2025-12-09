@@ -185,15 +185,31 @@ def dashboard_provider(request):
     # 6. Subir horarios
     has_schedules = ProviderSchedule.objects.filter(provider=request.user).exists()
     
+    # Verificar si tiene perfil completo (nombre, categoría, descripción)
+    has_profile = bool(
+        provider_profile.business_name and
+        provider_profile.description and
+        provider_profile.category
+    )
+    
+    # URL para el paso de servicios: si ya tiene servicios, editar el primero; si no, crear nuevo
+    from django.urls import reverse
+    first_service = services.first() if has_services else None
+    if first_service:
+        service_url = reverse('service_edit', args=[first_service.id])
+    else:
+        service_url = reverse('service_create')
+    
     raw_steps = [
-        {'id': 1, 'label': 'Subir documentos', 'done': has_documents, 'url': 'provider_register_step2'},
-        {'id': 2, 'label': 'Crear primer servicio', 'done': has_services, 'url': 'service_create'},
-        {'id': 3, 'label': verification_label, 'done': is_verified, 'url': None, 
+        {'id': 0, 'label': 'Completar perfil', 'done': has_profile, 'url': reverse('provider_profile_edit')},
+        {'id': 1, 'label': 'Subir documentos', 'done': has_documents, 'url': reverse('provider_register_step2')},
+        {'id': 2, 'label': 'Crear primer servicio', 'done': has_services, 'url': service_url},
+        {'id': 3, 'label': verification_label, 'done': is_verified, 'url': None,
          'is_processing': is_processing, 'is_rejected': is_rejected},
-        {'id': 4, 'label': 'Crear ubicación base', 'done': has_base_location, 'url': 'provider_locations_list'},
-        {'id': 5, 'label': 'Definir zonas de cobertura', 'done': has_coverage_zones, 'url': 'provider_coverage_manage'},
-        {'id': 6, 'label': 'Configurar costos de traslado', 'done': has_zone_costs, 'url': 'provider_zone_costs_manage'},
-        {'id': 7, 'label': 'Configurar horarios', 'done': has_schedules, 'url': 'provider_schedule_manage'},
+        {'id': 4, 'label': 'Crear ubicación base', 'done': has_base_location, 'url': reverse('provider_locations_list')},
+        {'id': 5, 'label': 'Definir zonas de cobertura', 'done': has_coverage_zones, 'url': reverse('provider_coverage_manage')},
+        {'id': 6, 'label': 'Configurar costos de traslado', 'done': has_zone_costs, 'url': reverse('provider_zone_costs_manage')},
+        {'id': 7, 'label': 'Configurar horarios', 'done': has_schedules, 'url': reverse('provider_schedule_manage')},
     ]
 
     onboarding_steps = []
@@ -201,11 +217,11 @@ def dashboard_provider(request):
 
     for step in raw_steps:
         # Si el perfil fue rechazado, habilitamos los pasos anteriores para edición
-        if is_rejected and step['id'] < 3:
+        if is_rejected and step['id'] <= 2:  # Permitir editar perfil, documentos y servicios
              step['status'] = 'completed_editable' # Nuevo estado para permitir edición
              step['locked'] = False
         elif step['done']:
-            step['status'] = 'completed'
+            step['status'] = 'completed_editable' if step['id'] == 0 else 'completed'  # Perfil siempre editable
             step['locked'] = False
         elif previous_step_done:
             step['status'] = 'current'
@@ -225,8 +241,34 @@ def dashboard_provider(request):
     onboarding_progress = int((completed_steps_count / total_steps_count) * 100)
     show_onboarding = completed_steps_count < total_steps_count
     
+    # Parsear rejection_reasons si existe
+    rejection_reasons_parsed = []
+    if provider_profile.rejection_reasons:
+        import json
+        try:
+            reasons_data = json.loads(provider_profile.rejection_reasons)
+            if isinstance(reasons_data, list):
+                for reason in reasons_data:
+                    if isinstance(reason, dict):
+                        rejection_reasons_parsed.append({
+                            'code': reason.get('code', 'ERROR'),
+                            'message': reason.get('message', 'Sin mensaje')
+                        })
+        except (json.JSONDecodeError, TypeError):
+            # Si no es JSON válido, mostrar como texto plano
+            rejection_reasons_parsed.append({
+                'code': 'OBSERVACIÓN',
+                'message': str(provider_profile.rejection_reasons)
+            })
+    
+    # Calcular intentos restantes
+    max_attempts = 3
+    remaining_attempts = max(0, max_attempts - provider_profile.verification_attempts)
+    
     context = {
         'provider_profile': provider_profile,
+        'rejection_reasons_parsed': rejection_reasons_parsed,
+        'remaining_attempts': remaining_attempts,
         'total_bookings': total_bookings,
         'pending_bookings': pending_bookings,
         'completed_bookings': completed_bookings,

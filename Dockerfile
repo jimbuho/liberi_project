@@ -9,11 +9,25 @@ ENV PYTHONUNBUFFERED 1
 
 WORKDIR /app
 
-# Instala dependencias del sistema necesarias para psycopg y Pillow
+# Instala dependencias del sistema necesarias para:
+# - psycopg (PostgreSQL)
+# - Pillow (procesamiento de imágenes)
+# - Tesseract OCR (reconocimiento de texto)
+# - dlib/face_recognition (reconocimiento facial)
 RUN apt-get update && apt-get install -y \
     build-essential \
     libpq-dev \
     curl \
+    # Tesseract OCR
+    tesseract-ocr \
+    tesseract-ocr-spa \
+    # Para dlib y face_recognition
+    cmake \
+    libopenblas-dev \
+    liblapack-dev \
+    libx11-dev \
+    libgtk-3-dev \
+    # Limpieza
     && rm -rf /var/lib/apt/lists/*
 
 # Copia dependencias antes para aprovechar cache de Docker

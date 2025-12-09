@@ -431,9 +431,10 @@ PROVIDER_VERIFICATION_CONFIG = {
     'semantic_similarity_threshold': 0.3,
     'category_match_threshold': 0.25,
     
-    # Límites
-    'max_verification_attempts': 5,
-    'reverification_cooldown_hours': 1,
+    # Límites de re-verificación (varían según entorno)
+    # Development: testing rápido, Production: más restrictivo
+    'max_verification_attempts': 5 if ENVIRONMENT == 'development' else 3,
+    'reverification_cooldown_hours': 1/60 if ENVIRONMENT == 'development' else 0.25,  # 1 min dev, 15 min prod
     
     # Longitudes de texto
     'min_description_length': 50,
@@ -447,4 +448,51 @@ PROVIDER_VERIFICATION_CONFIG = {
     # Timeouts
     'image_processing_timeout': 30,  # segundos
     'text_analysis_timeout': 10,  # segundos
+}
+# Category keywords for semantic matching
+PROVIDER_VERIFICATION_CONFIG['category_keywords'] = {
+    'Belleza': [
+        # Servicios generales
+        'belleza', 'estética', 'estetica', 'cosmetología', 'cosmetologia', 'salon', 'salón',
+        # Cabello
+        'cabello', 'pelo', 'corte', 'cortes', 'peinado', 'peinados', 'peluquería', 'peluqueria',
+        'tintura', 'tinte', 'coloración', 'coloracion', 'mechas', 'alisado', 'permanente',
+        'brushing', 'secado', 'lavado de cabello', 'tratamiento capilar',
+        # Maquillaje
+        'maquillaje', 'makeup', 'maquillar',
+        # Uñas
+        'uñas', 'unas', 'manicure', 'manicura', 'pedicure', 'pedicura', 'esmaltado',
+        # Cejas y pestañas
+        'cejas', 'pestañas', 'pestanas', 'microblading', 'laminado',
+        # Tratamientos faciales
+        'facial', 'faciales', 'limpieza facial', 'mascarilla', 'hidratación', 'hidratacion',
+        # Depilación
+        'depilación', 'depilacion', 'cera', 'láser', 'laser',
+        # Tratamientos corporales
+        'masaje', 'masajes', 'spa', 'relajación', 'relajacion',
+        # Otros
+        'tratamiento', 'tratamientos', 'cuidado personal', 'imagen personal',
+    ],
+    'Limpieza': [
+        'hogar', 'casa', 'domicilio', 'oficina', 'local', 'comercio',
+        'desinfección', 'desinfeccion', 'sanitización', 'sanitizacion',
+        'lavado', 'lavar', 'planchado', 'planchar', 'organización', 'organizacion',
+        'limpieza', 'limpiar', 'aseo', 'orden', 'ordenar',
+        'aspirado', 'aspirar', 'trapeado', 'trapear', 'barrido', 'barrer',
+        'ventanas', 'vidrios', 'pisos', 'alfombras', 'muebles',
+        'cocina', 'baño', 'bano', 'habitaciones',
+    ],
+}
+
+# Prohibited keywords for illegal content detection
+PROVIDER_VERIFICATION_CONFIG['prohibited_keywords'] = {
+    'lavado_activos': [
+        'lavado de dinero', 'blanqueo',
+    ],
+    'armas': [
+        'venta de armas', 'pistolas',
+    ],
+    'pornografia': [
+        'servicios sexuales', 'contenido adulto',
+    ],
 }

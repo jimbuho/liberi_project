@@ -110,9 +110,11 @@ def can_request_reverification(provider_profile):
         cooldown_hours = config.get('reverification_cooldown_hours', 1)
         cooldown = timedelta(hours=cooldown_hours)
         
-        if timezone.now() < provider_profile.rejected_at + cooldown:
-            remaining = (provider_profile.rejected_at + cooldown) - timezone.now()
-            minutes = int(remaining.total_seconds() / 60)
+        time_since_rejection = timezone.now() - provider_profile.rejected_at
+        
+        if time_since_rejection < cooldown:
+            remaining = cooldown - time_since_rejection
+            minutes = max(1, int(remaining.total_seconds() / 60))  # Mínimo 1 minuto
             return False, f"Debes esperar {minutes} minutos antes de solicitar nueva verificación"
     
     # Límite de re-intentos
