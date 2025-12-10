@@ -1093,6 +1093,22 @@ def validate_provider_profile_task(provider_profile_id):
                 logger.error(f"⚠️ [TASK] Error al encolar email de aprobación: {email_error}")
                 # No reraising - el perfil ya está aprobado
             
+            # Crear notificación in-app
+            try:
+                from apps.core.models import Notification
+                Notification.objects.create(
+                    user=provider_profile.user,
+                    notification_type='system',
+                    title='🎉 ¡Tu perfil ha sido aprobado!',
+                    message=f'Tu perfil de proveedor ha sido verificado y aprobado exitosamente. '
+                           f'Ahora puedes recibir reservas de clientes. ¡Bienvenido a Liberi!',
+                    action_url='/dashboard/'
+                )
+                logger.info(f"✅ [TASK] Notificación in-app de aprobación creada")
+            except Exception as notif_error:
+                logger.error(f"⚠️ [TASK] Error al crear notificación in-app: {notif_error}")
+                # No reraising - no crítico
+            
         else:
             # ============================
             # RECHAZO
@@ -1119,6 +1135,27 @@ def validate_provider_profile_task(provider_profile_id):
             except Exception as email_error:
                 logger.error(f"⚠️ [TASK] Error al encolar email de rechazo: {email_error}")
                 # No reraising - el perfil ya está rechazado
+            
+            # Crear notificación in-app
+            try:
+                from apps.core.models import Notification
+                rejection_summary = f"{len(rejections)} problema(s) encontrado(s)"
+                if rejections:
+                    rejection_summary = rejections[0].get('message', '')[:150]
+                
+                Notification.objects.create(
+                    user=provider_profile.user,
+                    notification_type='system',
+                    title='⚠️ Tu perfil requiere correcciones',
+                    message=f'Tu perfil de proveedor no pudo ser aprobado. '
+                           f'{rejection_summary}... '
+                           f'Revisa los detalles en tu dashboard y corrige la información.',
+                    action_url='/dashboard/'
+                )
+                logger.info(f"❌ [TASK] Notificación in-app de rechazo creada")
+            except Exception as notif_error:
+                logger.error(f"⚠️ [TASK] Error al crear notificación in-app: {notif_error}")
+                # No reraising - no crítico
         
         # Notificar a admins el resultado (no crítico)
         try:

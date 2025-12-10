@@ -1297,11 +1297,23 @@ class VerificationHelpers:
             # Log first 200 chars for debugging
             logger.info(f"OCR Text preview (first 200 chars): {text_clean[:200]}")
             
+            # CRITICAL: Try MRZ FIRST on BOTH sides (Ecuadorian IDs have MRZ on front!)
+            logger.info("Trying MRZ extraction first...")
+            mrz_result = VerificationHelpers.parse_mrz(text)
+            if mrz_result['success']:
+                result.update(mrz_result)
+                result['success'] = True
+                logger.info(f"✅ MRZ parsed successfully from {side}: {result['apellidos']}, {result['nombres']}")
+                return result
+            
+            # If MRZ failed, try traditional patterns (only on front)
             if side == 'front':
+                logger.info("MRZ not found, trying traditional patterns...")
+                
                 # APELLIDOS - Multiple patterns with fallbacks
                 apellidos_patterns = [
                     # Pattern 1: APELLIDOS followed by newline and text
-                    r'APELLIDOS?\s*[:|\n\r]+\s*([A-ZÁÉÍÓÚÑ\s]+?)(?:\n|NOMBRES|CONDICIÓN|NACIONALIDAD)',
+                    r'APELLIDOS?\s*[:|\n\r]+\s*([A-ZÁÉÍÓÚÑ\s]+?)(?:\n|NOMBRES|CONDICIÓN|NACIONAL IDAD)',
                     # Pattern 2: Just find text after APELLIDOS
                     r'APELLIDOS?\s*[:|\n\r]+\s*([A-ZÁÉÍÓÚÑ]{3,}(?:\s+[A-ZÁÉÍÓÚÑ]+)?)',
                     # Pattern 3: Two consecutive uppercase words (likely apellidos)
@@ -1343,18 +1355,6 @@ class VerificationHelpers:
                     logger.info(f"✅ Extracted ID: {result['id_number']}")
                 else:
                     logger.warning("⚠️ No ID number found")
-                
-            elif side == 'back':
-                # Try to parse MRZ - more reliable
-                logger.info("Parsing MRZ from text")
-                mrz_result = VerificationHelpers.parse_mrz(text)
-                if mrz_result['success']:
-                    result.update(mrz_result)
-                    result['success'] = True
-                    logger.info(f"✅ MRZ parsed successfully: {result['apellidos']}, {result['nombres']}")
-                    return result
-                else:
-                    logger.warning("⚠️ MRZ parsing failed")
             
             # Success if we got at least apellidos or nombres
             result['success'] = bool(result['apellidos'] or result['nombres'])
