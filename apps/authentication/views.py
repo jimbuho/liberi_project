@@ -386,10 +386,8 @@ def provider_register_step2(request):
     
     provider_profile = request.user.provider_profile
     
-    # Verificar que esté en el paso correcto
-    if provider_profile.registration_step >= 2:
-        messages.info(request, 'Ya completaste la verificación de identidad')
-        return redirect('dashboard')
+    # PERMITIR EDITAR EN CUALQUIER MOMENTO (no solo en el paso 1)
+    # Esto permite corregir documentos rechazados o actualizar información
     
     if request.method == 'POST':
         # Obtener archivos
@@ -413,7 +411,7 @@ def provider_register_step2(request):
                 })
         
         try:
-            # Subir imágenes a Supabase/Storage
+            # Subir imágenes a Supabase/Storage - REEMPLAZAR las existentes
             
             front_url = upload_image(
                 file=id_card_front,
@@ -436,12 +434,19 @@ def provider_register_step2(request):
                 prefix='selfie'
             )
             
-            # CORRECCIÓN: Actualizar perfil pero MANTENER status='created'
+            # Actualizar perfil
             provider_profile.id_card_front = front_url
             provider_profile.id_card_back = back_url
             provider_profile.selfie_with_id = selfie_url
-            provider_profile.registration_step = 2
-            provider_profile.status = 'created'  # Mantener en 'created', NO cambiar a 'pending'
+            
+            # Solo avanzar registration_step si aún está en 1
+            if provider_profile.registration_step < 2:
+                provider_profile.registration_step = 2
+             
+            # Si el perfil estaba rechazado, volver a 'created' para permitir nueva validación
+            if provider_profile.status == 'rejected':
+                provider_profile.status = 'created'
+                messages.success(request, '¡Documentos actualizados! Ahora puedes solicitar una nueva verificación.')
             provider_profile.documents_verified = False  # Documentos aún no verificados
             provider_profile.save()
             
