@@ -1139,17 +1139,12 @@ def validate_provider_profile_task(provider_profile_id):
             # Crear notificación in-app
             try:
                 from apps.core.models import Notification
-                rejection_summary = f"{len(rejections)} problema(s) encontrado(s)"
-                if rejections:
-                    rejection_summary = rejections[0].get('message', '')[:150]
                 
                 Notification.objects.create(
                     user=provider_profile.user,
                     notification_type='system',
                     title='⚠️ Tu perfil requiere correcciones',
-                    message=f'Tu perfil de proveedor no pudo ser aprobado. '
-                           f'{rejection_summary}... '
-                           f'Revisa los detalles en tu dashboard y corrige la información.',
+                    message='La validación de tu perfil fue fallida, revisa los detalles a continuación.',
                     action_url='/dashboard/'
                 )
                 logger.info(f"❌ [TASK] Notificación in-app de rechazo creada")
