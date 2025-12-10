@@ -189,9 +189,9 @@ class VerificationHelpers:
     ]
     
     URL_PATTERNS = [
-        r'(https?://|www\.)[^\s]+',  # Must start with http:// https:// or www.
-        r'\b[a-zA-Z0-9][\w\-]{1,63}\.[a-zA-Z]{2,6}\b',  # domain.extension (word boundaries required)
-        r'\b[a-zA-Z0-9][\w\-]*\.(com|ec|net|org|io|app|co)\.[a-zA-Z]{2}\b',  # domain.com.ec format
+        r'https?://[^\s]+',  # Must have http:// or https:// explicitly
+        r'www\.[a-zA-Z0-9][\w\-]{2,}\.[a-zA-Z]{2,6}',  # www. prefix required
+        # Removed plain domain.extension - too many false positives with code
     ]
     
     SOCIAL_MEDIA_PATTERNS = [

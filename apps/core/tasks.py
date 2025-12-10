@@ -1188,7 +1188,7 @@ DETALLES DEL PROVEEDOR:
 
 RESULTADO: {status_text}
 {reasons_text}
-Link al perfil: {settings.BASE_URL}/admin/core/providerprofile/{provider_profile.id}/change/
+Link al perfil: {settings.BASE_URL}/admin/core/providerprofile/{provider_profile.pk}/change/
 
 ---
 Sistema de Validación Automática Liberi
