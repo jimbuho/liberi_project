@@ -1290,45 +1290,79 @@ class VerificationHelpers:
         }
         
         try:
-            text_upper = text.upper()
+            # Normalize text
+            text_clean = text.replace('\r', '\n')
+            text_upper = text_clean.upper()
+            
+            # Log first 200 chars for debugging
+            logger.info(f"OCR Text preview (first 200 chars): {text_clean[:200]}")
             
             if side == 'front':
-                # Pattern 1: APELLIDOS\nBURBANO YASELGA
-                apellidos_match = re.search(
-                    r'APELLIDOS?\s*[:\n\r]+\s*([A-ZÁÉÍÓÚÑ\s]+?)(?:\n|NOMBRES|CONDICIÓN)',
-                    text_upper,
-                    re.MULTILINE | re.DOTALL
-                )
-                if apellidos_match:
-                    result['apellidos'] = apellidos_match.group(1).strip()
-                    logger.info(f"Extracted apellidos: {result['apellidos']}")
+                # APELLIDOS - Multiple patterns with fallbacks
+                apellidos_patterns = [
+                    # Pattern 1: APELLIDOS followed by newline and text
+                    r'APELLIDOS?\s*[:|\n\r]+\s*([A-ZÁÉÍÓÚÑ\s]+?)(?:\n|NOMBRES|CONDICIÓN|NACIONALIDAD)',
+                    # Pattern 2: Just find text after APELLIDOS
+                    r'APELLIDOS?\s*[:|\n\r]+\s*([A-ZÁÉÍÓÚÑ]{3,}(?:\s+[A-ZÁÉÍÓÚÑ]+)?)',
+                    # Pattern 3: Two consecutive uppercase words (likely apellidos)
+                    r'\n([A-ZÁÉÍÓÚÑ]{4,}\s+[A-ZÁÉÍÓÚÑ]{4,})\s*\n.*NOMBRES',
+                ]
                 
-                # Pattern 2: NOMBRES\nSILVIA IRENE
-                nombres_match = re.search(
-                    r'NOMBRES?\s*[:\n\r]+\s*([A-ZÁÉÍÓÚÑ\s]+?)(?:\n|NACIONALIDAD|ECUATORIAN)',
-                    text_upper,
-                    re.MULTILINE | re.DOTALL
-                )
-                if nombres_match:
-                    result['nombres'] = nombres_match.group(1).strip()
-                    logger.info(f"Extracted nombres: {result['nombres']}")
+                for i, pattern in enumerate(apellidos_patterns):
+                    apellidos_match = re.search(pattern, text_upper, re.MULTILINE | re.DOTALL)
+                    if apellidos_match:
+                        result['apellidos'] = apellidos_match.group(1).strip()
+                        logger.info(f"✅ Extracted apellidos (pattern {i+1}): {result['apellidos']}")
+                        break
+                else:
+                    logger.warning("⚠️ No apellidos match found with any pattern")
                 
-                # Pattern 3: ID number (10 digits)
+                # NOMBRES - Multiple patterns with fallbacks
+                nombres_patterns = [
+                    # Pattern 1: NOMBRES followed by newline and text
+                    r'NOMBRES?\s*[:|\n\r]+\s*([A-ZÁÉÍÓÚÑ\s]+?)(?:\n|NACIONALIDAD|ECUATORIAN|LUGAR)',
+                    # Pattern 2: Just find text after NOMBRES
+                    r'NOMBRES?\s*[:|\n\r]+\s*([A-ZÁÉÍÓÚÑ]{3,}(?:\s+[A-ZÁÉÍÓÚÑ]+)?)',
+                    # Pattern 3: Text between APELLIDOS section and NACIONALIDAD
+                    r'APELLIDOS.*?\n.*?\n([A-ZÁÉÍÓÚÑ]{3,}(?:\s+[A-ZÁÉÍÓÚÑ]+)?)\s*.*?NACIONALIDAD',
+                ]
+                
+                for i, pattern in enumerate(nombres_patterns):
+                    nombres_match = re.search(pattern, text_upper, re.MULTILINE | re.DOTALL)
+                    if nombres_match:
+                        result['nombres'] = nombres_match.group(1).strip()
+                        logger.info(f"✅ Extracted nombres (pattern {i+1}): {result['nombres']}")
+                        break
+                else:
+                    logger.warning("⚠️ No nombres match found with any pattern")
+                
+                # ID NUMBER - 10 digits
                 id_match = re.search(r'\b(\d{10})\b', text)
                 if id_match:
                     result['id_number'] = id_match.group(1)
-                    logger.info(f"Extracted ID: {result['id_number']}")
+                    logger.info(f"✅ Extracted ID: {result['id_number']}")
+                else:
+                    logger.warning("⚠️ No ID number found")
                 
             elif side == 'back':
                 # Try to parse MRZ - more reliable
+                logger.info("Parsing MRZ from text")
                 mrz_result = VerificationHelpers.parse_mrz(text)
                 if mrz_result['success']:
                     result.update(mrz_result)
                     result['success'] = True
+                    logger.info(f"✅ MRZ parsed successfully: {result['apellidos']}, {result['nombres']}")
                     return result
+                else:
+                    logger.warning("⚠️ MRZ parsing failed")
             
             # Success if we got at least apellidos or nombres
             result['success'] = bool(result['apellidos'] or result['nombres'])
+            
+            if result['success']:
+                logger.info(f"✅ Extraction successful: apellidos={result['apellidos']}, nombres={result['nombres']}")
+            else:
+                logger.warning(f"❌ Extraction failed - could not find apellidos or nombres in text")
             
             return result
             
@@ -1341,8 +1375,6 @@ class VerificationHelpers:
         """
         Parsea la zona MRZ (Machine Readable Zone) de una cédula.
         """
-        logger.info("Parsing MRZ from text")
-        
         result = {
             'success': False,
             'apellidos': None,
@@ -1351,21 +1383,51 @@ class VerificationHelpers:
         }
         
         try:
-            # Look for MRZ pattern: APELLIDO<APELLIDO<<NOMBRE<NOMBRE<
-            mrz_pattern = r'([A-Z]+)<([A-Z]+)<<([A-Z]+)<([A-Z]+)<'
-            mrz_match = re.search(mrz_pattern, text.upper())
+            text_upper = text.upper()
             
-            if mrz_match:
-                apellido1 = mrz_match.group(1)
-                apellido2 = mrz_match.group(2)
-                nombre1 = mrz_match.group(3)
-                nombre2 = mrz_match.group(4)
+            # Look for MRZ patterns with multiple fallbacks
+            mrz_patterns = [
+                # Pattern 1: Standard MRZ - APELLIDO<APELLIDO<<NOMBRE<NOMBRE<
+                r'([A-Z]+)<([A-Z]+)<<([A-Z]+)<([A-Z]+)<',
+                # Pattern 2: Single apellido - APELLIDO<<NOMBRE<NOMBRE<
+                r'([A-Z]+)<<([A-Z]+)<([A-Z]+)<',
+                # Pattern 3: Without trailing < - APELLIDO<APELLIDO<<NOMBRE<NOMBRE
+                r'([A-Z]+)<([A-Z]+)<<([A-Z]+)<([A-Z]+)',
+            ]
+            
+            for i, pattern in enumerate(mrz_patterns):
+                mrz_match = re.search(pattern, text_upper)
                 
-                result['apellidos'] = f"{apellido1} {apellido2}".strip()
-                result['nombres'] = f"{nombre1} {nombre2}".strip()
-                result['success'] = True
-                
-                logger.info(f"Parsed MRZ: {result['apellidos']}, {result['nombres']}")
+                if mrz_match:
+                    groups = mrz_match.groups()
+                    
+                    if len(groups) == 4:
+                        # Full format with 2 apellidos and 2 nombres
+                        apellido1 = groups[0]
+                        apellido2 = groups[1]
+                        nombre1 = groups[2]
+                        nombre2 = groups[3]
+                        
+                        result['apellidos'] = f"{apellido1} {apellido2}".strip()
+                        result['nombres'] = f"{nombre1} {nombre2}".strip()
+                    elif len(groups) == 3:
+                        # Single apellido format
+                        apellido = groups[0]
+                        nombre1 = groups[1]
+                        nombre2 = groups[2]
+                        
+                        result['apellidos'] = apellido.strip()
+                        result['nombres'] = f"{nombre1} {nombre2}".strip()
+                    
+                    result['success'] = True
+                    logger.info(f"✅ MRZ parsed (pattern {i+1}): {result['apellidos']}, {result['nombres']}")
+                    return result
+            
+            # If no pattern matched, log for debugging
+            logger.warning(f"⚠️ No MRZ pattern found in text (searched {len(mrz_patterns)} patterns)")
+            # Log a snippet to help debug
+            if len(text) > 100:
+                logger.info(f"MRZ search area (mid section): ...{text[len(text)//2-50:len(text)//2+50]}...")
             
             return result
             
