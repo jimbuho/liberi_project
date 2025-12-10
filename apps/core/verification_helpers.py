@@ -841,11 +841,102 @@ class VerificationHelpers:
             'reason': 'Descripción no menciona servicios claramente',
         }
     
+    @staticmethod
+    def validate_text_is_real(text: str) -> Dict:
+        """
+        Detecta si un texto es gibberish, Lorem Ipsum, o texto de relleno inválido.
+        
+        Args:
+            text: Texto a validar
+            
+        Returns:
+            Dict with validation result:
+            {
+                'is_valid': bool,
+                'reason': str  # If not valid
+            }
+        """
+        logger.info("Validating text is real (not gibberish)")
+        
+        if not text or len(text.strip()) < 10:
+            return {
+                'is_valid': False,
+                'reason': 'Texto demasiado corto'
+            }
+        
+        text_lower = text.lower()
+        
+        # Check 1: Known placeholder text
+        placeholders = [
+            'lorem ipsum', 'dolor sit amet', 'consectetur adipiscing',
+            'lorem', 'ipsum', 'placeholder',
+            'test', 'testing', 'prueba', 'ejemplo',
+            'asdfg', 'qwerty', 'zxcvb',
+        ]
+        
+        for placeholder in placeholders:
+            if placeholder in text_lower:
+                return {
+                    'is_valid': False,
+                    'reason': f'Contiene texto de relleno: "{placeholder}"'
+                }
+        
+        # Check 2: Too many consonants without vowels (gibberish pattern)
+        words = text.split()
+        gibberish_words = []
+        
+        for word in words:
+            if len(word) >= 5:  # Only check longer words
+                word_clean = ''.join(c for c in word.lower() if c.isalpha())
+                if len(word_clean) >= 5:
+                    vowels = sum(1 for c in word_clean if c in 'aeiouáéíóú')
+                    consonants = len(word_clean) - vowels
+                    
+                    # If more than 70% consonants, likely gibberish
+                    if consonants / len(word_clean) > 0.7:
+                        gibberish_words.append(word)
+        
+        if len(gibberish_words) >= 2:  # Multiple gibberish words
+            return {
+                'is_valid': False,
+                'reason': f'Contiene texto sin sentido: {", ".join(gibberish_words[:3])}'
+            }
+        
+        # Check 3: Repeated character patterns (keyboard mashing)
+        repeated_patterns = [
+            'aaaa', 'bbbb', 'cccc', 'dddd', 'eeee',
+            'jjjj', 'kkkk', 'llll', 'ffff',
+            'jaja', 'jeje', 'kkkk',
+        ]
+        
+        for pattern in repeated_patterns:
+            if pattern in text_lower:
+                return {
+                    'is_valid': False,
+                    'reason': 'Contiene patrones repetitivos inválidos'
+                }
+        
+        # Check 4: Very low word diversity (same word repeated many times)
+        if len(words) >= 10:
+            unique_words = set(w.lower() for w in words if len(w) > 3)
+            diversity = len(unique_words) / len(words)
+            
+            if diversity < 0.3:  # Less than 30% unique words
+                return {
+                    'is_valid': False,
+                    'reason': 'Texto muy repetitivo'
+                }
+        
+        # Passed all checks
+        return {
+            'is_valid': True,
+            'reason': 'Texto válido'
+        }
+    
     # ============================================
     # SEMANTIC ANALYSIS
     # ============================================
     
-    @staticmethod
     def calculate_semantic_similarity(text1: str, text2: str) -> float:
         """
         Calculate semantic similarity between two texts.
@@ -929,8 +1020,8 @@ class VerificationHelpers:
         matches = [kw for kw in keywords if kw.lower() in description_lower]
         
         # Use minimum keyword count instead of percentage
-        # At least 2 keywords must match for validation to pass
-        min_keywords_required = 2
+        # At least 1 keyword must match for validation to pass (relaxed from 2)
+        min_keywords_required = 1
         is_match = len(matches) >= min_keywords_required
         
         # Calculate match ratio for informational purposes
@@ -1051,3 +1142,300 @@ class VerificationHelpers:
         
         logger.info(f"Name similarity: '{name1}' vs '{name2}' = {similarity:.3f}")
         return similarity
+    
+    # ============================================
+    # ID CARD VALIDATION (NEW - ROBUST)
+    # ============================================
+    
+    @staticmethod
+    def is_valid_id_card_image(image_source, side: str = 'front') -> Dict:
+        """
+        Detecta si una imagen es realmente una cédula de identidad ecuatoriana.
+        
+        Args:
+            image_source: FieldFile, path, o URL de la imagen
+            side: 'front' o 'back'
+            
+        Returns:
+            Dict with validation result:
+            {
+                'is_valid': bool,
+                'confidence': float,
+                'reasons': List[str]  # Reasons if not valid
+            }
+        """
+        logger.info(f"Validating if image is a valid ID card ({side})")
+        
+        try:
+            with VerificationHelpers.get_image_for_processing(image_source) as image_path:
+                from PIL import Image
+                import numpy as np
+                
+                reasons = []
+                confidence = 0.0
+                
+                # Open image
+                img = Image.open(image_path)
+                width, height = img.size
+                
+                # Check 1: Aspect ratio (cédulas ~1.6 ratio like credit cards)
+                aspect_ratio = width / height if height > 0 else 0
+                if not (1.4 <= aspect_ratio <= 1.8):
+                    reasons.append(f"Proporción incorrecta ({aspect_ratio:.2f}), cédulas tienen ~1.6")
+                else:
+                    confidence += 0.2
+                
+                # Check 2: Extract text with OCR
+                text = VerificationHelpers.extract_text_from_image(image_source)
+                text_upper = text.upper()
+                
+                if side == 'front':
+                    # Keywords que DEBEN aparecer en cédula frontal ecuatoriana
+                    required_keywords = [
+                        ('REPÚBLICA', 'ECUADOR', 'REPUBLICA'),  # Al menos uno
+                        ('CÉDULA', 'CEDULA'),  # Al menos uno
+                        ('IDENTIDAD',),
+                        ('APELLIDOS',),
+                        ('NOMBRES',),
+                    ]
+                    
+                    keywords_found = 0
+                    for keyword_group in required_keywords:
+                        if any(kw in text_upper for kw in keyword_group):
+                            keywords_found += 1
+                            confidence += 0.15
+                    
+                    if keywords_found < 3:  # Al menos 3 de 5 grupos
+                        reasons.append(f"Faltan keywords de cédula (encontrados: {keywords_found}/5)")
+                    
+                    # Check for ID number pattern (10 digits)
+                    if not re.search(r'\b\d{10}\b', text):
+                        reasons.append("No se encontró número de cédula (10 dígitos)")
+                    else:
+                        confidence += 0.1
+                        
+                elif side == 'back':
+                    # Keywords del reverso
+                    back_keywords = [
+                        ('PADRE', 'MADRE'),
+                        ('CÓDIGO', 'CODIGO', 'DACTILAR'),
+                        ('CIVIL',),
+                    ]
+                    
+                    keywords_found = 0
+                    for keyword_group in back_keywords:
+                        if any(kw in text_upper for kw in keyword_group):
+                            keywords_found += 1
+                            confidence += 0.15
+                    
+                    # Check for MRZ (Machine Readable Zone) - very distinctive
+                    # MRZ has patterns like: ECUXXXXXXXXX<<<<<XXXXXXXXX
+                    # or APELLIDO<APELLIDO<<NOMBRE<NOMBRE<
+                    if re.search(r'[A-Z<]{10,}', text_upper):
+                        confidence += 0.3
+                        logger.info("MRZ pattern detected")
+                    else:
+                        reasons.append("No se detectó zona MRZ (código de barras de texto)")
+                    
+                    if keywords_found < 1:
+                        reasons.append(f"Faltan keywords del reverso (encontrados: {keywords_found}/3)")
+                
+                # Check 3: Minimum text extracted
+                if len(text.strip()) < 20:
+                    reasons.append(f"Muy poco texto extraído ({len(text)} caracteres)")
+                    confidence -= 0.2
+                else:
+                    confidence += 0.1
+                
+                # Final decision
+                is_valid = confidence >= 0.4 and len(reasons) <= 2
+                
+                logger.info(f"ID card validation: valid={is_valid}, confidence={confidence:.2f}, reasons={reasons}")
+                
+                return {
+                    'is_valid': is_valid,
+                    'confidence': confidence,
+                    'reasons': reasons,
+                }
+                
+        except Exception as e:
+            logger.error(f"Error validating ID card image: {e}", exc_info=True)
+            return {
+                'is_valid': False,
+                'confidence': 0.0,
+                'reasons': [f"Error al procesar imagen: {str(e)}"],
+            }
+    
+    @staticmethod
+    def extract_id_info_from_text(text: str, side: str = 'front') -> Dict:
+        """
+        Extrae información estructurada de una cédula desde texto OCR.
+        
+        Args:
+            text: Texto extraído por OCR
+            side: 'front' o 'back'
+            
+        Returns:
+            Dict with extracted information
+        """
+        logger.info(f"Extracting ID info from text ({side})")
+        
+        result = {
+            'success': False,
+            'apellidos': None,
+            'nombres': None,
+            'id_number': None,
+            'birth_date': None,
+            'raw_text': text,
+        }
+        
+        try:
+            text_upper = text.upper()
+            
+            if side == 'front':
+                # Pattern 1: APELLIDOS\nBURBANO YASELGA
+                apellidos_match = re.search(
+                    r'APELLIDOS?\s*[:\n\r]+\s*([A-ZÁÉÍÓÚÑ\s]+?)(?:\n|NOMBRES|CONDICIÓN)',
+                    text_upper,
+                    re.MULTILINE | re.DOTALL
+                )
+                if apellidos_match:
+                    result['apellidos'] = apellidos_match.group(1).strip()
+                    logger.info(f"Extracted apellidos: {result['apellidos']}")
+                
+                # Pattern 2: NOMBRES\nSILVIA IRENE
+                nombres_match = re.search(
+                    r'NOMBRES?\s*[:\n\r]+\s*([A-ZÁÉÍÓÚÑ\s]+?)(?:\n|NACIONALIDAD|ECUATORIAN)',
+                    text_upper,
+                    re.MULTILINE | re.DOTALL
+                )
+                if nombres_match:
+                    result['nombres'] = nombres_match.group(1).strip()
+                    logger.info(f"Extracted nombres: {result['nombres']}")
+                
+                # Pattern 3: ID number (10 digits)
+                id_match = re.search(r'\b(\d{10})\b', text)
+                if id_match:
+                    result['id_number'] = id_match.group(1)
+                    logger.info(f"Extracted ID: {result['id_number']}")
+                
+            elif side == 'back':
+                # Try to parse MRZ - more reliable
+                mrz_result = VerificationHelpers.parse_mrz(text)
+                if mrz_result['success']:
+                    result.update(mrz_result)
+                    result['success'] = True
+                    return result
+            
+            # Success if we got at least apellidos or nombres
+            result['success'] = bool(result['apellidos'] or result['nombres'])
+            
+            return result
+            
+        except Exception as e:
+            logger.error(f"Error extracting ID info: {e}", exc_info=True)
+            return result
+    
+    @staticmethod
+    def parse_mrz(text: str) -> Dict:
+        """
+        Parsea la zona MRZ (Machine Readable Zone) de una cédula.
+        """
+        logger.info("Parsing MRZ from text")
+        
+        result = {
+            'success': False,
+            'apellidos': None,
+            'nombres': None,
+            'id_number': None,
+        }
+        
+        try:
+            # Look for MRZ pattern: APELLIDO<APELLIDO<<NOMBRE<NOMBRE<
+            mrz_pattern = r'([A-Z]+)<([A-Z]+)<<([A-Z]+)<([A-Z]+)<'
+            mrz_match = re.search(mrz_pattern, text.upper())
+            
+            if mrz_match:
+                apellido1 = mrz_match.group(1)
+                apellido2 = mrz_match.group(2)
+                nombre1 = mrz_match.group(3)
+                nombre2 = mrz_match.group(4)
+                
+                result['apellidos'] = f"{apellido1} {apellido2}".strip()
+                result['nombres'] = f"{nombre1} {nombre2}".strip()
+                result['success'] = True
+                
+                logger.info(f"Parsed MRZ: {result['apellidos']}, {result['nombres']}")
+            
+            return result
+            
+        except Exception as e:
+            logger.error(f"Error parsing MRZ: {e}", exc_info=True)
+            return result
+    
+    @staticmethod
+    def compare_names(ocr_name: str, registered_name: str) -> Dict:
+        """
+        Compara nombres extraídos de cédula con nombre registrado usando fuzzy matching.
+        """
+        logger.info(f"Comparing names: OCR='{ocr_name}' vs Registered='{registered_name}'")
+        
+        if not ocr_name or not registered_name:
+            return {
+                'match': False,
+                'similarity': 0.0,
+                'partial_matches': [],
+                'explanation': 'Nombres vacíos'
+            }
+        
+        # Normalize both names
+        import unicodedata
+        def normalize(text):
+            text = ''.join(
+                c for c in unicodedata.normalize('NFD', text.upper())
+                if unicodedata.category(c) != 'Mn'
+            )
+            return text.split()
+        
+        ocr_parts = normalize(ocr_name)
+        reg_parts = normalize(registered_name)
+        
+        # Find partial matches
+        matches = []
+        for reg_word in reg_parts:
+            best_match = None
+            best_similarity = 0.0
+            
+            for ocr_word in ocr_parts:
+                similarity = SequenceMatcher(None, reg_word, ocr_word).ratio()
+                if similarity > best_similarity:
+                    best_similarity = similarity
+                    best_match = ocr_word
+            
+            if best_similarity >= 0.75:  # 75% similar
+                matches.append({
+                    'registered': reg_word,
+                    'ocr': best_match,
+                    'similarity': best_similarity
+                })
+        
+        # Calculate overall similarity
+        if matches:
+            avg_similarity = sum(m['similarity'] for m in matches) / len(reg_parts)
+        else:
+            avg_similarity = 0.0
+        
+        # Decision: Need at least 2 words matching OR 60% of registered words
+        match_ratio = len(matches) / len(reg_parts) if reg_parts else 0
+        is_match = (len(matches) >= 2 and avg_similarity >= 0.75) or match_ratio >= 0.6
+        
+        explanation = f"{len(matches)}/{len(reg_parts)} palabras coinciden (promedio: {avg_similarity:.1%})"
+        
+        logger.info(f"Name comparison: match={is_match}, similarity={avg_similarity:.2f}")
+        
+        return {
+            'match': is_match,
+            'similarity': avg_similarity,
+            'partial_matches': matches,
+            'explanation': explanation
+        }

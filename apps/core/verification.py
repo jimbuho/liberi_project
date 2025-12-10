@@ -170,28 +170,26 @@ def validate_profile_completeness(provider_profile):
             logger.info("   ✅ Descripción profesional")
             if MODO_DEBUG: print("   ✅ Descripción profesional")
     
-    # CRITERIO 3: Coherencia Descripción-Categoría
-    if provider_profile.category and description:
-        logger.info("   - Validando coherencia descripción-categoría...")
-        if MODO_DEBUG: print("   - Validando coherencia descripción-categoría...")
+    # CRITERIO 3: Validar que no sea texto gibberish o placeholders
+    if description:
+        logger.info("   - Validando que no sea texto de relleno...")
+        if MODO_DEBUG: print("   - Validando que no sea texto de relleno...")
         
-        category_match = VerificationHelpers.validate_category_description_match(
-            provider_profile.category.name,
-            description
-        )
+        is_valid_text = VerificationHelpers.validate_text_is_real(description)
         
-        if not category_match['is_match']:
-            logger.warning(f"   ❌ Descripción no coincide con categoría (similitud: {category_match['similarity']:.2f})")
-            if MODO_DEBUG: print(f"   ❌ Descripción no coincide con categoría (similitud: {category_match['similarity']:.2f})")
+        if not is_valid_text['is_valid']:
+            logger.warning(f"   ❌ Texto inválido: {is_valid_text['reason']}")
+            if MODO_DEBUG: print(f"   ❌ Texto inválido: {is_valid_text['reason']}")
             rejections.append({
-                'code': 'DESCRIPTION_CATEGORY_MISMATCH',
-                'message': f'La descripción de tu perfil no parece coincidir con la categoría '
-                          f'"{provider_profile.category.name}" que seleccionaste. Por favor, verifica que '
-                          f'tu descripción refleje los servicios de esta categoría o selecciona una categoría diferente.'
+                'code': 'INVALID_TEXT_CONTENT',
+                'message': f'Tu descripción contiene texto de relleno o no válido. '\
+                          f'Por favor, escribe una descripción real de tus servicios. '\
+                          f'Problema detectado: {is_valid_text["reason"]}'
             })
         else:
-            logger.info(f"   ✅ Coherencia categoría-descripción validada (similitud: {category_match['similarity']:.2f})")
-            if MODO_DEBUG: print(f"   ✅ Coherencia categoría-descripción validada (similitud: {category_match['similarity']:.2f})")
+            logger.info("   ✅ Texto válido (no es gibberish)")
+            if MODO_DEBUG: print("   ✅ Texto válido")
+    
     
     return {'rejections': rejections}
 
@@ -215,6 +213,52 @@ def validate_identity_documents(provider_profile):
     
     logger.info("   ✅ Imágenes de cédula presentes")
     if MODO_DEBUG: print("   ✅ Imágenes de cédula presentes")
+    
+    # CRÍTICO: Validar que las imágenes sean realmente cédulas ANTES de validar calidad
+    logger.info("   - Verificando que las imágenes sean cédulas válidas...")
+    
+    try:
+        # Validar cédula frontal
+        front_validity = VerificationHelpers.is_valid_id_card_image(
+            provider_profile.id_card_front,
+            side='front'
+        )
+        
+        if not front_validity['is_valid']:
+            logger.warning(f"   ❌ Imagen frontal no es una cédula válida: {front_validity['reasons']}")
+            rejections.append({
+                'code': 'INVALID_ID_CARD_FRONT',
+                'message': f'La imagen frontal no parece ser una cédula de identidad válida. '
+                          f'Por favor, sube una foto clara y completa de tu cédula. '
+                          f'Problemas detectados: {", ".join(front_validity["reasons"])}'
+            })
+            # NO continuar con otras validaciones si no es una cédula
+            return {'rejections': rejections, 'warnings': []}
+        
+        logger.info(f"   ✅ Imagen frontal es una cédula válida (confianza: {front_validity['confidence']:.2f})")
+        
+        # Validar cédula posterior
+        back_validity = VerificationHelpers.is_valid_id_card_image(
+            provider_profile.id_card_back,
+            side='back'
+        )
+        
+        if not back_validity['is_valid']:
+            logger.warning(f"   ❌ Imagen posterior no es una cédula válida: {back_validity['reasons']}")
+            rejections.append({
+                'code': 'INVALID_ID_CARD_BACK',
+                'message': f'La imagen posterior no parece ser una cédula de identidad válida. '
+                          f'Por favor, sube una foto clara y completa del reverso de tu cédula. '
+                          f'Problemas detectados: {", ".join(back_validity["reasons"])}'
+            })
+            # NO continuar con otras validaciones si no es una cédula
+            return {'rejections': rejections, 'warnings': []}
+        
+        logger.info(f"   ✅ Imagen posterior es una cédula válida (confianza: {back_validity['confidence']:.2f})")
+        
+    except Exception as e:
+        logger.error(f"   ⚠️ Error al validar si son cédulas: {e}")
+        # Continuar con las demás validaciones si falla la detección
     
     # CRITERIO 4: Validar calidad de imágenes de cédula
     # CAMBIO PRINCIPAL: Pasar el FieldFile directamente, no .path
@@ -263,71 +307,56 @@ def validate_identity_documents(provider_profile):
     if MODO_DEBUG: print("   - Extrayendo información de cédula (OCR)...")
     
     try:
-        # Usar FieldFile directamente
-        id_info = VerificationHelpers.extract_id_card_info(provider_profile.id_card_front, 'front')
+        # Extraer texto de cédula frontal
+        front_text = VerificationHelpers.extract_text_from_image(provider_profile.id_card_front)
+        front_info = VerificationHelpers.extract_id_info_from_text(front_text, side='front')
+        
+        # También intentar extraer del reverso (MRZ es más confiable)
+        back_text = VerificationHelpers.extract_text_from_image(provider_profile.id_card_back)
+        back_info = VerificationHelpers.extract_id_info_from_text(back_text, side='back')
+        
+        # Combinar información (preferir MRZ del reverso si está disponible)
+        id_info = {
+            'success': front_info['success'] or back_info['success'],
+            'apellidos': back_info.get('apellidos') or front_info.get('apellidos'),
+            'nombres': back_info.get('nombres') or front_info.get('nombres'),
+            'id_number': front_info.get('id_number') or back_info.get('id_number'),
+        }
         
         if id_info['success']:
-            # Guardar información extraída
-            provider_profile.extracted_id_name = id_info.get('name')
-            provider_profile.extracted_id_number = id_info.get('id_number')
-            provider_profile.extracted_id_expiry = id_info.get('expiry_date')
-            provider_profile.save(update_fields=['extracted_id_name', 'extracted_id_number', 'extracted_id_expiry'])
+            logger.info(f"   ℹ️ Información extraída: {id_info['apellidos']}, {id_info['nombres']}")
             
-            # Validar nombre coincide
-            if id_info.get('name'):
-                user_full_name = f"{provider_profile.user.first_name} {provider_profile.user.last_name}"
-                name_similarity = VerificationHelpers.calculate_name_similarity(
-                    id_info['name'], user_full_name
-                )
+            # Validar que el nombre coincida con el usuario registrado
+            if id_info['apellidos'] or id_info['nombres']:
+                ocr_full_name = f"{id_info.get('nombres', '')} {id_info.get('apellidos', '')}".strip()
+                registered_name = provider_profile.user.get_full_name()
                 
-                if name_similarity < 0.8:  # 80% similarity threshold
-                    logger.warning(f"   ❌ Nombre no coincide: '{id_info['name']}' vs '{user_full_name}' (similitud: {name_similarity:.2f})")
-                    if MODO_DEBUG: print(f"   ❌ Nombre no coincide: '{id_info['name']}' vs '{user_full_name}' (similitud: {name_similarity:.2f})")
+                name_comparison = VerificationHelpers.compare_names(ocr_full_name, registered_name)
+                
+                if not name_comparison['match']:
+                    logger.warning(f"   ❌ Nombre no coincide: OCR='{ocr_full_name}' vs Registrado='{registered_name}'")
+                    logger.warning(f"      Detalles: {name_comparison['explanation']}")
+                    
                     rejections.append({
                         'code': 'ID_NAME_MISMATCH',
-                        'message': f'El nombre en tu cédula ({id_info["name"]}) no coincide con el nombre '
-                                  f'registrado en tu perfil ({user_full_name}). Por favor, verifica que '
-                                  f'los datos de tu perfil coincidan exactamente con tu documento de identidad.'
+                        'message': f'El nombre en tu cédula no coincide con tu nombre registrado. '\
+                                  f'Cédula: {ocr_full_name}. '\
+                                  f'Registrado: {registered_name}. '\
+                                  f'Por favor, verifica que tu perfil tenga tu nombre real completo como aparece en tu cédula.'
                     })
                 else:
-                    logger.info(f"   ✅ Nombre validado (similitud: {name_similarity:.2f})")
-                    if MODO_DEBUG: print(f"   ✅ Nombre validado (similitud: {name_similarity:.2f})")
-            
-            # Validar número de cédula
-            if id_info.get('id_number'):
-                if not VerificationHelpers.validate_ecuadorian_cedula(id_info['id_number']):
-                    logger.warning(f"   ❌ Número de cédula inválido: {id_info['id_number']}")
-                    if MODO_DEBUG: print(f"   ❌ Número de cédula inválido: {id_info['id_number']}")
-                    rejections.append({
-                        'code': 'INVALID_CEDULA_NUMBER',
-                        'message': 'El número de cédula extraído no es válido según el algoritmo ecuatoriano.'
-                    })
-                else:
-                    logger.info(f"   ✅ Número de cédula válido: {id_info['id_number']}")
-                    if MODO_DEBUG: print(f"   ✅ Número de cédula válido: {id_info['id_number']}")
-            
-            # Validar fecha de expiración
-            if id_info.get('expiry_date'):
-                from datetime import date
-                if id_info['expiry_date'] < date.today():
-                    logger.warning(f"   ❌ Cédula expirada: {id_info['expiry_date']}")
-                    if MODO_DEBUG: print(f"   ❌ Cédula expirada: {id_info['expiry_date']}")
-                    rejections.append({
-                        'code': 'ID_EXPIRED',
-                        'message': f'Tu cédula de identidad ha expirado (fecha de expiración: {id_info["expiry_date"]}). '
-                                  f'Por favor, actualiza tu documento y sube las nuevas fotografías.'
-                    })
-                else:
-                    logger.info(f"   ✅ Cédula vigente hasta: {id_info['expiry_date']}")
-                    if MODO_DEBUG: print(f"   ✅ Cédula vigente hasta: {id_info['expiry_date']}")
+                    logger.info(f"   ✅ Nombre validado: {name_comparison['explanation']} (similitud: {name_comparison['similarity']:.1%})")
+                    if MODO_DEBUG: print(f"   ✅ Nombre validado (similitud: {name_comparison['similarity']:.1%})")
         else:
             logger.info("   ℹ️ OCR no disponible o no pudo extraer información (modo mock)")
             if MODO_DEBUG: print("   ℹ️ OCR no disponible o no pudo extraer información (modo mock)")
+            # NO rechazar si OCR falla - puede ser calidad de imagen, pero ya validamos que ES una cédula
     except Exception as e:
-        logger.error(f"   ⚠️ Error en extracción OCR: {e}")
+        logger.warning(f"   ⚠️ Error en extracción OCR: {e}")
         if MODO_DEBUG: print(f"   ⚠️ Error en extracción OCR: {e}")
+        # NO rechazar por errores de OCR - no es crítico si ya validamos que es una cédula real
     
-    # CRITERIO 5: Verificar selfie con cédula
+    # CRITERIO 5: Validar selfie sosteniendo cédula
     logger.info("   - Verificando selfie de seguridad...")
     if not provider_profile.selfie_with_id:
         logger.warning("   ❌ Falta selfie con cédula")
