@@ -10,8 +10,7 @@
     <nav aria-label="breadcrumb">
         <ol class="breadcrumb">
             <li class="breadcrumb-item"><a href="{% url 'home' %}">Inicio</a></li>
-            <li class="breadcrumb-item"><a href="{% url 'providers_list' %}">Proveedores</a></li>
-            <li class="breadcrumb-item active">{{ provider_profile.get_display_name }}</li>
+            <li class="breadcrumb-item active" aria-current="page">{{ provider_name }}</li>
         </ol>
     </nav>
 

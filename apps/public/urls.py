@@ -5,7 +5,6 @@ urlpatterns = [
     path('', views.home, name='home'),
     path('services/', views.services_list, name='services_list'),
     path('services/<uuid:service_code>/', views.service_detail, name='service_detail'),
-    path('providers/', views.providers_list, name='providers_list'),
     path('providers/<slug:slug>/', views.provider_profile, name='provider_profile'),
     
     # Landing pages

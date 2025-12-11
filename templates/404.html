@@ -12,16 +12,16 @@
                     <div class="mb-4">
                         <i class="fas fa-search fa-5x text-primary" style="opacity: 0.3;"></i>
                     </div>
-                    
+
                     <!-- Código de error -->
                     <h1 class="display-1 fw-bold text-primary mb-3">404</h1>
-                    
+
                     <!-- Mensaje principal -->
                     <h2 class="h3 mb-3">Página no encontrada</h2>
                     <p class="lead text-muted mb-4">
                         Lo sentimos, la página que buscas no existe o ha sido movida.
                     </p>
-                    
+
                     <!-- Sugerencias -->
                     <div class="alert alert-light border mb-5">
                         <p class="mb-2"><strong>¿Qué puedes hacer?</strong></p>
@@ -31,7 +31,7 @@
                             <li><i class="fas fa-check text-success me-2"></i>Visita nuestra página de inicio</li>
                         </ul>
                     </div>
-                    
+
                     <!-- Botones de acción -->
                     <div class="d-flex gap-3 justify-content-center flex-wrap">
                         <a href="{% url 'home' %}" class="btn btn-primary btn-lg">
@@ -44,13 +44,13 @@
                             <i class="fas fa-arrow-left me-2"></i>Volver
                         </button>
                     </div>
-                    
+
                     <!-- Enlaces útiles -->
                     <div class="mt-5 pt-4 border-top">
                         <p class="text-muted mb-3">Enlaces útiles:</p>
                         <div class="d-flex gap-4 justify-content-center flex-wrap">
-                            <a href="{% url 'providers_list' %}" class="text-decoration-none">
-                                <i class="fas fa-users text-primary me-1"></i>Proveedores
+                            <a href="{% url 'services_list' %}" class="text-decoration-none">
+                                <i class="fas fa-briefcase"></i> Ver Servicios
                             </a>
                             {% if user.is_authenticated %}
                             <a href="{% url 'dashboard' %}" class="text-decoration-none">
@@ -76,10 +76,17 @@
     .error-container {
         animation: fadeIn 0.5s ease-in;
     }
-    
+
     @keyframes fadeIn {
-        from { opacity: 0; transform: translateY(20px); }
-        to { opacity: 1; transform: translateY(0); }
+        from {
+            opacity: 0;
+            transform: translateY(20px);
+        }
+
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
     }
 </style>
 {% endblock %}

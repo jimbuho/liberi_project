@@ -452,42 +452,6 @@ def service_detail(request, service_code):
     return render(request, 'services/detail.html', context)
 
 
-def providers_list(request):
-    """Listado de proveedores"""
-    providers = ProviderProfile.objects.filter(
-        status='approved'
-    ).select_related('user', 'category').prefetch_related('coverage_zones')
-        
-    # Filtros
-    category_id = request.GET.get('category')
-    search = request.GET.get('search')
-    
-    if category_id:
-        providers = providers.filter(category_id=category_id)
-    
-    if search:
-        providers = providers.filter(
-            Q(user__first_name__icontains=search) |
-            Q(user__last_name__icontains=search) |
-            Q(description__icontains=search)
-        )
-    
-    # Agregar ratings
-    for provider in providers:
-        rating_data = Review.objects.filter(
-            booking__provider=provider.user
-        ).aggregate(
-            avg_rating=Avg('rating'),
-            total=Count('id')
-        )
-        provider.rating_avg = round(rating_data['avg_rating'] or 0, 1)
-        provider.total_reviews = rating_data['total']
-    
-    context = {
-        'providers': providers,
-        'categories': get_active_categories(),
-    }
-    return render(request, 'providers/list.html', context)
 
 
 def provider_profile(request, slug):

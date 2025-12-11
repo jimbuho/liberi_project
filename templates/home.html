@@ -1,4 +1,5 @@
 {% extends 'base.html' %}
+{% load static %}
 
 {% block title %}Liberi - Servicios a Domicilio{% endblock %}
 
@@ -13,27 +14,27 @@
         color: white;
         padding: 10px 20px;
         border-radius: 8px 0 0 8px;
-        box-shadow: -2px 2px 10px rgba(0,0,0,0.2);
+        box-shadow: -2px 2px 10px rgba(0, 0, 0, 0.2);
         z-index: 1000;
         font-size: 0.85rem;
         max-width: 280px;
         transition: all 0.3s ease;
     }
-    
+
     .phase-ribbon:hover {
         max-width: 320px;
-        box-shadow: -3px 3px 15px rgba(0,0,0,0.3);
+        box-shadow: -3px 3px 15px rgba(0, 0, 0, 0.3);
     }
-    
+
     .phase-ribbon-icon {
         font-size: 1.2rem;
         margin-right: 8px;
     }
-    
+
     .phase-ribbon-text {
         line-height: 1.3;
     }
-    
+
     .phase-ribbon-link {
         display: inline-block;
         margin-top: 8px;
@@ -46,13 +47,13 @@
         font-weight: 600;
         transition: all 0.2s ease;
     }
-    
+
     .phase-ribbon-link:hover {
         background: #f8f9fa;
         color: #FF5252;
         transform: scale(1.05);
     }
-    
+
     @media (max-width: 768px) {
         .phase-ribbon {
             top: 70px;
@@ -60,14 +61,168 @@
             padding: 8px 12px;
             max-width: 220px;
         }
-        
+
         .phase-ribbon-icon {
             font-size: 1rem;
         }
-        
+
         .phase-ribbon-link {
             font-size: 0.7rem;
             padding: 3px 8px;
+        }
+    }
+
+    /* Video Section Styles */
+    .video-section {
+        padding: 2rem 0;
+        background: #f8f9fa;
+    }
+
+    .video-container {
+        max-width: 600px;
+        margin: 0 auto;
+        background: #000;
+        border-radius: 12px;
+        overflow: hidden;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+    }
+
+    .video-container video {
+        width: 100%;
+        display: block;
+    }
+
+    @media (max-width: 768px) {
+        .video-container {
+            max-width: 100%;
+            border-radius: 8px;
+        }
+    }
+
+    /* Categories Carousel Styles */
+    .categories-carousel-container {
+        position: relative;
+        padding: 0 50px;
+    }
+
+    .categories-carousel {
+        display: flex;
+        gap: 1rem;
+        overflow-x: auto;
+        scroll-behavior: smooth;
+        padding: 1rem 0;
+        scrollbar-width: none;
+        /* Firefox */
+        -ms-overflow-style: none;
+        /* IE/Edge */
+    }
+
+    .categories-carousel::-webkit-scrollbar {
+        display: none;
+        /* Chrome/Safari */
+    }
+
+    .category-card-carousel {
+        flex: 0 0 auto;
+        width: 200px;
+        background: white;
+        border-radius: 12px;
+        padding: 1.5rem 1rem;
+        text-align: center;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+        transition: all 0.3s ease;
+        cursor: pointer;
+    }
+
+    .category-card-carousel:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.15);
+    }
+
+    .category-icon-carousel {
+        font-size: 3rem;
+        margin-bottom: 0.5rem;
+        display: block;
+        line-height: 1;
+    }
+
+    .category-name-carousel {
+        font-size: 0.95rem;
+        font-weight: 600;
+        margin: 0.5rem 0;
+        color: #333;
+    }
+
+    .category-description-carousel {
+        font-size: 0.75rem;
+        color: #666;
+        margin-bottom: 0.75rem;
+        line-height: 1.3;
+    }
+
+    .btn-category-carousel {
+        display: inline-block;
+        padding: 0.4rem 1rem;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border-radius: 6px;
+        text-decoration: none;
+        font-size: 0.8rem;
+        transition: all 0.3s ease;
+    }
+
+    .btn-category-carousel:hover {
+        transform: scale(1.05);
+        box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
+        color: white;
+    }
+
+    .carousel-nav-btn {
+        position: absolute;
+        top: 50%;
+        transform: translateY(-50%);
+        background: white;
+        border: none;
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+        cursor: pointer;
+        z-index: 10;
+        transition: all 0.3s ease;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: #667eea;
+    }
+
+    .carousel-nav-btn:hover {
+        background: #667eea;
+        color: white;
+        box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+    }
+
+    .carousel-nav-btn.prev {
+        left: 0;
+    }
+
+    .carousel-nav-btn.next {
+        right: 0;
+    }
+
+    @media (max-width: 768px) {
+        .categories-carousel-container {
+            padding: 0 35px;
+        }
+
+        .category-card-carousel {
+            width: 160px;
+            padding: 1rem 0.75rem;
+        }
+
+        .carousel-nav-btn {
+            width: 32px;
+            height: 32px;
         }
     }
 </style>
@@ -139,12 +294,8 @@
     <div class="container">
         <div class="search-card">
             <form action="{% url 'services_list' %}" method="get" class="search-form">
-                <input 
-                    type="text" 
-                    name="q" 
-                    class="search-input" 
-                    placeholder="¿Qué servicio necesitas? Ej: Manicure, Limpieza de hogar..."
-                >
+                <input type="text" name="q" class="search-input"
+                    placeholder="¿Qué servicio necesitas? Ej: Manicure, Limpieza de hogar...">
                 <button type="submit" class="btn-search">
                     <i class="fas fa-search me-2"></i>Buscar
                 </button>
@@ -153,33 +304,65 @@
     </div>
 </section>
 
+<!-- Video Section -->
+<section class="video-section">
+    <div class="container">
+        <h2 class="section-title">Liberi para Proveedores</h2>
+        <div class="video-container">
+            <video controls controlsList="nodownload">
+                <source src="{% static 'videos/liberiproveedores.mp4' %}" type="video/mp4">
+                Tu navegador no soporta el elemento de video.
+            </video>
+        </div>
+    </div>
+</section>
+
 <!-- Categories Section -->
 <section class="categories-section">
     <div class="container">
         <h2 class="section-title">Categorías</h2>
-        <div class="categories-grid-compact">
-            {% for category in categories %}
-            <div class="category-card-compact">
-                <span class="category-icon-compact">{{ category.icon }}</span>
-                <h4 class="category-name-compact">{{ category.name }}</h4>
-                <p class="category-description-compact">
-                    {{ category.description|truncatewords:12 }}
-                </p>
-                <a href="{% url 'services_list' %}?category={{ category.id }}" class="btn-category-compact">
-                    Ver Servicios <i class="fas fa-arrow-right ms-1"></i>
-                </a>
+        <div class="categories-carousel-container">
+            <button class="carousel-nav-btn prev" onclick="scrollCarousel(-1)">
+                <i class="fas fa-chevron-left"></i>
+            </button>
+            <div class="categories-carousel" id="categoriesCarousel">
+                {% for category in categories %}
+                <div class="category-card-carousel">
+                    <span class="category-icon-carousel">{{ category.icon }}</span>
+                    <h4 class="category-name-carousel">{{ category.name }}</h4>
+                    <p class="category-description-carousel">
+                        {{ category.description|truncatewords:8 }}
+                    </p>
+                    <a href="{% url 'services_list' %}?category={{ category.id }}" class="btn-category-carousel">
+                        Ver Servicios <i class="fas fa-arrow-right ms-1"></i>
+                    </a>
+                </div>
+                {% empty %}
+                <div class="col-12 text-center py-5">
+                    <i class="fas fa-info-circle text-muted" style="font-size: 3rem;"></i>
+                    <p class="text-muted mt-3">
+                        Pronto tendremos categorías disponibles
+                    </p>
+                </div>
+                {% endfor %}
             </div>
-            {% empty %}
-            <div class="col-12 text-center py-5">
-                <i class="fas fa-info-circle text-muted" style="font-size: 3rem;"></i>
-                <p class="text-muted mt-3">
-                    Pronto tendremos categorías disponibles
-                </p>
-            </div>
-            {% endfor %}
+            <button class="carousel-nav-btn next" onclick="scrollCarousel(1)">
+                <i class="fas fa-chevron-right"></i>
+            </button>
         </div>
     </div>
 </section>
+
+<script>
+    function scrollCarousel(direction) {
+        const carousel = document.getElementById('categoriesCarousel');
+        const scrollAmount = 220; // card width + gap
+        carousel.scrollBy({
+            left: direction * scrollAmount,
+            behavior: 'smooth'
+        });
+    }
+</script>
 
 <!-- Featured Services -->
 <section class="services-section">
@@ -187,44 +370,44 @@
         <h2 class="section-title">Servicios Destacados</h2>
         <div class="services-grid">
             {% if featured_services %}
-                {% for service in featured_services %}
-                <div class="service-card">
-                    <div class="service-image">
-                        {% if service.image %}
-                            <img src="{{ service.image.url }}" alt="{{ service.name }}">
-                        {% endif %}
+            {% for service in featured_services %}
+            <div class="service-card">
+                <div class="service-image">
+                    {% if service.image %}
+                    <img src="{{ service.image.url }}" alt="{{ service.name }}">
+                    {% endif %}
+                </div>
+                <div class="service-body">
+                    <div class="service-provider">
+                        <i class="fas fa-building"></i>
+                        <span>{{ service.provider.provider_profile.business_name }}</span>
                     </div>
-                    <div class="service-body">
-                        <div class="service-provider">
-                            <i class="fas fa-building"></i>
-                            <span>{{ service.provider.provider_profile.business_name }}</span>
-                        </div>
-                        <h3 class="service-title">{{ service.name }}</h3>
-                        <p class="service-description">
-                            {{ service.description|truncatewords:20 }}
-                        </p>
-                        <div class="service-meta">
-                            <div>
-                                <div class="service-price">${{ service.base_price }}</div>
-                                <div class="service-duration">
-                                    <i class="far fa-clock me-1"></i>
-                                    {{ service.duration_minutes }} min
-                                </div>
+                    <h3 class="service-title">{{ service.name }}</h3>
+                    <p class="service-description">
+                        {{ service.description|truncatewords:20 }}
+                    </p>
+                    <div class="service-meta">
+                        <div>
+                            <div class="service-price">${{ service.base_price }}</div>
+                            <div class="service-duration">
+                                <i class="far fa-clock me-1"></i>
+                                {{ service.duration_minutes }} min
                             </div>
                         </div>
-                        <a href="{% url 'service_detail' service.service_code %}" class="btn-book">
-                            Ver Detalles
-                        </a>
                     </div>
+                    <a href="{% url 'service_detail' service.service_code %}" class="btn-book">
+                        Ver Detalles
+                    </a>
                 </div>
-                {% endfor %}
+            </div>
+            {% endfor %}
             {% else %}
-                <div class="col-12 text-center py-5">
-                    <i class="fas fa-info-circle text-muted" style="font-size: 3rem;"></i>
-                    <p class="text-muted mt-3">
-                        Pronto tendremos servicios destacados disponibles
-                    </p>
-                </div>
+            <div class="col-12 text-center py-5">
+                <i class="fas fa-info-circle text-muted" style="font-size: 3rem;"></i>
+                <p class="text-muted mt-3">
+                    Pronto tendremos servicios destacados disponibles
+                </p>
+            </div>
             {% endif %}
         </div>
     </div>
@@ -311,7 +494,7 @@
     <div class="container">
         <h2 class="section-title">Métodos de Pago Seguros</h2>
         <p class="text-center text-muted mb-5">Aceptamos múltiples formas de pago para tu comodidad</p>
-        
+
         <div class="row justify-content-center">
             <div class="col-md-10">
                 <div class="d-flex justify-content-around align-items-center flex-wrap gap-5 payment-methods-grid">
@@ -323,37 +506,43 @@
                         <h5 class="mb-3">Tarjetas de Crédito</h5>
                         <div class="d-flex gap-2 justify-content-center mb-3 flex-wrap">
                             <!-- Visa -->
-                            <svg class="payment-logo-small" viewBox="0 0 48 32" xmlns="http://www.w3.org/2000/svg" title="Visa">
-                                <rect width="48" height="32" rx="4" fill="#1A1F71"/>
-                                <text x="24" y="20" text-anchor="middle" font-family="Arial, sans-serif" font-size="10" font-weight="bold" fill="white">VISA</text>
+                            <svg class="payment-logo-small" viewBox="0 0 48 32" xmlns="http://www.w3.org/2000/svg"
+                                title="Visa">
+                                <rect width="48" height="32" rx="4" fill="#1A1F71" />
+                                <text x="24" y="20" text-anchor="middle" font-family="Arial, sans-serif" font-size="10"
+                                    font-weight="bold" fill="white">VISA</text>
                             </svg>
-                            
+
                             <!-- Mastercard -->
-                            <svg class="payment-logo-small" viewBox="0 0 48 32" xmlns="http://www.w3.org/2000/svg" title="Mastercard">
-                                <rect width="48" height="32" rx="4" fill="white" stroke="#CCCCCC"/>
-                                <circle cx="18" cy="16" r="8" fill="#EB001B"/>
-                                <circle cx="30" cy="16" r="8" fill="#F79E1B"/>
-                                <circle cx="24" cy="16" r="5" fill="none" stroke="#FF5F00" stroke-width="1"/>
+                            <svg class="payment-logo-small" viewBox="0 0 48 32" xmlns="http://www.w3.org/2000/svg"
+                                title="Mastercard">
+                                <rect width="48" height="32" rx="4" fill="white" stroke="#CCCCCC" />
+                                <circle cx="18" cy="16" r="8" fill="#EB001B" />
+                                <circle cx="30" cy="16" r="8" fill="#F79E1B" />
+                                <circle cx="24" cy="16" r="5" fill="none" stroke="#FF5F00" stroke-width="1" />
                             </svg>
-                            
+
                             <!-- American Express -->
-                            <svg class="payment-logo-small" viewBox="0 0 48 32" xmlns="http://www.w3.org/2000/svg" title="American Express">
-                                <rect width="48" height="32" rx="4" fill="#006FCF"/>
-                                <text x="24" y="20" text-anchor="middle" font-family="Arial, sans-serif" font-size="8" font-weight="bold" fill="white">AMEX</text>
+                            <svg class="payment-logo-small" viewBox="0 0 48 32" xmlns="http://www.w3.org/2000/svg"
+                                title="American Express">
+                                <rect width="48" height="32" rx="4" fill="#006FCF" />
+                                <text x="24" y="20" text-anchor="middle" font-family="Arial, sans-serif" font-size="8"
+                                    font-weight="bold" fill="white">AMEX</text>
                             </svg>
-                            
+
                             <!-- Diners Club -->
-                            <svg class="payment-logo-small" viewBox="0 0 48 32" xmlns="http://www.w3.org/2000/svg" title="Diners Club">
-                                <rect width="48" height="32" rx="4" fill="white" stroke="#CCCCCC"/>
-                                <circle cx="16" cy="16" r="7" fill="#0079BE"/>
-                                <circle cx="32" cy="16" r="7" fill="#E31937"/>
+                            <svg class="payment-logo-small" viewBox="0 0 48 32" xmlns="http://www.w3.org/2000/svg"
+                                title="Diners Club">
+                                <rect width="48" height="32" rx="4" fill="white" stroke="#CCCCCC" />
+                                <circle cx="16" cy="16" r="7" fill="#0079BE" />
+                                <circle cx="32" cy="16" r="7" fill="#E31937" />
                             </svg>
                         </div>
                         <p class="text-muted small">Vía PayPhone</p>
                     </div>
-                    
+
                     <div style="width: 1px; height: 80px; background: #e0e0e0;"></div>
-                    
+
                     <!-- Transferencia Bancaria -->
                     <div class="text-center payment-method-item">
                         <div class="payment-method-icon mb-3">
@@ -365,14 +554,15 @@
                 </div>
             </div>
         </div>
-        
+
         <div class="row mt-5">
             <div class="col-12">
                 <div class="alert alert-info alert-dismissible fade show border-0 shadow-sm" role="alert">
                     <div class="d-flex align-items-center">
                         <i class="fas fa-lock me-3" style="font-size: 1.5rem;"></i>
                         <div>
-                            <strong>100% Seguro:</strong> Tus datos de pago están protegidos con tecnología de encriptación de nivel bancario. Nunca compartimos ni almacenamos tu información sensible.
+                            <strong>100% Seguro:</strong> Tus datos de pago están protegidos con tecnología de
+                            encriptación de nivel bancario. Nunca compartimos ni almacenamos tu información sensible.
                         </div>
                     </div>
                 </div>
