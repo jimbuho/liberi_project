@@ -373,8 +373,8 @@
             {% for service in featured_services %}
             <div class="service-card">
                 <div class="service-image">
-                    {% if service.image %}
-                    <img src="{{ service.image.url }}" alt="{{ service.name }}">
+                    {% if service.primary_image %}
+                    <img src="{{ service.primary_image.url }}" alt="{{ service.name }}">
                     {% endif %}
                 </div>
                 <div class="service-body">
@@ -384,7 +384,7 @@
                     </div>
                     <h3 class="service-title">{{ service.name }}</h3>
                     <p class="service-description">
-                        {{ service.description|truncatewords:20 }}
+                        {{ service.description|striptags|truncatewords:20 }}
                     </p>
                     <div class="service-meta">
                         <div>

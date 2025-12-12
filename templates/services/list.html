@@ -13,32 +13,34 @@
                     <h5 class="mb-1">
                         <i class="fas fa-map-marker-alt text-danger"></i>
                         {% if current_city %}
-                            <strong>Estás en {{ current_city.name }}</strong>
+                        <strong>Estás en {{ current_city.name }}</strong>
                         {% else %}
-                            <span class="text-muted">Selecciona tu ciudad</span>
+                        <span class="text-muted">Selecciona tu ciudad</span>
                         {% endif %}
                     </h5>
                     <small class="text-muted">
                         {% if current_city and current_zone %}
-                            Zona: <strong>{{ current_zone.name }}</strong> • 
-                            {% if service_mode == 'home' %}
-                                <i class="fas fa-home text-success"></i> A Domicilio
-                            {% else %}
-                                <i class="fas fa-store text-info"></i> En Local
-                            {% endif %}
-                        {% elif current_city %}
-                            Mostrando servicios disponibles en {{ current_city.name }}
+                        Zona: <strong>{{ current_zone.name }}</strong> •
+                        {% if service_mode == 'home' %}
+                        <i class="fas fa-home text-success"></i> A Domicilio
                         {% else %}
-                            Cambia de ciudad para ver servicios disponibles
+                        <i class="fas fa-store text-info"></i> En Local
+                        {% endif %}
+                        {% elif current_city %}
+                        Mostrando servicios disponibles en {{ current_city.name }}
+                        {% else %}
+                        Cambia de ciudad para ver servicios disponibles
                         {% endif %}
                     </small>
                 </div>
                 <div class="col-md-4 text-end">
-                    <button type="button" class="btn btn-outline-primary btn-sm" data-bs-toggle="modal" data-bs-target="#cityModal">
+                    <button type="button" class="btn btn-outline-primary btn-sm" data-bs-toggle="modal"
+                        data-bs-target="#cityModal">
                         <i class="fas fa-exchange-alt"></i> ¿Otra ciudad?
                     </button>
                     {% if current_city %}
-                    <button type="button" class="btn btn-outline-secondary btn-sm ms-2" data-bs-toggle="modal" data-bs-target="#zoneModal">
+                    <button type="button" class="btn btn-outline-secondary btn-sm ms-2" data-bs-toggle="modal"
+                        data-bs-target="#zoneModal">
                         <i class="fas fa-map-marked-alt"></i> Cambiar Zona
                     </button>
                     {% endif %}
@@ -55,25 +57,27 @@
                     <h5 class="mb-1">
                         <i class="fas fa-map-marker-alt text-danger"></i>
                         {% if current_city %}
-                            <strong>Estás en {{ current_city.name }}</strong>
+                        <strong>Estás en {{ current_city.name }}</strong>
                         {% else %}
-                            <span class="text-muted">Selecciona tu ciudad</span>
+                        <span class="text-muted">Selecciona tu ciudad</span>
                         {% endif %}
                     </h5>
                     <small class="text-muted">
                         {% if current_city %}
-                            Mostrando servicios disponibles en {{ current_city.name }}
+                        Mostrando servicios disponibles en {{ current_city.name }}
                         {% else %}
-                            Cambia de ciudad para ver servicios disponibles
+                        Cambia de ciudad para ver servicios disponibles
                         {% endif %}
                     </small>
                 </div>
                 <div class="col-md-4 text-end">
-                    <button type="button" class="btn btn-outline-primary btn-sm" data-bs-toggle="modal" data-bs-target="#cityModal">
+                    <button type="button" class="btn btn-outline-primary btn-sm" data-bs-toggle="modal"
+                        data-bs-target="#cityModal">
                         <i class="fas fa-exchange-alt"></i> ¿Otra ciudad?
                     </button>
                     {% if current_city %}
-                    <button type="button" class="btn btn-outline-secondary btn-sm ms-2" data-bs-toggle="modal" data-bs-target="#zoneModal">
+                    <button type="button" class="btn btn-outline-secondary btn-sm ms-2" data-bs-toggle="modal"
+                        data-bs-target="#zoneModal">
                         <i class="fas fa-map-marked-alt"></i> Cambiar Zona
                     </button>
                     {% endif %}
@@ -109,25 +113,22 @@
                         {% if current_zone %}
                         <input type="hidden" name="zone" value="{{ current_zone.id }}">
                         {% endif %}
-                        
+
                         <!-- Categoría -->
                         <div class="mb-3">
                             <label class="form-label fw-bold">Categoría</label>
                             {% for category in categories %}
                             <div class="form-check">
-                                <input class="form-check-input category-filter" type="radio" 
-                                    name="category" value="{{ category.id }}" 
-                                    id="cat{{ category.id }}"
-                                    {% if request.GET.category == category.id|stringformat:"s" %}checked{% endif %}>
+                                <input class="form-check-input category-filter" type="radio" name="category"
+                                    value="{{ category.id }}" id="cat{{ category.id }}" {% if request.GET.category == category.id|stringformat:"s" %}checked{% endif %}>
                                 <label class="form-check-label" for="cat{{ category.id }}">
                                     {{ category.icon }} {{ category.name }}
                                 </label>
                             </div>
                             {% endfor %}
                             <div class="form-check">
-                                <input class="form-check-input category-filter" type="radio" 
-                                    name="category" value="" id="catAll"
-                                    {% if not request.GET.category %}checked{% endif %}>
+                                <input class="form-check-input category-filter" type="radio" name="category" value=""
+                                    id="catAll" {% if not request.GET.category %}checked{% endif %}>
                                 <label class="form-check-label" for="catAll">
                                     Todas las categorías
                                 </label>
@@ -141,17 +142,15 @@
                         <div class="mb-3">
                             <label class="form-label fw-bold">¿Cómo quieres ser atendido?</label>
                             <div class="form-check">
-                                <input class="form-check-input mode-filter" type="radio" 
-                                    name="service_mode" value="home" id="modeHome"
-                                    {% if service_mode == 'home' %}checked{% endif %}>
+                                <input class="form-check-input mode-filter" type="radio" name="service_mode"
+                                    value="home" id="modeHome" {% if service_mode == 'home' %}checked{% endif %}>
                                 <label class="form-check-label" for="modeHome">
                                     <i class="fas fa-home text-success"></i> A Domicilio
                                 </label>
                             </div>
                             <div class="form-check">
-                                <input class="form-check-input mode-filter" type="radio" 
-                                    name="service_mode" value="local" id="modeLocal"
-                                    {% if service_mode == 'local' %}checked{% endif %}>
+                                <input class="form-check-input mode-filter" type="radio" name="service_mode"
+                                    value="local" id="modeLocal" {% if service_mode == 'local' %}checked{% endif %}>
                                 <label class="form-check-label" for="modeLocal">
                                     <i class="fas fa-store text-info"></i> En Local
                                 </label>
@@ -165,7 +164,8 @@
                             </small>
                             {% if not current_zone %}
                             <div class="alert alert-warning alert-sm mt-2 p-2" role="alert">
-                                <small><i class="fas fa-exclamation-triangle"></i> Selecciona una zona para ver servicios disponibles</small>
+                                <small><i class="fas fa-exclamation-triangle"></i> Selecciona una zona para ver
+                                    servicios disponibles</small>
                             </div>
                             {% endif %}
                         </div>
@@ -178,14 +178,12 @@
                             <label class="form-label fw-bold">Precio</label>
                             <div class="row">
                                 <div class="col-6">
-                                    <input type="number" class="form-control form-control-sm" 
-                                        name="min_price" placeholder="Min" 
-                                        value="{{ request.GET.min_price }}">
+                                    <input type="number" class="form-control form-control-sm" name="min_price"
+                                        placeholder="Min" value="{{ request.GET.min_price }}">
                                 </div>
                                 <div class="col-6">
-                                    <input type="number" class="form-control form-control-sm" 
-                                        name="max_price" placeholder="Max"
-                                        value="{{ request.GET.max_price }}">
+                                    <input type="number" class="form-control form-control-sm" name="max_price"
+                                        placeholder="Max" value="{{ request.GET.max_price }}">
                                 </div>
                             </div>
                         </div>
@@ -193,8 +191,7 @@
                         <!-- Búsqueda -->
                         <div class="mb-3">
                             <label class="form-label fw-bold">Buscar</label>
-                            <input type="text" class="form-control" name="search" 
-                                placeholder="Nombre del servicio..."
+                            <input type="text" class="form-control" name="search" placeholder="Nombre del servicio..."
                                 value="{{ request.GET.search }}">
                         </div>
 
@@ -219,104 +216,106 @@
         <div class="col-md-9">
             <div class="d-flex justify-content-between align-items-center mb-4">
                 <h2>
-                    <i class="fas fa-concierge-bell"></i> 
+                    <i class="fas fa-concierge-bell"></i>
                     {% if request.GET.category %}
-                        Servicios de {{ selected_category.name }}
+                    Servicios de {{ selected_category.name }}
                     {% else %}
-                        Servicios Disponibles
+                    Servicios Disponibles
                     {% endif %}
                 </h2>
                 <span class="badge bg-primary">{{ services|length }} servicios</span>
             </div>
 
             {% if services %}
-                <div class="row">
-                    {% for service in services %}
-                    <div class="col-md-4 mb-4">
-                        <div class="card h-100 service-card">
-                            {% if service.image %}
-                            <img src="{{ service.image.url }}" class="card-img-top" 
-                                 alt="{{ service.name }}" style="height: 200px; object-fit: cover;">
-                            {% else %}
-                            <div class="card-img-top bg-light d-flex align-items-center justify-content-center" 
-                                 style="height: 200px;">
-                                <i class="fas fa-image fa-3x text-muted"></i>
+            <div class="row">
+                {% for service in services %}
+                <div class="col-md-4 mb-4">
+                    <div class="card h-100 service-card">
+                        {% if service.primary_image %}
+                        <img src="{{ service.primary_image.url }}" class="card-img-top" alt="{{ service.name }}"
+                            style="height: 200px; object-fit: cover;">
+                        {% else %}
+                        <div class="card-img-top bg-light d-flex align-items-center justify-content-center"
+                            style="height: 200px;">
+                            <i class="fas fa-image fa-3x text-muted"></i>
+                        </div>
+                        {% endif %}
+
+                        <div class="card-body d-flex flex-column">
+                            <h5 class="card-title">{{ service.name }}</h5>
+                            <p class="card-text text-muted flex-grow-1">
+                                {{ service.description|striptags|truncatewords:15 }}
+                            </p>
+
+                            <div class="mb-2">
+                                <small class="text-muted">
+                                    <i class="fas fa-building"></i>
+                                    {% if service.provider.provider_profile.business_name %}
+                                    <strong>{{ service.provider.provider_profile.business_name }}</strong>
+                                    {% else %}
+                                    {{ service.provider.get_full_name }}
+                                    {% endif %}
+                                </small>
                             </div>
-                            {% endif %}
-                            
-                            <div class="card-body d-flex flex-column">
-                                <h5 class="card-title">{{ service.name }}</h5>
-                                <p class="card-text text-muted flex-grow-1">
-                                    {{ service.description|truncatewords:15 }}
-                                </p>
-                                
-                                <div class="mb-2">
-                                    <small class="text-muted">
-                                        <i class="fas fa-building"></i>
-                                        {% if service.provider.provider_profile.business_name %}
-                                            <strong>{{ service.provider.provider_profile.business_name }}</strong>
-                                        {% else %}
-                                            {{ service.provider.get_full_name }}
-                                        {% endif %}
-                                    </small>
-                                </div>
-                                
-                                {% if service.provider_rating %}
-                                <div class="rating mb-2">
-                                    {% for i in "12345" %}
-                                        {% if forloop.counter <= service.provider_rating %}
-                                            <i class="fas fa-star"></i>
-                                        {% else %}
-                                            <i class="far fa-star"></i>
-                                        {% endif %}
+
+                            {% if service.provider_rating %}
+                            <div class="rating mb-2">
+                                {% for i in "12345" %}
+                                {% if forloop.counter <= service.provider_rating %} <i class="fas fa-star"></i>
+                                    {% else %}
+                                    <i class="far fa-star"></i>
+                                    {% endif %}
                                     {% endfor %}
                                     <small class="text-muted">({{ service.provider_rating }})</small>
-                                </div>
-                                {% endif %}
-
-                                <div class="d-flex justify-content-between align-items-center mt-2">
-                                    <div>
-                                        <span class="service-price">${{ service.base_price }}</span>
-                                        {% if service_mode == 'home' and service.travel_cost %}
-                                        <br><small class="text-muted">+ ${{ service.travel_cost }} traslado</small>
-                                        {% endif %}
-                                    </div>
-                                    <span class="text-muted">
-                                        <i class="far fa-clock"></i> {{ service.duration_minutes }} min
-                                    </span>
-                                </div>
-                                
-                                <!-- ✅ Pasar service_mode al detalle del servicio -->
-                                <a href="{% url 'service_detail' service.service_code %}?service_mode={{ service_mode }}{% if current_zone %}&zone={{ current_zone.id }}{% endif %}"
-                                   class="btn btn-primary w-100 mt-3">
-                                    Ver Detalles <i class="fas fa-arrow-right"></i>
-                                </a>
                             </div>
+                            {% endif %}
+
+                            <div class="d-flex justify-content-between align-items-center mt-2">
+                                <div>
+                                    <span class="service-price">${{ service.base_price }}</span>
+                                    {% if service_mode == 'home' and service.travel_cost %}
+                                    <br><small class="text-muted">+ ${{ service.travel_cost }} traslado</small>
+                                    {% endif %}
+                                </div>
+                                <span class="text-muted">
+                                    <i class="far fa-clock"></i> {{ service.duration_minutes }} min
+                                </span>
+                            </div>
+
+                            <!-- ✅ Pasar service_mode al detalle del servicio -->
+                            <a href="{% url 'service_detail' service.service_code %}?service_mode={{ service_mode }}{% if current_zone %}&zone={{ current_zone.id }}{% endif %}"
+                                class="btn btn-primary w-100 mt-3">
+                                Ver Detalles <i class="fas fa-arrow-right"></i>
+                            </a>
                         </div>
                     </div>
-                    {% endfor %}
                 </div>
+                {% endfor %}
+            </div>
             {% else %}
-                <div class="alert alert-info text-center">
-                    <i class="fas fa-info-circle fa-2x mb-3"></i>
-                    <h5>No se encontraron servicios</h5>
-                    {% if current_zone %}
-                    <p class="mb-2">No hay servicios disponibles para <strong>{% if service_mode == 'home' %}Atención a Domicilio{% else %}Atención en Local{% endif %}</strong> en <strong>{{ current_zone.name }}</strong></p>
-                    <div class="btn-group mt-2" role="group">
-                        <button type="button" class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#zoneModal">
-                            <i class="fas fa-map-marked-alt"></i> Cambiar Zona
-                        </button>
-                        <a href="?zone={{ current_zone.id }}&service_mode={% if service_mode == 'home' %}local{% else %}home{% endif %}" class="btn btn-sm btn-secondary">
-                            <i class="fas fa-exchange-alt"></i> Cambiar a {% if service_mode == 'home' %}Local{% else %}Domicilio{% endif %}
-                        </a>
-                    </div>
-                    {% else %}
-                    <p class="mb-2">Por favor selecciona tu zona para ver servicios disponibles</p>
-                    <button type="button" class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#zoneModal">
-                        <i class="fas fa-map-marked-alt"></i> Seleccionar Zona
+            <div class="alert alert-info text-center">
+                <i class="fas fa-info-circle fa-2x mb-3"></i>
+                <h5>No se encontraron servicios</h5>
+                {% if current_zone %}
+                <p class="mb-2">No hay servicios disponibles para <strong>{% if service_mode == 'home' %}Atención a
+                        Domicilio{% else %}Atención en Local{% endif %}</strong> en <strong>{{ current_zone.name }}</strong></p>
+                <div class="btn-group mt-2" role="group">
+                    <button type="button" class="btn btn-sm btn-primary" data-bs-toggle="modal"
+                        data-bs-target="#zoneModal">
+                        <i class="fas fa-map-marked-alt"></i> Cambiar Zona
                     </button>
-                    {% endif %}
+                    <a href="?zone={{ current_zone.id }}&service_mode={% if service_mode == 'home' %}local{% else %}home{% endif %}"
+                        class="btn btn-sm btn-secondary">
+                        <i class="fas fa-exchange-alt"></i> Cambiar a {% if service_mode == 'home' %}Local{% else %}Domicilio{% endif %}
+                    </a>
                 </div>
+                {% else %}
+                <p class="mb-2">Por favor selecciona tu zona para ver servicios disponibles</p>
+                <button type="button" class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#zoneModal">
+                    <i class="fas fa-map-marked-alt"></i> Seleccionar Zona
+                </button>
+                {% endif %}
+            </div>
             {% endif %}
         </div>
     </div>
@@ -336,11 +335,11 @@
                 <p class="text-muted mb-3">
                     Elige la ciudad donde deseas buscar servicios
                 </p>
-                
+
                 <div class="list-group">
                     {% for city in cities %}
-                    <a href="?city={{ city.id }}" 
-                       class="list-group-item list-group-item-action {% if current_city.id == city.id %}active{% endif %}">
+                    <a href="?city={{ city.id }}"
+                        class="list-group-item list-group-item-action {% if current_city.id == city.id %}active{% endif %}">
                         <div class="d-flex justify-content-between align-items-center">
                             <div>
                                 <h6 class="mb-1"><i class="fas fa-map-marker-alt"></i> {{ city.name }}</h6>
@@ -377,11 +376,11 @@
                 <p class="text-muted mb-3">
                     Selecciona la zona donde te encuentras para ver servicios disponibles cerca de ti
                 </p>
-                
+
                 <div class="list-group">
                     {% for zone in zones %}
-                    <a href="?zone={{ zone.id }}&service_mode={{ service_mode }}" 
-                       class="list-group-item list-group-item-action {% if current_zone.id == zone.id %}active{% endif %}">
+                    <a href="?zone={{ zone.id }}&service_mode={{ service_mode }}"
+                        class="list-group-item list-group-item-action {% if current_zone.id == zone.id %}active{% endif %}">
                         <div class="d-flex justify-content-between align-items-center">
                             <div>
                                 <h6 class="mb-0">{{ zone.name }}</h6>
@@ -395,9 +394,9 @@
                     {% empty %}
                     <p class="text-muted text-center">
                         {% if current_city %}
-                            No hay zonas disponibles en {{ current_city.name }}
+                        No hay zonas disponibles en {{ current_city.name }}
                         {% else %}
-                            Selecciona una ciudad primero
+                        Selecciona una ciudad primero
                         {% endif %}
                     </p>
                     {% endfor %}
@@ -411,50 +410,50 @@
 </div>
 
 <style>
-.service-card {
-    transition: all 0.3s ease;
-}
+    .service-card {
+        transition: all 0.3s ease;
+    }
 
-.service-card:hover {
-    transform: translateY(-5px);
-    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.1);
-}
+    .service-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 8px 20px rgba(0, 0, 0, 0.1);
+    }
 
-.service-price {
-    font-size: 1.5rem;
-    font-weight: bold;
-    color: #0d6efd;
-}
+    .service-price {
+        font-size: 1.5rem;
+        font-weight: bold;
+        color: #0d6efd;
+    }
 </style>
 
 <script>
-// Categoría Filter - Submit del formulario
-document.querySelectorAll('.category-filter').forEach(radio => {
-    radio.addEventListener('change', function() {
-        const loader = document.getElementById('globalLoader');
-        if (loader) loader.classList.add('active');
-        
-        setTimeout(() => {
-            document.getElementById('filterForm').submit();
-        }, 300);
-    });
-});
+    // Categoría Filter - Submit del formulario
+    document.querySelectorAll('.category-filter').forEach(radio => {
+        radio.addEventListener('change', function () {
+            const loader = document.getElementById('globalLoader');
+            if (loader) loader.classList.add('active');
 
-// ✅ Modo de Atención Filter - Navegación directa
-document.querySelectorAll('.mode-filter').forEach(radio => {
-    radio.addEventListener('change', function() {
-        const loader = document.getElementById('globalLoader');
-        if (loader) loader.classList.add('active');
-        
-        // Construir URL con parámetros actuales
-        const params = new URLSearchParams(window.location.search);
-        
-        // Actualizar service_mode
-        params.set('service_mode', this.value);
-        
-        // Forzar navegación
-        window.location.href = window.location.pathname + '?' + params.toString();
+            setTimeout(() => {
+                document.getElementById('filterForm').submit();
+            }, 300);
+        });
     });
-});
+
+    // ✅ Modo de Atención Filter - Navegación directa
+    document.querySelectorAll('.mode-filter').forEach(radio => {
+        radio.addEventListener('change', function () {
+            const loader = document.getElementById('globalLoader');
+            if (loader) loader.classList.add('active');
+
+            // Construir URL con parámetros actuales
+            const params = new URLSearchParams(window.location.search);
+
+            // Actualizar service_mode
+            params.set('service_mode', this.value);
+
+            // Forzar navegación
+            window.location.href = window.location.pathname + '?' + params.toString();
+        });
+    });
 </script>
 {% endblock %}

@@ -420,7 +420,7 @@ def service_detail(request, service_code):
     total_cost = service.base_price + Decimal(str(travel_cost))
 
     # Meta tags
-    meta_image = request.build_absolute_uri(service.image.url) if service.image else None
+    meta_image = request.build_absolute_uri(service.primary_image.url) if service.primary_image else None
     
     context = {
         'service': service,

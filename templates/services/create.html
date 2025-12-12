@@ -12,22 +12,21 @@
                         <i class="fas fa-plus-circle"></i> Agregar Nuevo Servicio
                     </h2>
 
-                    <form method="post" enctype="multipart/form-data">
+                    <form method="post" enctype="multipart/form-data" id="serviceForm">
                         {% csrf_token %}
 
                         <div class="mb-3">
                             <label for="name" class="form-label">Nombre del Servicio *</label>
-                            <input type="text" class="form-control" id="name" name="name" 
-                                   required maxlength="200"
-                                   placeholder="Ej: Manicure Completo">
+                            <input type="text" class="form-control" id="name" name="name" required maxlength="200"
+                                placeholder="Ej: Manicure Completo">
                         </div>
 
                         <div class="mb-3">
                             <label for="description" class="form-label">Descripción *</label>
-                            <textarea class="form-control" id="description" name="description" 
-                                      rows="4" required
-                                      placeholder="Describe qué incluye tu servicio, técnicas que utilizas, productos, etc."></textarea>
-                            <small class="text-muted">Mínimo 50 caracteres</small>
+                            <div id="editor-container" style="height: 250px;"></div>
+                            <input type="hidden" name="description" id="description">
+                            <small class="text-muted">Usa el editor para dar formato a tu descripción. Mínimo 50
+                                caracteres.</small>
                         </div>
 
                         <div class="row">
@@ -35,32 +34,37 @@
                                 <label for="base_price" class="form-label">Precio Base (USD) *</label>
                                 <div class="input-group">
                                     <span class="input-group-text">$</span>
-                                    <input type="number" class="form-control" id="base_price" 
-                                           name="base_price" step="0.01" min="1" required
-                                           placeholder="15.00">
+                                    <input type="number" class="form-control" id="base_price" name="base_price"
+                                        step="0.01" min="1" required placeholder="15.00">
                                 </div>
                             </div>
 
                             <div class="col-md-6 mb-3">
                                 <label for="duration_minutes" class="form-label">Duración (minutos) *</label>
-                                <input type="number" class="form-control" id="duration_minutes" 
-                                       name="duration_minutes" min="15" step="15" required
-                                       placeholder="60">
+                                <input type="number" class="form-control" id="duration_minutes" name="duration_minutes"
+                                    min="15" step="15" required placeholder="60">
                                 <small class="text-muted">En intervalos de 15 minutos</small>
                             </div>
                         </div>
 
+                        <!-- Múltiples Imágenes -->
                         <div class="mb-3">
-                            <label for="image" class="form-label">Imagen del Servicio *</label>
-                            <input type="file" class="form-control" id="image" name="image" 
-                                   accept="image/*">
-                            <small class="text-muted">La imagen es importante, es tu forma de vender el servicio. Máximo 5MB. Formatos: JPG, PNG</small>
+                            <label class="form-label">Imágenes del Servicio (hasta 3)</label>
+                            <small class="text-muted d-block mb-2">Las imágenes son importantes, es tu forma de vender
+                                el servicio. Máximo 5MB por imagen. Formatos: JPG, PNG</small>
+
+                            {% for i in "123" %}
+                            <div class="mb-3 p-3 border rounded">
+                                <h6>Imagen {{ i }} {% if i == "1" %}*{% else %}(opcional){% endif %}</h6>
+                                <input type="file" class="form-control" id="image_{{ i }}" name="image_{{ i }}"
+                                    accept="image/*" {% if i == "1" %}required{% endif %}>
+                            </div>
+                            {% endfor %}
                         </div>
 
                         <div class="mb-3">
                             <div class="form-check">
-                                <input class="form-check-input" type="checkbox" id="available" 
-                                       name="available" checked>
+                                <input class="form-check-input" type="checkbox" id="available" name="available" checked>
                                 <label class="form-check-label" for="available">
                                     Publicar servicio inmediatamente
                                 </label>
@@ -73,7 +77,7 @@
                             <ul class="mb-0 mt-2">
                                 <li>Usa un nombre claro y descriptivo</li>
                                 <li>Explica qué incluye y qué no incluye el servicio</li>
-                                <li>Agrega una foto de calidad del resultado final</li>
+                                <li>Agrega fotos de calidad del resultado final</li>
                                 <li>Sé realista con el tiempo de duración</li>
                             </ul>
                         </div>
@@ -93,22 +97,39 @@
     </div>
 </div>
 
+<!-- Quill.js CDN -->
+<link href="https://cdn.quilljs.com/1.3.6/quill.snow.css" rel="stylesheet">
+<script src="https://cdn.quilljs.com/1.3.6/quill.js"></script>
+
 <script>
-// Validación de descripción
-document.getElementById('description').addEventListener('input', function() {
-    const minLength = 50;
-    const currentLength = this.value.length;
-    const small = this.nextElementSibling;
-    
-    if (currentLength < minLength) {
-        small.textContent = `${currentLength}/${minLength} caracteres (mínimo ${minLength})`;
-        small.classList.add('text-danger');
-        small.classList.remove('text-muted');
-    } else {
-        small.textContent = `${currentLength} caracteres`;
-        small.classList.remove('text-danger');
-        small.classList.add('text-success');
-    }
-});
+    // Inicializar Quill editor
+    var quill = new Quill('#editor-container', {
+        theme: 'snow',
+        modules: {
+            toolbar: [
+                ['bold', 'italic', 'underline'],
+                [{ 'align': [] }],
+                [{ 'size': ['small', false, 'large', 'huge'] }],
+                ['clean']
+            ]
+        },
+        placeholder: 'Describe qué incluye tu servicio, técnicas que utilizas, productos, etc.'
+    });
+
+    // Sincronizar con input hidden antes de submit
+    document.getElementById('serviceForm').onsubmit = function () {
+        // Obtener contenido HTML del editor
+        const htmlContent = quill.root.innerHTML;
+        document.getElementById('description').value = htmlContent;
+
+        // Validar longitud mínima (mínimo 50 caracteres de texto, no HTML)
+        const textContent = quill.getText().trim();
+        if (textContent.length < 50) {
+            alert('La descripción debe tener al menos 50 caracteres.');
+            return false;
+        }
+
+        return true;
+    };
 </script>
 {% endblock %}

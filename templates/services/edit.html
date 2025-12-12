@@ -13,21 +13,20 @@
                         <i class="fas fa-edit"></i> Editar Servicio
                     </h2>
 
-                    <form method="post" enctype="multipart/form-data">
+                    <form method="post" enctype="multipart/form-data" id="serviceForm">
                         {% csrf_token %}
 
                         <div class="mb-3">
                             <label for="name" class="form-label">Nombre del Servicio *</label>
-                            <input type="text" class="form-control" id="name" name="name" 
-                                   required maxlength="200"
-                                   value="{{ service.name }}">
+                            <input type="text" class="form-control" id="name" name="name" required maxlength="200"
+                                value="{{ service.name }}">
                         </div>
 
                         <div class="mb-3">
                             <label for="description" class="form-label">Descripción *</label>
-                            <textarea class="form-control" id="description" name="description" 
-                                      rows="4" required>{{ service.description }}</textarea>
-                            <small class="text-muted">Mínimo 50 caracteres</small>
+                            <div id="editor-container" style="height: 250px;"></div>
+                            <input type="hidden" name="description" id="description">
+                            <small class="text-muted">Usa el editor para dar formato a tu descripción.</small>
                         </div>
 
                         <div class="row">
@@ -35,44 +34,59 @@
                                 <label for="base_price" class="form-label">Precio Base (USD) *</label>
                                 <div class="input-group">
                                     <span class="input-group-text">$</span>
-                                    <input type="number" class="form-control" id="base_price" 
-                                           name="base_price" step="0.01" min="1" required
-                                           value="{{ service.base_price|to_string }}">
+                                    <input type="number" class="form-control" id="base_price" name="base_price"
+                                        step="0.01" min="1" required value="{{ service.base_price|to_string }}">
                                 </div>
                             </div>
 
                             <div class="col-md-6 mb-3">
                                 <label for="duration_minutes" class="form-label">Duración (minutos) *</label>
-                                <input type="number" class="form-control" id="duration_minutes" 
-                                       name="duration_minutes" min="15" step="15" required
-                                       value="{{ service.duration_minutes }}">
+                                <input type="number" class="form-control" id="duration_minutes" name="duration_minutes"
+                                    min="15" step="15" required value="{{ service.duration_minutes }}">
                                 <small class="text-muted">En intervalos de 15 minutos</small>
                             </div>
                         </div>
 
-                        {% if service.image %}
+                        <!-- Múltiples Imágenes -->
                         <div class="mb-3">
-                            <label class="form-label">Imagen Actual</label>
-                            <div class="mb-2">
-                                <img src="{{ service.image.url }}" alt="{{ service.name }}" 
-                                     class="img-thumbnail" style="max-height: 200px;">
-                            </div>
-                        </div>
-                        {% endif %}
+                            <label class="form-label">Imágenes del Servicio (hasta 3)</label>
+                            <small class="text-muted d-block mb-2">Máximo 5MB por imagen. Formatos: JPG, PNG</small>
 
-                        <div class="mb-3">
-                            <label for="image" class="form-label">
-                                {% if service.image %}Cambiar Imagen{% else %}Agregar Imagen{% endif %}
-                            </label>
-                            <input type="file" class="form-control" id="image" name="image" 
-                                   accept="image/*">
-                            <small class="text-muted">Opcional. Máximo 5MB. Formatos: JPG, PNG</small>
+                            {% for i in "123" %}
+                            <div class="mb-3 p-3 border rounded">
+                                <h6>Imagen {{ i }}</h6>
+                                {% with field_name="image_"|add:i %}
+                                {% with image=service|getattribute:field_name %}
+
+                                {% if image %}
+                                <div class="mb-2" id="preview_{{ field_name }}">
+                                    <img src="{{ image.url }}" alt="Imagen {{ i }}" class="img-thumbnail"
+                                        style="max-height: 150px;">
+                                    <div class="form-check mt-2">
+                                        <input class="form-check-input" type="checkbox" id="remove_{{ field_name }}"
+                                            name="remove_{{ field_name }}" value="true">
+                                        <label class="form-check-label text-danger" for="remove_{{ field_name }}">
+                                            Eliminar esta imagen
+                                        </label>
+                                    </div>
+                                </div>
+                                <label for="{{ field_name }}" class="form-label">Cambiar Imagen {{ i }}</label>
+                                {% else %}
+                                <label for="{{ field_name }}" class="form-label">Agregar Imagen {{ i }}</label>
+                                {% endif %}
+
+                                <input type="file" class="form-control" id="{{ field_name }}" name="{{ field_name }}"
+                                    accept="image/*">
+
+                                {% endwith %}
+                                {% endwith %}
+                            </div>
+                            {% endfor %}
                         </div>
 
                         <div class="mb-3">
                             <div class="form-check form-switch">
-                                <input class="form-check-input" type="checkbox" id="available" 
-                                       name="available" {% if service.available %}checked{% endif %}>
+                                <input class="form-check-input" type="checkbox" id="available" name="available" {% if service.available %}checked{% endif %}>
                                 <label class="form-check-label" for="available">
                                     Servicio activo (visible para clientes)
                                 </label>
@@ -100,8 +114,7 @@
                             <p class="mb-3">
                                 Una vez que elimines este servicio, no podrás recuperarlo.
                             </p>
-                            <button type="button" class="btn btn-danger" 
-                                    onclick="confirmDelete()">
+                            <button type="button" class="btn btn-danger" onclick="confirmDelete()">
                                 <i class="fas fa-trash"></i> Eliminar Servicio
                             </button>
                         </div>
@@ -117,28 +130,37 @@
     {% csrf_token %}
 </form>
 
-<script>
-function confirmDelete() {
-    if (confirm('¿Estás seguro de eliminar este servicio? Esta acción no se puede deshacer.')) {
-        document.getElementById('deleteForm').submit();
-    }
-}
+<!-- Quill.js CDN -->
+<link href="https://cdn.quilljs.com/1.3.6/quill.snow.css" rel="stylesheet">
+<script src="https://cdn.quilljs.com/1.3.6/quill.js"></script>
 
-// Validación de descripción
-document.getElementById('description').addEventListener('input', function() {
-    const minLength = 50;
-    const currentLength = this.value.length;
-    const small = this.nextElementSibling;
-    
-    if (currentLength < minLength) {
-        small.textContent = `${currentLength}/${minLength} caracteres (mínimo ${minLength})`;
-        small.classList.add('text-danger');
-        small.classList.remove('text-muted');
-    } else {
-        small.textContent = `${currentLength} caracteres`;
-        small.classList.remove('text-danger');
-        small.classList.add('text-success');
+<script>
+    // Inicializar Quill editor
+    var quill = new Quill('#editor-container', {
+        theme: 'snow',
+        modules: {
+            toolbar: [
+                ['bold', 'italic', 'underline'],
+                [{ 'align': [] }],
+                [{ 'size': ['small', false, 'large', 'huge'] }],
+                ['clean']
+            ]
+        },
+        placeholder: 'Describe tu servicio aquí...'
+    });
+
+    // Cargar contenido existente (HTML)
+    quill.root.innerHTML = `{{ service.description|safe }}`;
+
+    // Sincronizar con input hidden antes de submit
+    document.getElementById('serviceForm').onsubmit = function () {
+        document.getElementById('description').value = quill.root.innerHTML;
+    };
+
+    function confirmDelete() {
+        if (confirm('¿Estás seguro de eliminar este servicio? Esta acción no se puede deshacer.')) {
+            document.getElementById('deleteForm').submit();
+        }
     }
-});
 </script>
 {% endblock %}

@@ -489,8 +489,12 @@ def validate_image_content(provider_profile, service):
     if provider_profile.profile_photo:
         images_to_check.append(('profile_photo', provider_profile.profile_photo, 'Foto de perfil'))
     
-    if service.image:
-        images_to_check.append(('service_image', service.image, 'Imagen del servicio'))
+    
+    # Verificar imágenes del servicio (hasta 3)
+    for field_name in ['image_1', 'image_2', 'image_3']:
+        service_image = getattr(service, field_name)
+        if service_image:
+            images_to_check.append((f'service_{field_name}', service_image, f'Imagen del servicio {field_name[-1]}'))
     
     # CRITERIO 8: Sin datos de contacto en imágenes
     logger.info("   - Escaneando imágenes por información de contacto (OCR)...")

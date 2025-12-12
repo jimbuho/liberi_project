@@ -148,9 +148,9 @@
                         {% for service in services %}
                         <div class="col-md-6 mb-3">
                             <div class="card h-100">
-                                {# CAMBIO #2: Agregar imagen del servicio #}
-                                {% if service.image %}
-                                <img src="{{ service.image.url }}" class="card-img-top" alt="{{ service.name }}"
+                                {# Usar primary_image en lugar de image #}
+                                {% if service.primary_image %}
+                                <img src="{{ service.primary_image.url }}" class="card-img-top" alt="{{ service.name }}"
                                     style="height: 200px; object-fit: cover;">
                                 {% else %}
                                 <div class="card-img-top bg-light d-flex align-items-center justify-content-center"
@@ -162,7 +162,7 @@
                                 <div class="card-body d-flex flex-column">
                                     <h5 class="card-title">{{ service.name }}</h5>
                                     <p class="card-text text-muted flex-grow-1">
-                                        {{ service.description|truncatewords:15 }}
+                                        {{ service.description|striptags|truncatewords:15 }}
                                     </p>
                                     <div class="d-flex justify-content-between align-items-center mb-2">
                                         <span class="text-primary fw-bold fs-5">${{ service.base_price }}</span>

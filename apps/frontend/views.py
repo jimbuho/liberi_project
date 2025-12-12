@@ -18,6 +18,7 @@ from uuid import UUID
 
 import requests
 import logging
+import bleach
 
 from django.db import transaction
 
@@ -54,6 +55,35 @@ from core.email_verification import send_verification_email, send_welcome_email
 from decimal import Decimal, ROUND_HALF_UP
 
 logger = logging.getLogger(__name__)
+
+
+def sanitize_html(html_content):
+    """
+    Sanitiza HTML permitiendo solo tags y atributos seguros básicos.
+    Permite: negrilla, cursiva, subrayado, párrafos, alineación, tamaños de fuente.
+    """
+    allowed_tags = [
+        'p', 'br', 'strong', 'b', 'em', 'i', 'u', 'span', 'div',
+        'h1', 'h2', 'h3', 'h4', 'h5', 'h6'
+    ]
+    allowed_attrs = {
+        '*': ['style'],
+        'span': ['style'],
+        'div': ['style'],
+        'p': ['style'],
+    }
+    
+    # Sanitizar el HTML (bleach 6.1.0 no soporta 'styles' parameter)
+    # Solo permitimos tags y atributos básicos
+    clean_html = bleach.clean(
+        html_content,
+        tags=allowed_tags,
+        attributes=allowed_attrs,
+        strip=True
+    )
+    
+    return clean_html
+
 
 def get_active_categories():
     """Obtiene todas las categorías ordenadas por nombre"""
@@ -239,24 +269,32 @@ def service_create(request):
         description = request.POST.get('description')
         base_price = request.POST.get('base_price')
         duration_minutes = request.POST.get('duration_minutes')
-        image = request.FILES.get('image')
         available = request.POST.get('available') == 'on'
         
+        # Obtener hasta 3 imágenes
+        image_1 = request.FILES.get('image_1')
+        image_2 = request.FILES.get('image_2')
+        image_3 = request.FILES.get('image_3')
+        
         try:
-            # Subir imagen del servicio
-            image_url = upload_service_image(
-                file=image,
-                provider_id=request.user.id
-            )
+            # Sanitizar HTML en descripción
+            clean_description = sanitize_html(description) if description else ''
             
-            # Crear servicio con la URL
+            # Subir imágenes del servicio
+            image_1_url = upload_service_image(file=image_1, provider_id=request.user.id) if image_1 else None
+            image_2_url = upload_service_image(file=image_2, provider_id=request.user.id) if image_2 else None
+            image_3_url = upload_service_image(file=image_3, provider_id=request.user.id) if image_3 else None
+            
+            # Crear servicio con las URLs
             service = Service.objects.create(
                 provider=request.user,
                 name=name,
-                description=description,
+                description=clean_description,
                 base_price=base_price,
                 duration_minutes=duration_minutes,
-                image=image_url,  # URL de la imagen
+                image_1=image_1_url,
+                image_2=image_2_url,
+                image_3=image_3_url,
                 available=available
             )
             
@@ -267,15 +305,10 @@ def service_create(request):
                 metadata={'service_id': service.id, 'name': name}
             )
 
-            # ============================================
-            # CAMBIO #3: Verificar si es el primer servicio
-            # ============================================
+            # Verificar si es el primer servicio
             provider_profile = request.user.provider_profile
             service_count = Service.objects.filter(provider=request.user).count()
             
-            # Si es el primer servicio, intentar validar perfil
-            # Si es el primer servicio, intentar validar perfil
-            # Si es el primer servicio, intentar validar perfil
             if service_count == 1:
                 from apps.core.verification import trigger_validation_if_eligible
                 
@@ -288,7 +321,6 @@ def service_create(request):
                         'Te notificaremos por correo cuando el proceso finalice.'
                     )
                 else:
-                    # Si no se disparó (probablemente faltan documentos)
                     if provider_profile.registration_step < 2:
                         messages.success(
                             request, 
@@ -317,26 +349,34 @@ def service_edit(request, service_id):
     
     if request.method == 'POST':
         service.name = request.POST.get('name')
-        service.description = request.POST.get('description')
+        description = request.POST.get('description')
+        service.description = sanitize_html(description) if description else ''
         service.base_price = request.POST.get('base_price')
         service.duration_minutes = request.POST.get('duration_minutes')
-        service.available = request.POST.get('available') == 'on'  # ← AGREGAR ESTA LÍNEA
+        service.available = request.POST.get('available') == 'on'
         
-        # Si se subió nueva imagen
-        if request.FILES.get('image'):
-            try:
-                # Reemplazar imagen anterior
-                new_image_url = replace_image(
-                    old_url=service.image,
-                    new_file=request.FILES['image'],
-                    folder='services',
-                    user_id=request.user.id,
-                    prefix='service'
-                )
-                service.image = new_image_url
-            except Exception as e:
-                messages.error(request, f'Error al actualizar imagen: {str(e)}')
-                return render(request, 'services/edit.html', {'service': service})
+        # Manejar hasta 3 imágenes
+        for i in range(1, 4):
+            field_name = f'image_{i}'
+            
+            # Verificar si se debe eliminar la imagen
+            if request.POST.get(f'remove_{field_name}') == 'true':
+                setattr(service, field_name, None)
+            # Verificar si se subió una nueva imagen
+            elif request.FILES.get(field_name):
+                try:
+                    old_url = getattr(service, field_name)
+                    new_image_url = replace_image(
+                        old_url=old_url,
+                        new_file=request.FILES[field_name],
+                        folder='services',
+                        user_id=request.user.id,
+                        prefix='service'
+                    )
+                    setattr(service, field_name, new_image_url)
+                except Exception as e:
+                    messages.error(request, f'Error al actualizar imagen {i}: {str(e)}')
+                    return render(request, 'services/edit.html', {'service': service})
         
         service.save()
         
@@ -363,9 +403,11 @@ def service_delete(request, service_id):
     if request.method == 'POST':
         service_name = service.name
 
-        # Eliminar imagen asociada
-        if service.image:
-            delete_image(service.image)
+        # Eliminar imágenes asociadas
+        for field_name in ['image_1', 'image_2', 'image_3']:
+            image = getattr(service, field_name)
+            if image:
+                delete_image(image)
         
         service.delete()
         

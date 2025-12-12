@@ -445,12 +445,19 @@ class Service(models.Model):
         help_text='Identificador único del servicio'
     )
     name = models.CharField('Nombre', max_length=200)
-    description = models.TextField('Descripción')
+    description = models.TextField('Descripción', help_text='Puede incluir formato HTML básico')
     base_price = models.DecimalField('Precio base', max_digits=8, decimal_places=2)
     duration_minutes = models.IntegerField('Duración (minutos)')
     available = models.BooleanField('Disponible', default=True)
-    image = SmartImageField('Imagen', upload_to='services/', blank=True, max_length=255,
-                            validators=[validate_image_size_5mb])
+    
+    # Múltiples imágenes del servicio (hasta 3)
+    image_1 = SmartImageField('Imagen 1', upload_to='services/', blank=True, null=True, max_length=255,
+                              validators=[validate_image_size_5mb])
+    image_2 = SmartImageField('Imagen 2', upload_to='services/', blank=True, null=True, max_length=255,
+                              validators=[validate_image_size_5mb])
+    image_3 = SmartImageField('Imagen 3', upload_to='services/', blank=True, null=True, max_length=255,
+                              validators=[validate_image_size_5mb])
+    
     created_at = models.DateTimeField('Fecha de creación', auto_now_add=True)
     updated_at = models.DateTimeField('Última actualización', auto_now=True)
 
@@ -462,6 +469,21 @@ class Service(models.Model):
 
     def __str__(self):
         return f"{self.name} - ${self.base_price}"
+    
+    def get_service_images(self):
+        """Retorna lista de imágenes no nulas del servicio"""
+        images = []
+        for field_name in ['image_1', 'image_2', 'image_3']:
+            image = getattr(self, field_name)
+            if image:
+                images.append(image)
+        return images
+    
+    @property
+    def primary_image(self):
+        """Retorna la primera imagen disponible o None"""
+        return self.image_1 if self.image_1 else (self.image_2 if self.image_2 else self.image_3)
+
 
 
 class Location(models.Model):
