@@ -10,11 +10,14 @@ urlpatterns = [
     path('api/', include('apps.core.urls')),
     path('api/messaging/', include('apps.messaging.urls')),
     
+    # Mobile API v1
+    path('api/v1/', include('apps.api_mobile.urls', namespace='api_mobile')),
+    
     # New refactored apps
     path('', include('apps.authentication.urls')),
     path('', include('apps.profiles.urls')),
     path('', include('apps.bookings.urls')),
-    path('', include('apps.payments.urls')),  # Now handles both API and Template URLs
+    path('', include('apps.payments.urls')),
     path('', include('apps.public.urls')),
     
     path('', include('apps.frontend.urls')),
