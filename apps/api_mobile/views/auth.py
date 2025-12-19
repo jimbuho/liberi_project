@@ -113,8 +113,14 @@ class RegisterView(APIView):
                 )
                 
         except Exception as e:
+            from apps.core.error_sanitizer import sanitize_error
+            safe_message = sanitize_error(e, debug_mode=False)
+            logger.error(f"Error creating user via API: {str(e)}", exc_info=True, extra={
+                'email': data.get('email'),
+                'role': data.get('role')
+            })
             return error_response(
-                f"Error al crear usuario: {str(e)}",
+                f"Error al crear usuario: {safe_message}",
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
 

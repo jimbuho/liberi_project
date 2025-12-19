@@ -264,6 +264,10 @@ LOGGING = {
             'handlers': ['console'],
             'level': 'DEBUG',
         },
+        'core.error_sanitizer': {
+            'handlers': ['console', 'file'],
+            'level': 'ERROR',
+        },
         'frontend.views': {  # AGREGAR ESTO
             'handlers': ['console'],
             'level': 'DEBUG',

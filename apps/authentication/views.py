@@ -150,7 +150,10 @@ def register_view(request):
             profile.full_clean()  # Ejecuta las validaciones
             profile.save()
         except Exception as e:
-            messages.error(request, f'Error al crear usuario: {str(e)}')
+            from apps.core.error_sanitizer import sanitize_error
+            safe_message = sanitize_error(e, debug_mode=False)
+            logger.error(f"Error creating user profile: {str(e)}", exc_info=True, extra={'email': email})
+            messages.error(request, f'Error al crear usuario: {safe_message}')
             return render(request, 'auth/register.html')
         
 
@@ -357,8 +360,13 @@ def register_provider_view(request):
                 user.delete()
             except:
                 pass
-            print(f'Error al crear perfil: {str(e)}')
-            messages.error(request, f'Error al crear perfil: {str(e)}')
+            from apps.core.error_sanitizer import sanitize_error
+            safe_message = sanitize_error(e, debug_mode=False)
+            logger.error(f"Error creating provider profile: {str(e)}", exc_info=True, extra={
+                'email': email,
+                'business_name': business_name
+            })
+            messages.error(request, f'Error al crear perfil: {safe_message}')
             return render(request, 'auth/register_provider.html', {
                 'categories': get_active_categories(),
                 'form_data': form_data
@@ -468,7 +476,13 @@ def provider_register_step2(request):
             return redirect('dashboard')
             
         except Exception as e:
-            messages.error(request, f'Error al subir documentos: {str(e)}')
+            from apps.core.error_sanitizer import sanitize_error
+            safe_message = sanitize_error(e, debug_mode=False)
+            logger.error(f"Error uploading documents: {str(e)}", exc_info=True, extra={
+                'user_id': request.user.id,
+                'provider_profile_id': provider_profile.id
+            })
+            messages.error(request, f'Error al subir documentos: {safe_message}')
             return render(request, 'auth/register_step2.html', {
                 'provider_profile': provider_profile
             })
@@ -862,7 +876,13 @@ def complete_provider_profile_google(request):
             return redirect('provider_register_step2')
             
         except Exception as e:
-            messages.error(request, f'Error al crear perfil: {str(e)}')
+            from apps.core.error_sanitizer import sanitize_error
+            safe_message = sanitize_error(e, debug_mode=False)
+            logger.error(f"Error completing Google provider profile: {str(e)}", exc_info=True, extra={
+                'user_id': request.user.id,
+                'business_name': business_name
+            })
+            messages.error(request, f'Error al crear perfil: {safe_message}')
             return render(request, 'auth/complete_provider_profile_google.html', {
                 'categories': get_active_categories(),
             })

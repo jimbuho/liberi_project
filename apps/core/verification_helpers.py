@@ -1239,30 +1239,40 @@ class VerificationHelpers:
                         confidence += 0.1
                         
                 elif side == 'back':
-                    # Keywords del reverso
+                    # Keywords del reverso - Ecuadorian ID backs have various formats
+                    # Modern IDs show: INSTRUCCIÓN, PROFESIÓN/OCUPACIÓN, APELLIDOS Y NOMBRES DEL PADRE/MADRE,
+                    # LUGAR Y FECHA DE EXPEDICIÓN, FECHA DE EXPIRACIÓN, signatures, fingerprint
                     back_keywords = [
-                        ('PADRE', 'MADRE'),
-                        ('CÓDIGO', 'CODIGO', 'DACTILAR'),
-                        ('CIVIL',),
+                        ('PADRE', 'MADRE', 'APELLIDOS', 'NOMBRES'),  # Parent info
+                        ('EXPEDICIÓN', 'EXPEDICION', 'EXPIRACIÓN', 'EXPIRACION', 'FECHA'),  # Dates
+                        ('INSTRUCCIÓN', 'INSTRUCCION', 'PROFESIÓN', 'PROFESION', 'OCUPACIÓN', 'OCUPACION'),  # Modern IDs
+                        ('FIRMA', 'DIRECTOR', 'CEDULADO'),  # Signatures
+                        ('CÓDIGO', 'CODIGO', 'DACTILAR', 'CIVIL'),  # Old style keywords
                     ]
                     
                     keywords_found = 0
                     for keyword_group in back_keywords:
                         if any(kw in text_upper for kw in keyword_group):
                             keywords_found += 1
-                            confidence += 0.15
+                            confidence += 0.12  # Lower per-keyword weight since we have more groups
                     
-                    # Check for MRZ (Machine Readable Zone) - very distinctive
+                    logger.info(f"   Back keywords found: {keywords_found}/5 groups")
+                    
+                    # Check for MRZ (Machine Readable Zone) - OPTIONAL for Ecuadorian IDs
+                    # Modern Ecuadorian IDs often DON'T have MRZ on the back
                     # MRZ has patterns like: ECUXXXXXXXXX<<<<<XXXXXXXXX
                     # or APELLIDO<APELLIDO<<NOMBRE<NOMBRE<
+                    mrz_detected = False
                     if re.search(r'[A-Z<]{10,}', text_upper):
-                        confidence += 0.3
-                        logger.info("MRZ pattern detected")
+                        confidence += 0.2
+                        mrz_detected = True
+                        logger.info("   MRZ pattern detected (bonus confidence)")
                     else:
-                        reasons.append("No se detectó zona MRZ (código de barras de texto)")
+                        logger.info("   MRZ not found (acceptable for modern Ecuadorian IDs)")
                     
-                    if keywords_found < 1:
-                        reasons.append(f"Faltan keywords del reverso (encontrados: {keywords_found}/3)")
+                    # More lenient for back side - only need 1 keyword group or good aspect ratio
+                    if keywords_found < 1 and not mrz_detected:
+                        reasons.append(f"Faltan keywords del reverso (encontrados: {keywords_found}/5 grupos)")
                 
                 # Check 3: Minimum text extracted
                 if len(text.strip()) < 20:
@@ -1271,10 +1281,18 @@ class VerificationHelpers:
                 else:
                     confidence += 0.1
                 
-                # Final decision
-                is_valid = confidence >= 0.4 and len(reasons) <= 2
+                # Final decision - More lenient for back side
+                # Back side can pass with lower confidence if aspect ratio is good and some text extracted
+                if side == 'back':
+                    # For back: Accept if confidence >= 0.3 OR (aspect ratio good + some keywords)
+                    is_valid = (confidence >= 0.3) or (aspect_ratio >= 1.4 and keywords_found >= 1)
+                    # Also reduce max reasons allowed
+                    is_valid = is_valid and len(reasons) <= 3
+                else:
+                    # For front: Keep stricter validation
+                    is_valid = confidence >= 0.4 and len(reasons) <= 2
                 
-                logger.info(f"ID card validation: valid={is_valid}, confidence={confidence:.2f}, reasons={reasons}")
+                logger.info(f"ID card validation ({side}): valid={is_valid}, confidence={confidence:.2f}, reasons={reasons}")
                 logger.info(f"OCR extracted text preview: {text[:200]}...")
                 
                 return {
