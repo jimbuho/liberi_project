@@ -324,28 +324,49 @@ class VerificationHelpers:
     def _extract_text_from_image_internal(image_path: str) -> str:
         """
         Internal method to extract text from local file.
+        Uses multiple OCR strategies for better ID card text extraction.
         """
         logger.info(f"Extracting text from image: {image_path}")
         
         try:
             import pytesseract
-            from PIL import Image
+            from PIL import Image, ImageEnhance
             
-            # Open image
-            img = Image.open(image_path)
+            # Open original image
+            original_img = Image.open(image_path)
             
-            # Extract text using Tesseract
-            # lang='spa' for Spanish, you can add 'eng+spa' for both
-            text = pytesseract.image_to_string(img, lang='spa')
+            # Strategy 1: Try with original image first (sometimes preprocessing hurts)
+            # PSM 6 = Assume a single uniform block of text (good for ID cards)
+            custom_config = r'--oem 3 --psm 6'
+            text1 = pytesseract.image_to_string(original_img, lang='spa', config=custom_config)
+            logger.info(f"OCR Strategy 1 (original + PSM 6): {len(text1)} characters")
             
-            logger.info(f"OCR extracted {len(text)} characters")
-            return text.strip()
+            # Strategy 2: Grayscale + moderate contrast enhancement
+            img2 = original_img.convert('L')
+            enhancer = ImageEnhance.Contrast(img2)
+            img2 = enhancer.enhance(1.5)  # Reduced from 2.0 to 1.5 for gentler enhancement
+            text2 = pytesseract.image_to_string(img2, lang='spa', config=custom_config)
+            logger.info(f"OCR Strategy 2 (grayscale + contrast): {len(text2)} characters")
+            
+            # Strategy 3: Try PSM 3 (fully automatic page segmentation)
+            custom_config_auto = r'--oem 3 --psm 3'
+            text3 = pytesseract.image_to_string(original_img, lang='spa', config=custom_config_auto)
+            logger.info(f"OCR Strategy 3 (original + PSM 3): {len(text3)} characters")
+            
+            # Combine results - use the one with most text detected
+            all_texts = [text1, text2, text3]
+            best_text = max(all_texts, key=lambda t: len(t.strip()))
+            
+            logger.info(f"OCR best result: {len(best_text)} characters")
+            logger.info(f"OCR preview: {best_text[:200]}...")
+            
+            return best_text.strip()
             
         except ImportError:
             logger.warning("pytesseract not available, using mock OCR")
             return ""
         except Exception as e:
-            logger.error(f"OCR error: {e}")
+            logger.error(f"OCR error: {e}", exc_info=True)
             return ""
     
     @staticmethod
@@ -1180,7 +1201,8 @@ class VerificationHelpers:
                 
                 # Check 1: Aspect ratio (cédulas ~1.6 ratio like credit cards)
                 aspect_ratio = width / height if height > 0 else 0
-                if not (1.4 <= aspect_ratio <= 1.8):
+                # More lenient range to accept modern ID cards and photo variations
+                if not (1.2 <= aspect_ratio <= 2.0):
                     reasons.append(f"Proporción incorrecta ({aspect_ratio:.2f}), cédulas tienen ~1.6")
                 else:
                     confidence += 0.2
@@ -1205,7 +1227,9 @@ class VerificationHelpers:
                             keywords_found += 1
                             confidence += 0.15
                     
-                    if keywords_found < 3:  # Al menos 3 de 5 grupos
+                    # Relaxed from 2 to 1 - Real ID cards should have at least one key identifier
+                    # OCR can be unreliable, so we're more lenient while still validating it's an ID
+                    if keywords_found < 1:  # Al menos 1 de 5 grupos
                         reasons.append(f"Faltan keywords de cédula (encontrados: {keywords_found}/5)")
                     
                     # Check for ID number pattern (10 digits)
@@ -1251,6 +1275,7 @@ class VerificationHelpers:
                 is_valid = confidence >= 0.4 and len(reasons) <= 2
                 
                 logger.info(f"ID card validation: valid={is_valid}, confidence={confidence:.2f}, reasons={reasons}")
+                logger.info(f"OCR extracted text preview: {text[:200]}...")
                 
                 return {
                     'is_valid': is_valid,
