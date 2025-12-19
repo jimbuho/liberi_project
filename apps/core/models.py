@@ -259,12 +259,8 @@ class ProviderProfile(models.Model):
 
     def can_publish_services(self):
         """Determina si el proveedor puede publicar servicios según modalidad."""
-        if self.service_mode == 'home':
-            return ProviderLocation.objects.filter(
-                provider=self.user, 
-                location_type='base'
-            ).exists()
         
+        # Para solo en local: debe tener al menos un local verificado
         if self.service_mode == 'local':
             return ProviderLocation.objects.filter(
                 provider=self.user, 
@@ -272,6 +268,15 @@ class ProviderProfile(models.Model):
                 is_verified=True
             ).exists()
         
+        # Para solo a domicilio: debe tener ubicación base
+        if self.service_mode == 'home':
+            has_base = ProviderLocation.objects.filter(
+                provider=self.user, 
+                location_type='base'
+            ).exists()
+            return has_base
+        
+        # Para ambos: debe tener base O local verificado
         if self.service_mode == 'both':
             has_base = ProviderLocation.objects.filter(
                 provider=self.user, 

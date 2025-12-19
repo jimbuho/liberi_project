@@ -138,16 +138,20 @@ class DashboardView(APIView):
             location_type='base'
         ).exists()
         
-        # Paso 5: Zonas de cobertura (para service_mode=home o both)
-        needs_coverage = provider_profile.service_mode in ['home', 'both']
+        # Determinar si necesita cobertura y costos según modalidad
+        service_mode = provider_profile.service_mode
+        needs_coverage = service_mode in ['home', 'both']
+        
+        # Paso 5 (condicional): Zonas de cobertura
         has_coverage = provider_profile.coverage_zones.exists() if needs_coverage else True
         
-        # Paso 6: Costos de traslado configurados
+        # Paso 6 (condicional): Costos de traslado configurados
         has_costs = ProviderZoneCost.objects.filter(provider=user).exists() if needs_coverage else True
         
         # Paso 7: Horarios configurados
         has_schedule = ProviderSchedule.objects.filter(provider=user, is_active=True).exists()
         
+        # Construir steps base (comunes a todas las modalidades)
         steps = [
             {
                 'id': 0,
@@ -191,31 +195,39 @@ class DashboardView(APIView):
                 'locked': not is_approved,
                 'url': None,
             },
-            {
-                'id': 5,
-                'label': 'Definir zonas de cobertura',
-                'done': has_coverage,
-                'status': 'done' if has_coverage else 'pending',
-                'locked': not has_base_location,
-                'url': None,
-            },
-            {
-                'id': 6,
-                'label': 'Configurar costos de traslado',
-                'done': has_costs,
-                'status': 'done' if has_costs else 'pending',
-                'locked': not has_coverage,
-                'url': None,
-            },
-            {
-                'id': 7,
-                'label': 'Publicar horarios de atención',
-                'done': has_schedule,
-                'status': 'done' if has_schedule else 'pending',
-                'locked': not has_costs,
-                'url': None,
-            },
         ]
+        
+        # Agregar pasos condicionales solo si la modalidad lo requiere
+        if needs_coverage:
+            steps.extend([
+                {
+                    'id': 5,
+                    'label': 'Definir zonas de cobertura',
+                    'done': has_coverage,
+                    'status': 'done' if has_coverage else 'pending',
+                    'locked': not has_base_location,
+                    'url': None,
+                },
+                {
+                    'id': 6,
+                    'label': 'Configurar costos de traslado',
+                    'done': has_costs,
+                    'status': 'done' if has_costs else 'pending',
+                    'locked': not has_coverage,
+                    'url': None,
+                },
+            ])
+        
+        # Paso final: horarios (siempre presente)
+        # El locked depende de si necesita o no coverage
+        steps.append({
+            'id': 7,
+            'label': 'Publicar horarios de atención',
+            'done': has_schedule,
+            'status': 'done' if has_schedule else 'pending',
+            'locked': not (has_costs if needs_coverage else has_base_location),
+            'url': None,
+        })
         
         return steps
     

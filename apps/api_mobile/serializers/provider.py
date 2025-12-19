@@ -47,13 +47,19 @@ class ProviderProfileDetailSerializer(serializers.ModelSerializer):
     coverage_zones = serializers.SerializerMethodField()
     rejection_reasons_parsed = serializers.SerializerMethodField()
     
+    # Campos computados para clarificar requisitos según modalidad
+    service_mode_display = serializers.CharField(source='get_service_mode_display', read_only=True)
+    requires_coverage = serializers.SerializerMethodField()
+    requires_travel_costs = serializers.SerializerMethodField()
+    
     class Meta:
         model = ProviderProfile
         fields = [
             'slug', 'business_name', 'description', 'profile_photo',
-            'category', 'category_id', 'service_mode', 'status', 'is_active',
-            'registration_step', 'documents_verified', 'coverage_zones',
-            'rejection_reasons', 'rejection_reasons_parsed',
+            'category', 'category_id', 'service_mode', 'service_mode_display',
+            'requires_coverage', 'requires_travel_costs',
+            'status', 'is_active', 'registration_step', 'documents_verified',
+            'coverage_zones', 'rejection_reasons', 'rejection_reasons_parsed',
             'verification_attempts', 'created_at', 'updated_at'
         ]
         read_only_fields = [
@@ -74,6 +80,14 @@ class ProviderProfileDetailSerializer(serializers.ModelSerializer):
             return json.loads(obj.rejection_reasons)
         except:
             return [{'code': 'OBSERVACIÓN', 'message': obj.rejection_reasons}]
+    
+    def get_requires_coverage(self, obj):
+        """Indica si esta modalidad requiere configurar zonas de cobertura"""
+        return obj.service_mode in ['home', 'both']
+    
+    def get_requires_travel_costs(self, obj):
+        """Indica si esta modalidad requiere configurar costos de traslado"""
+        return obj.service_mode in ['home', 'both']
 
 
 class ProviderServiceSerializer(serializers.ModelSerializer):

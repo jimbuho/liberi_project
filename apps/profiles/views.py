@@ -200,17 +200,41 @@ def dashboard_provider(request):
     else:
         service_url = reverse('service_create')
     
+    # Determinar si necesita cobertura según modalidad
+    service_mode = provider_profile.service_mode
+    needs_coverage = service_mode in ['home', 'both']
+    
+    # Construir steps base (comunes a todas las modalidades)
     raw_steps = [
         {'id': 0, 'label': 'Completar perfil', 'done': has_profile, 'url': reverse('provider_profile_edit')},
         {'id': 1, 'label': 'Subir documentos', 'done': has_documents, 'url': reverse('provider_register_step2')},
         {'id': 2, 'label': 'Crear primer servicio', 'done': has_services, 'url': service_url},
         {'id': 3, 'label': verification_label, 'done': is_verified, 'url': None,
          'is_processing': is_processing, 'is_rejected': is_rejected},
-        {'id': 4, 'label': 'Crear ubicación base', 'done': has_base_location, 'url': reverse('provider_locations_list')},
-        {'id': 5, 'label': 'Definir zonas de cobertura', 'done': has_coverage_zones, 'url': reverse('provider_coverage_manage')},
-        {'id': 6, 'label': 'Configurar costos de traslado', 'done': has_zone_costs, 'url': reverse('provider_zone_costs_manage')},
-        {'id': 7, 'label': 'Configurar horarios', 'done': has_schedules, 'url': reverse('provider_schedule_manage')},
+        {'id': 4, 'label': 'Seleccionar modalidad de atención', 'done': has_service_mode, 
+         'url': reverse('provider_settings_service_mode')},
     ]
+    
+    # Agregar pasos condicionales SOLO si la modalidad lo requiere
+    # Para "Solo en Local" (local): NO se agregan zonas ni costos
+    # Para "A Domicilio" (home) o "Ambas" (both): SÍ se agregan zonas y costos
+    step_id = 5
+    if needs_coverage:
+        raw_steps.extend([
+            {'id': step_id, 'label': 'Definir zonas de cobertura', 'done': has_coverage_zones, 
+             'url': reverse('provider_coverage_manage')},
+            {'id': step_id + 1, 'label': 'Configurar costos de traslado', 'done': has_zone_costs, 
+             'url': reverse('provider_zone_costs_manage')},
+        ])
+        step_id += 2
+    
+    # Paso final: horarios (SIEMPRE presente, independiente de la modalidad)
+    raw_steps.append({
+        'id': step_id, 
+        'label': 'Configurar horarios', 
+        'done': has_schedules, 
+        'url': reverse('provider_schedule_manage')
+    })
 
     onboarding_steps = []
     previous_step_done = True # El primer paso siempre está desbloqueado
@@ -417,6 +441,14 @@ def provider_profile_edit(request):
                 })
         
         try:
+            # Verificar si se está intentando cambiar la categoría en un perfil aprobado
+            if provider_profile.status == 'approved' and category_id and str(provider_profile.category_id) != category_id:
+                messages.error(request, '❌ No puedes cambiar la categoría de tu perfil una vez que ha sido aprobado.')
+                return render(request, 'providers/profile_edit.html', {
+                    'provider_profile': provider_profile,
+                    'categories': get_active_categories(),
+                })
+            
             request.user.first_name = first_name
             request.user.last_name = last_name
             request.user.email = email
@@ -428,7 +460,10 @@ def provider_profile_edit(request):
             
             provider_profile.business_name = business_name
             provider_profile.description = description
-            provider_profile.category_id = category_id
+            
+            # Solo actualizar categoría si el perfil NO está aprobado
+            if provider_profile.status != 'approved':
+                provider_profile.category_id = category_id
             
             if profile_photo:
                 photo_url = replace_image(

@@ -113,6 +113,13 @@ class ServiceModeView(APIView):
     """
     permission_classes = [IsAuthenticated, IsProvider]
     
+    # Descripciones claras de cada modalidad
+    MODE_DESCRIPTIONS = {
+        'home': 'Solo a domicilio - Atiendes en la ubicación del cliente',
+        'local': 'Solo en local - Los clientes vienen a tu establecimiento',
+        'both': 'En local y a domicilio - Ofreces ambas opciones'
+    }
+    
     def patch(self, request):
         service_mode = request.data.get('service_mode')
         
@@ -127,9 +134,18 @@ class ServiceModeView(APIView):
             provider_profile.service_mode = service_mode
             provider_profile.save()
             
+            # Indicar qué configuraciones requiere esta modalidad
+            requires_coverage = service_mode in ['home', 'both']
+            requires_travel_costs = service_mode in ['home', 'both']
+            
             return success_response(
-                data={'service_mode': service_mode},
-                message="Modalidad actualizada exitosamente"
+                data={
+                    'service_mode': service_mode,
+                    'description': self.MODE_DESCRIPTIONS[service_mode],
+                    'requires_coverage': requires_coverage,
+                    'requires_travel_costs': requires_travel_costs
+                },
+                message=f"Modalidad actualizada: {self.MODE_DESCRIPTIONS[service_mode]}"
             )
         except:
             return error_response(

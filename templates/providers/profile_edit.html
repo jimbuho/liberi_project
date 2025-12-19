@@ -88,13 +88,20 @@
 
                         <div class="mb-3">
                             <label for="category" class="form-label">Categoría *</label>
-                            <select class="form-select" id="category" name="category" required>
+                            <select class="form-select" id="category" name="category" required 
+                                    {% if provider_profile.status == 'approved' %}disabled{% endif %}>
                                 {% for cat in categories %}
                                 <option value="{{ cat.id }}" {% if cat.id == provider_profile.category.id %}selected{% endif %}>
                                     {{ cat.icon }} {{ cat.name }}
                                 </option>
                                 {% endfor %}
                             </select>
+                            {% if provider_profile.status == 'approved' %}
+                            <small class="text-info">
+                                <i class="fas fa-lock me-1"></i>
+                                La categoría no puede cambiarse una vez que el perfil ha sido aprobado.
+                            </small>
+                            {% endif %}
                         </div>
 
                         <hr class="my-4">
