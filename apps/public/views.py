@@ -465,9 +465,15 @@ def provider_profile(request, slug):
     # Reviews
     reviews = Review.objects.filter(
         booking__provider=provider
-    ).select_related('customer', 'booking')[:10]
+    ).select_related('customer', 'booking').order_by('-created_at')[:10]
     
-    # Rating promedio
+    # Top 3 reviews (best rated + most recent)
+    top_reviews = Review.objects.filter(
+        booking__provider=provider,
+        rating__gte=4
+    ).select_related('customer', 'booking').order_by('-rating', '-created_at')[:3]
+    
+    # Rating promedio y distribución
     rating_data = Review.objects.filter(
         booking__provider=provider
     ).aggregate(
@@ -475,11 +481,46 @@ def provider_profile(request, slug):
         total=Count('id')
     )
     
+    # Distribución de ratings (count por cada estrella)
+    rating_distribution = {}
+    for star in range(1, 6):
+        count = Review.objects.filter(
+            booking__provider=provider,
+            rating=star
+        ).count()
+        rating_distribution[star] = count
+    
     # Trabajos completados
     completed_bookings = Booking.objects.filter(
         provider=provider,
         status='completed'
     ).count()
+    
+    # Años activo (desde created_at)
+    from datetime import datetime
+    years_active = (timezone.now() - provider_profile.created_at).days // 365
+    if years_active < 1:
+        years_display = "Nuevo"
+    else:
+        years_display = f"{years_active} año{'s' if years_active > 1 else ''}"
+    
+    # Ubicaciones del proveedor
+    provider_locations = ProviderLocation.objects.filter(
+        provider=provider
+    ).select_related('city', 'zone').order_by('location_type', 'label')
+    
+    # Color de categoría para theming
+    category_colors = {
+        'Belleza': '#ec4899',  # Pink
+        'Hogar': '#3b82f6',  # Blue
+        'Salud': '#10b981',  # Green
+        'Educación': '#8b5cf6',  # Purple
+        'Tecnología': '#06b6d4',  # Cyan
+    }
+    category_color = category_colors.get(
+        provider_profile.category.name if provider_profile.category else 'Default',
+        '#6366f1'  # Indigo default
+    )
 
     # Meta tags
     meta_image = request.build_absolute_uri(provider_profile.profile_photo.url) if provider_profile.profile_photo else None
@@ -494,9 +535,15 @@ def provider_profile(request, slug):
         'meta_description': (provider_profile.description[:160] if provider_profile.description else f"Proveedor de {provider_profile.category.name}"),
         'services': services,
         'reviews': reviews,
+        'top_reviews': top_reviews,
         'rating_avg': round(rating_data['avg_rating'] or 0, 1),
         'total_reviews': rating_data['total'],
+        'rating_distribution': rating_distribution,
         'completed_bookings': completed_bookings,
+        'years_active': years_active,
+        'years_display': years_display,
+        'provider_locations': provider_locations,
+        'category_color': category_color,
     }
     return render(request, 'providers/profile.html', context)
 
