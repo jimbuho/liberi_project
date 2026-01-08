@@ -10,22 +10,22 @@
         margin: 3rem auto;
         padding: 0 1rem;
     }
-    
+
     .payment-card {
         background: white;
         border-radius: 15px;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
         padding: 2rem;
         margin-bottom: 2rem;
     }
-    
+
     .booking-summary {
         background: #f8f9fa;
         padding: 1.5rem;
         border-radius: 10px;
         margin-bottom: 2rem;
     }
-    
+
     .payment-method-card {
         border: 2px solid #e8e8e8;
         border-radius: 10px;
@@ -34,22 +34,22 @@
         cursor: pointer;
         transition: all 0.3s ease;
     }
-    
+
     .payment-method-card:hover {
         border-color: #5DADE2;
         box-shadow: 0 4px 12px rgba(93, 173, 226, 0.2);
     }
-    
+
     .payment-method-card.selected {
         border-color: #5DADE2;
         background-color: #f0f8ff;
     }
-    
+
     .payment-icon {
         font-size: 3rem;
         margin-bottom: 1rem;
     }
-    
+
     .amount-display {
         font-size: 2.5rem;
         font-weight: 700;
@@ -59,7 +59,7 @@
     }
 </style>
 <link rel="stylesheet" href="https://cdn.payphonetodoesposible.com/box/v1.1/payphone-payment-box.css">
-<script type="module" src="https://cdn.payphonetodoesposible.com/box/v1.1/payphone-payment-box.js"></script>  
+<script type="module" src="https://cdn.payphonetodoesposible.com/box/v1.1/payphone-payment-box.js"></script>
 {% endblock %}
 
 {% block content %}
@@ -69,7 +69,7 @@
         <h1 class="mb-2">Proceso de Pago</h1>
         <p class="text-muted">Selecciona tu método de pago preferido</p>
     </div>
-    
+
     <!-- Booking Summary -->
     <div class="payment-card">
         <h3 class="mb-3">Resumen de la Reserva</h3>
@@ -93,36 +93,36 @@
                 </div>
             </div>
         </div>
-        
+
         <div class="amount-display">
             Total a Pagar: ${{ booking.total_cost }}
         </div>
     </div>
-    
+
     <!-- Payment Methods -->
     <div class="payment-card">
         <h3 class="mb-4">Selecciona un Método de Pago</h3>
-        
+
         <div class="row">
-            
+
             {% if payphone_enabled %}
             <!-- PayPhone -->
             <div class="col-md-6">
                 <div class="payment-method-card text-center" onclick="selectPaymentMethod('payphone')">
                     <div class="payment-icon">
-                        <i class="fas fa-mobile-alt text-primary"></i> 
+                        <i class="fas fa-mobile-alt text-primary"></i>
                     </div>
                     <h4>PayPhone</h4>
                     <p class="text-muted mb-3">Paga fácilmente con tu app PayPhone</p>
                     <button onclick="mostrarPopup()" class="no-loader btn btn-primary">Realizar Pago</button>
                     <div id="popup" style="display: none;">
-                        <button id="btn-cerrar" onclick="cerrarPopup()" class="no-loader">Cerrar</button>    
+                        <button id="btn-cerrar" onclick="cerrarPopup()" class="no-loader">Cerrar</button>
                         <div id="pp-button"></div>
                     </div>
                 </div>
             </div>
             {% endif %}
-            
+
             {% if bank_transfer_enabled %}
             <!-- Bank Transfer -->
             <div class="col-md-6">
@@ -140,13 +140,13 @@
             {% endif %}
         </div>
     </div>
-    
+
     <!-- Security Notice -->
     <div class="alert alert-info">
         <i class="fas fa-shield-alt me-2"></i>
         <strong>Transacción Segura:</strong> Todos tus pagos están protegidos con encriptación de nivel bancario.
     </div>
-    
+
     <!-- Back Button -->
     <div class="text-center mt-4">
         <a href="{% url 'booking_detail' booking.id %}" class="btn btn-outline-secondary">
@@ -156,10 +156,10 @@
 </div>
 
 <script>
-function selectPaymentMethod(method) {
-    // Opcional: agregar lógica para resaltar la opción seleccionada
-    console.log('Payment method selected:', method);
-}
+    function selectPaymentMethod(method) {
+        // Opcional: agregar lógica para resaltar la opción seleccionada
+        console.log('Payment method selected:', method);
+    }
 </script>
 {% endblock %}
 
@@ -182,19 +182,19 @@ function selectPaymentMethod(method) {
     }
 
     function ejecutarCajitaPagos() {
-        const ppb  = new PPaymentButtonBox({                            
+        const ppb = new PPaymentButtonBox({
             //token obtenido desde la consola de developer
             token: "{{PAYPHONE_API_TOKEN}}",
             amount: parseInt('{{amount}}'),
-            amountWithoutTax: parseInt('{{amount_without_tax}}'), 	
-            amountWithTax:parseInt('{{amount_with_tax}}'), 	
-            tax: parseInt('{{tax}}'),                                       
+            amountWithoutTax: parseInt('{{amount_without_tax}}'),
+            amountWithTax: parseInt('{{amount_with_tax}}'),
+            tax: parseInt('{{tax}}'),
             service: parseInt('{{service}}'),
-            tip:0,
-            storeId:"{{PAYPHONE_STORE_ID}}", 
-            reference:"{{booking}}",
+            tip: 0,
+            storeId: "{{PAYPHONE_STORE_ID}}",
+            reference: "{{booking}}",
             currency: 'USD',
-            clientTransactionId:  '{{booking.id}}',
+            clientTransactionId: '{{booking.id}}',
             backgroundColor: "#6610f2"
         }).render('pp-button');
     }
