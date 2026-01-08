@@ -3,9 +3,13 @@ from . import views
 
 urlpatterns = [
     path('bookings/', views.bookings_list, name='bookings_list'),
-    path('bookings/<str:booking_id>/', views.booking_detail, name='booking_detail'),
+    
+    # Specific paths MUST come before generic <str:booking_id>
     path('bookings/create/step1/<int:service_id>/', views.booking_create_step1, name='booking_create_step1'),
     path('bookings/create/', views.booking_create, name='booking_create'),
+    
+    # Generic path
+    path('bookings/<str:booking_id>/', views.booking_detail, name='booking_detail'),
     
     path('bookings/<uuid:booking_id>/accept/', views.booking_accept, name='booking_accept'),
     path('bookings/<uuid:booking_id>/reject/', views.booking_reject, name='booking_reject'),
