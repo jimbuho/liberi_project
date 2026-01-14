@@ -34,7 +34,10 @@ def booking_whatsapp_notifications(sender, instance, created, **kwargs):
                 customer_name = instance.customer.get_full_name() or instance.customer.username
                 service_name = instance.get_services_display()
                 booking_date = instance.scheduled_time.strftime("%d/%m %H:%M")
-                booking_identifier = getattr(instance, 'slug', instance.id)
+                
+                # FIX: Usar slug si existe, o ID convertido explícitamente a string
+                # Evita problemas si el ID es numérico o UUID objeto
+                booking_identifier = str(instance.slug) if instance.slug else str(instance.id)
                 
                 send_whatsapp_message.delay(
                     recipient=provider_phone,
@@ -75,7 +78,9 @@ def booking_whatsapp_notifications(sender, instance, created, **kwargs):
                 
                 provider_name = instance.provider.get_full_name() or instance.provider.username
                 service_name = instance.get_services_display()
-                booking_identifier = getattr(instance, 'slug', instance.id)
+                
+                # FIX: Mismo fix que en booking_created
+                booking_identifier = str(instance.slug) if instance.slug else str(instance.id)
                 
                 send_whatsapp_message.delay(
                     recipient=customer_phone,

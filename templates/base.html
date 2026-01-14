@@ -169,6 +169,16 @@
                 min-height: 50px;
             }
         }
+
+        /* Estilos para notificaciones */
+        .notification-message {
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: normal;
+        }
     </style>
 
     {% block extra_css %}{% endblock %}
@@ -547,15 +557,28 @@
 
                 if (!notif.is_read) hasUnread = true;
 
+                // LOGICA DE FORMATO DE TEXTO
+                let message = notif.message || '';
+
+                // 1. Redondear Monto a 2 decimales (ej: Monto: $47.1499... -> Monto: $47.15)
+                message = message.replace(/(Monto:\s*\$?)(\d+\.\d+)/g, function (match, prefix, number) {
+                    return prefix + parseFloat(number).toFixed(2);
+                });
+
+                // 2. Truncar texto largo (backup lógico para el visual line-clamp)
+                if (message.length > 150) {
+                    message = message.substring(0, 150) + '...';
+                }
+
                 html += `
                     <li>
                         <a href="#" class="dropdown-item py-2 ${unreadClass}" 
                            onclick="handleNotificationClick(event, ${notif.id}, '${notif.action_url || ''}')">
                             <div class="d-flex justify-content-between align-items-start">
-                                <div class="flex-grow-1">
-                                    <strong class="d-block">${unreadIcon}${notif.title}</strong>
-                                    <small class="text-muted d-block">${notif.message}</small>
-                                    <small class="text-muted">${notif.created_at || ''}</small>
+                                <div class="flex-grow-1" style="min-width: 0;"> <!-- min-width para flex wrap -->
+                                    <strong class="d-block text-truncate">${unreadIcon}${notif.title}</strong>
+                                    <small class="text-muted d-block notification-message" title="${notif.message}">${message}</small>
+                                    <small class="text-muted" style="font-size: 0.75rem;">${notif.created_at || ''}</small>
                                 </div>
                             </div>
                         </a>
