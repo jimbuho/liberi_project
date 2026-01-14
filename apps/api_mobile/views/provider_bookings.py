@@ -94,8 +94,19 @@ class BookingAcceptView(APIView):
         
         # Enviar notificación WhatsApp si está configurado
         try:
-            from apps.whatsapp_notifications.services import send_booking_accepted
-            send_booking_accepted(booking)
+            from apps.whatsapp_notifications.services import WhatsAppService
+            
+            customer_phone = booking.customer.profile.phone if hasattr(booking.customer, 'profile') else None
+            if customer_phone:
+                WhatsAppService.send_message(
+                    recipient_number=customer_phone,
+                    template_name='booking_accepted',
+                    variables=[
+                        request.user.get_full_name(),
+                        booking.service_name or "Servicio",
+                        f"{settings.BASE_URL}/bookings/{booking.id}/"
+                    ]
+                )
         except Exception as e:
             import logging
             logger = logging.getLogger(__name__)

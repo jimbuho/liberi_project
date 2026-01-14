@@ -1,0 +1,25 @@
+✅ Tu Reserva Ha Sido Aceptada
+
+Hola {{ customer_name }},
+
+¡Excelentes noticias! Tu reserva ha sido aceptada.
+
+DETALLES DE TU RESERVA:
+- Proveedor: {{ provider_name }}
+- Teléfono: {{ provider_phone }}
+- Servicio(s): {{ services }}
+- Fecha: {{ scheduled_date }}
+- Ubicación: {{ location }}
+- Monto Total: ${{ total_cost }}
+
+PRÓXIMO PASO:
+Completa el pago para confirmar definitivamente tu reserva. 
+El proveedor está esperando la confirmación del pago.
+
+Accede a tu reserva en: {{ booking_url }}
+
+¡Gracias por confiar en Liberi!
+
+---
+El Equipo de Liberi
+{{ site_url }}

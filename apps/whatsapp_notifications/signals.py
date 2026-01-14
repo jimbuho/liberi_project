@@ -19,8 +19,11 @@ def booking_whatsapp_notifications(sender, instance, created, **kwargs):
     2. Booking aceptado (status='accepted') → Notificar al cliente
     """
     # Obtener números de teléfono
-    customer_phone = getattr(instance.customer.profile, 'phone', None)
-    provider_phone = getattr(instance.provider.profile, 'phone', None)
+    customers_profile = getattr(instance.customer, 'profile', None)
+    customer_phone = getattr(customers_profile, 'phone', None) if customers_profile else None
+    
+    # Usar el método del modelo para obtener el teléfono correcto (considera ubicación)
+    provider_phone = instance.get_notification_whatsapp()
     
     # ============================================
     # CASO 1: Nuevo booking creado
@@ -46,7 +49,7 @@ def booking_whatsapp_notifications(sender, instance, created, **kwargs):
                 
                 logger.info(
                     f"📨 WhatsApp 'booking_created' encolado para proveedor "
-                    f"{instance.provider.username} (booking #{instance.id})"
+                    f"{instance.provider.username} al número {provider_phone} (booking #{instance.id})"
                 )
                 
             except Exception as e:
@@ -58,7 +61,7 @@ def booking_whatsapp_notifications(sender, instance, created, **kwargs):
         else:
             logger.warning(
                 f"⚠️ Proveedor {instance.provider.username} no tiene teléfono "
-                f"registrado para notificación de booking #{instance.id}"
+                f"registrado (ni en perfil ni en ubicación) para booking #{instance.id}"
             )
         
         return

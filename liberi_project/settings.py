@@ -383,8 +383,8 @@ CELERY_TASK_SOFT_TIME_LIMIT = 25 * 60  # 25 minutos soft limit
 # ============================================
 TWILIO_ACCOUNT_SID = os.getenv('TWILIO_ACCOUNT_SID', '')
 TWILIO_AUTH_TOKEN = os.getenv('TWILIO_AUTH_TOKEN', '')
-TWILIO_WHATSAPP_FROM = os.getenv('TWILIO_WHATSAPP_FROM', 'whatsapp:+14155238886')
-WHATSAPP_TEST_MODE = os.getenv('WHATSAPP_TEST_MODE', 'True') == 'True'
+TWILIO_WHATSAPP_FROM = os.getenv('TWILIO_WHATSAPP_FROM', 'whatsapp:+15557726158')
+WHATSAPP_TEST_MODE = os.getenv('WHATSAPP_TEST_MODE', 'False') == 'True'
 
 CELERY_BEAT_SCHEDULE = {
     'send-service-reminders': {
@@ -409,7 +409,7 @@ TWILIO_TEMPLATES = {
         'booking_created': {
             'content_sid': os.getenv('TWILIO_TEMPLATE_BOOKING_CREATE', ''),
             'friendly_name': 'booking_created',
-            'variables_count': 4,  # nombre_cliente, servicio, fecha_hora, booking_url
+            'variables_count': 3,  # nombre_cliente, servicio, fecha_hora
         },
         'booking_accepted': {
             'content_sid': os.getenv('TWILIO_TEMPLATE_BOOKING_ACEPTED', ''),

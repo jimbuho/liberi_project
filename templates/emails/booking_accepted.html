@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Reserva Aceptada - Liberi</title>
+</head>
+<body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
+    <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 30px; text-align: center; border-radius: 10px 10px 0 0;">
+        <h1 style="color: white; margin: 0;">✅ ¡Tu Reserva Ha Sido Aceptada!</h1>
+    </div>
+    
+    <div style="background-color: #f9f9f9; padding: 30px; border-radius: 0 0 10px 10px;">
+        <p style="font-size: 16px;">Hola <strong>{{ customer_name }}</strong>,</p>
+        
+        <p style="font-size: 16px;">¡Excelentes noticias! Tu reserva ha sido aceptada.</p>
+        
+        <div style="background-color: white; padding: 20px; border-left: 4px solid #667eea; margin: 20px 0;">
+            <h2 style="color: #667eea; margin-top: 0;">DETALLES DE TU RESERVA:</h2>
+            <ul style="list-style: none; padding: 0;">
+                <li style="padding: 8px 0; border-bottom: 1px solid #eee;">
+                    <strong>Proveedor:</strong> {{ provider_name }}
+                </li>
+                <li style="padding: 8px 0; border-bottom: 1px solid #eee;">
+                    <strong>Teléfono:</strong> {{ provider_phone }}
+                </li>
+                <li style="padding: 8px 0; border-bottom: 1px solid #eee;">
+                    <strong>Servicio(s):</strong> {{ services }}
+                </li>
+                <li style="padding: 8px 0; border-bottom: 1px solid #eee;">
+                    <strong>Fecha:</strong> {{ scheduled_date }}
+                </li>
+                <li style="padding: 8px 0; border-bottom: 1px solid #eee;">
+                    <strong>Ubicación:</strong> {{ location }}
+                </li>
+                <li style="padding: 8px 0;">
+                    <strong>Monto Total:</strong> <span style="color: #667eea; font-size: 18px;">${{ total_cost }}</span>
+                </li>
+            </ul>
+        </div>
+        
+        <div style="background-color: #fff3cd; padding: 15px; border-radius: 5px; margin: 20px 0;">
+            <h3 style="color: #856404; margin-top: 0;">📋 PRÓXIMO PASO:</h3>
+            <p style="margin: 0; color: #856404;">
+                Completa el pago para confirmar definitivamente tu reserva.<br>
+                El proveedor está esperando la confirmación del pago.
+            </p>
+        </div>
+        
+        <div style="text-align: center; margin: 30px 0;">
+            <a href="{{ booking_url }}" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 15px 30px; text-decoration: none; border-radius: 5px; display: inline-block; font-weight: bold;">
+                Ver Mi Reserva
+            </a>
+        </div>
+        
+        <p style="text-align: center; color: #666; font-size: 14px; margin-top: 30px;">
+            ¡Gracias por confiar en Liberi!
+        </p>
+        
+        <hr style="border: none; border-top: 1px solid #eee; margin: 30px 0;">
+        
+        <p style="text-align: center; color: #999; font-size: 12px;">
+            El Equipo de Liberi<br>
+            <a href="{{ site_url }}" style="color: #667eea;">{{ site_url }}</a>
+        </p>
+    </div>
+</body>
+</html>

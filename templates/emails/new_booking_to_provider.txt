@@ -1,0 +1,19 @@
+📋 Nueva Reserva
+
+Hola {{ provider_name }},
+
+¡Una nueva reserva ha llegado!
+
+DETALLES:
+- Cliente: {{ customer_name }}
+- Teléfono: {{ customer_phone }}
+- Servicio: {{ service }}
+- Fecha: {{ scheduled_date }}
+- Ubicación: {{ location }}
+- Zona: {{ zone }}
+- Monto: ${{ amount }}
+
+Accede a tu panel para aceptar o rechazar esta reserva: {{ booking_url }}
+
+---
+Liberi

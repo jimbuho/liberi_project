@@ -7,4 +7,4 @@ class WhatsappNotificationsConfig(AppConfig):
     verbose_name = 'Notificaciones WhatsApp'
 
     def ready(self):
-        import whatsapp_notifications.signals
+        from . import signals
