@@ -1088,3 +1088,56 @@ def provider_coverage_remove(request, zone_id):
         messages.error(request, f'Error al remover zona: {str(e)}')
     
     return redirect('provider_coverage_manage')
+
+
+@login_required
+def customer_profile_edit(request):
+    """Vista para editar el perfil del usuario (cliente)"""
+    # Permitir a cualquier rol editar sus datos básicos
+    
+    if request.method == 'POST':
+        first_name = request.POST.get('first_name')
+        last_name = request.POST.get('last_name')
+        phone = request.POST.get('phone')
+        city_id = request.POST.get('city')
+        
+        try:
+            # Actualizar User
+            request.user.first_name = first_name
+            request.user.last_name = last_name
+            request.user.save()
+            
+            # Actualizar Profile
+            if hasattr(request.user, 'profile'):
+                profile = request.user.profile
+                profile.phone = phone
+                
+                if city_id:
+                    profile.current_city_id = city_id
+                
+                profile.save()
+            
+            AuditLog.objects.create(
+                user=request.user,
+                action='Perfil de cliente actualizado',
+                metadata={
+                    'phone': phone,
+                    'city_id': city_id
+                }
+            )
+            
+            messages.success(request, '¡Perfil actualizado exitosamente!')
+            return redirect('dashboard')
+            
+        except Exception as e:
+            messages.error(request, f'Error al actualizar perfil: {str(e)}')
+            logger.error(f"Error updating customer profile: {e}", exc_info=True)
+    
+    # Contexto para GET
+    cities = City.objects.filter(active=True).order_by('name')
+    
+    context = {
+        'cities': cities,
+        'user': request.user
+    }
+    return render(request, 'customers/profile_edit.html', context)

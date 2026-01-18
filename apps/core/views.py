@@ -5,6 +5,11 @@ from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework_simplejwt.tokens import RefreshToken
 from django.core.exceptions import ValidationError
 
+from django.views.decorators.csrf import csrf_exempt
+from django.views.decorators.http import require_POST
+import logging
+logger = logging.getLogger(__name__)
+
 from django.shortcuts import render
 
 from .models import (
@@ -359,7 +364,7 @@ def test_404_view(request):
     """Vista de prueba para simular error 404"""
     from django.http import Http404
     raise Http404("Esta es una prueba de error 404")
-
+    
 
 def test_500_view(request):
     """Vista de prueba para simular error 500"""
@@ -371,3 +376,35 @@ def test_400_view(request):
     """Vista de prueba para simular error 400"""
     from django.http import HttpResponseBadRequest
     return HttpResponseBadRequest("Esta es una prueba de error 400")
+@csrf_exempt
+@require_POST
+def sms_webhook_log_hidden(request):
+    """
+    Webhook oculto para recibir y loguear notificaciones SMS.
+    Útil para debuggear códigos de verificación en entornos donde no se tiene acceso al teléfono.
+    """
+    try:
+        # Log all POST data for inspection
+        data = request.POST.dict()
+        body = data.get('Body', 'No body found')
+        from_number = data.get('From', 'Unknown sender')
+        
+        log_message = (
+            f"\n----------------------------------------\n"
+            f"SMS WEBHOOK RECEIVED:\n"
+            f"From: {from_number}\n"
+            f"Body (Code): {body}\n"
+            f"Full Data: {data}\n"
+            f"----------------------------------------\n"
+        )
+        
+        # Log to standard logger (which shows in fly logs)
+        logger.info(log_message)
+        
+        # Also print to stdout directly to ensure it appears in container logs depending on config
+        print(log_message)
+        
+        return Response({'status': 'received', 'logged_body': body}, status=status.HTTP_200_OK)
+    except Exception as e:
+        logger.error(f"Error in sms_webhook: {str(e)}")
+        return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

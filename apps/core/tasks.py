@@ -338,25 +338,8 @@ def send_booking_accepted_to_customer_task(booking_id):
         )
         logger.info(f"✅ Email de reserva aceptada enviado a {customer.email}")
         
-        # Enviar WhatsApp si está configurado
-        try:
-            from apps.whatsapp_notifications.services import WhatsAppService
-            
-            customer_phone = customer.profile.phone if hasattr(customer, 'profile') else None
-            if customer_phone:
-                WhatsAppService.send_message(
-                    recipient_number=customer_phone,
-                    template_name='booking_accepted',
-                    variables=[
-                        booking.provider.get_full_name() or booking.provider.username,
-                        booking.get_services_display(),
-                        f"{settings.BASE_URL}/bookings/{booking.id}/"
-                    ]
-                )
-                logger.info(f"✅ WhatsApp de reserva aceptada enviado a {customer_phone}")
-        except Exception as whatsapp_error:
-            logger.error(f"⚠️ Error enviando WhatsApp (no crítico): {whatsapp_error}")
-            # No lanzar excepción para que el email se envíe de todas formas
+        # WhatsApp no se envía desde aquí para evitar duplicados (se maneja en signals.py)
+        # y para asegurar el formato correcto de la URL.
             
     except Exception as e:
         logger.error(f"❌ Error enviando email de reserva aceptada: {e}")

@@ -280,6 +280,12 @@
                                 </a>
                             </li>
                             <li>
+                                <a class="dropdown-item"
+                                    href="{% if user.profile.role == 'provider' %}{% url 'provider_profile_edit' %}{% else %}{% url 'customer_profile_edit' %}{% endif %}">
+                                    <i class="fas fa-user-edit"></i> Editar Perfil
+                                </a>
+                            </li>
+                            <li>
                                 <a class="dropdown-item" href="{% url 'change_password' %}">
                                     <i class="fas fa-lock"></i> Cambiar Contraseña
                                 </a>

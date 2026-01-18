@@ -1,0 +1,87 @@
+{% extends 'base.html' %}
+
+{% block title %}Editar Perfil - Liberi{% endblock %}
+
+{% block content %}
+<div class="container mt-4 mb-5">
+    <div class="row">
+        <div class="col-md-8 mx-auto">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h2>
+                    <i class="fas fa-user-edit"></i> Editar Mi Perfil
+                </h2>
+                <a href="{% url 'dashboard' %}" class="btn btn-outline-secondary">
+                    <i class="fas fa-arrow-left"></i> Volver
+                </a>
+            </div>
+
+            <div class="card shadow-sm">
+                <div class="card-body p-4">
+                    <form method="post">
+                        {% csrf_token %}
+                        
+                        <!-- Información Básica -->
+                        <h5 class="mb-3 text-primary"><i class="fas fa-user"></i> Información Personal</h5>
+                        
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label for="first_name" class="form-label">Nombre *</label>
+                                <input type="text" class="form-control" id="first_name" name="first_name" 
+                                       value="{{ user.first_name }}" required>
+                            </div>
+                            <div class="col-md-6">
+                                <label for="last_name" class="form-label">Apellido *</label>
+                                <input type="text" class="form-control" id="last_name" name="last_name" 
+                                       value="{{ user.last_name }}" required>
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="email" class="form-label">Email</label>
+                            <input type="email" class="form-control bg-light" id="email" 
+                                   value="{{ user.email }}" readonly>
+                            <small class="text-muted"><i class="fas fa-lock"></i> El email no se puede modificar.</small>
+                        </div>
+                        
+                        <!-- Información de Contacto -->
+                        <h5 class="mb-3 mt-4 text-primary"><i class="fas fa-address-card"></i> Datos de Contacto</h5>
+
+                        <div class="mb-3">
+                            <label for="phone" class="form-label">Teléfono *</label>
+                            <input type="text" class="form-control" id="phone" name="phone" 
+                                   value="{{ user.profile.phone }}" required>
+                            <small class="text-muted">Número de celular para notificaciones.</small>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="city" class="form-label">Ciudad Principal *</label>
+                            <select class="form-select" id="city" name="city" required>
+                                <option value="">Seleccionar ciudad...</option>
+                                {% for city in cities %}
+                                <option value="{{ city.id }}" 
+                                    {% if user.profile.current_city_id == city.id %}selected{% endif %}>
+                                    {{ city.name }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                            <small class="text-muted">Tu ciudad predeterminada para buscar servicios.</small>
+                        </div>
+
+                        <hr class="my-4">
+
+                        <!-- Botones -->
+                        <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                            <a href="{% url 'dashboard' %}" class="btn btn-outline-secondary me-md-2">
+                                Cancelar
+                            </a>
+                            <button type="submit" class="btn btn-primary px-4">
+                                <i class="fas fa-save me-2"></i> Guardar Cambios
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
