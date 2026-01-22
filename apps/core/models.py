@@ -43,6 +43,13 @@ class Profile(models.Model):
     verified = models.BooleanField('Verificado', default=False)
     created_at = models.DateTimeField('Fecha de creación', auto_now_add=True)
     updated_at = models.DateTimeField('Última actualización', auto_now=True)
+    onesignal_player_id = models.CharField(
+        'OneSignal Player ID', 
+        max_length=100, 
+        blank=True, 
+        null=True,
+        help_text='ID del dispositivo para notificaciones push'
+    )
 
     current_city = models.ForeignKey(
         'City',
@@ -1397,6 +1404,14 @@ class Payment(models.Model):
             booking=self.booking,
             action_url=f'/bookings/{self.booking.id}/'
         )
+
+        try:
+             from apps.notifications.utils import send_reservation_paid_notification
+             send_reservation_paid_notification(self.booking)
+        except Exception as e:
+             import logging
+             logger = logging.getLogger(__name__)
+             logger.error(f"Error sending OneSignal paid notification: {e}")
 
         # Enviar email de forma asincrónica
         try:

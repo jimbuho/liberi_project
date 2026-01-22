@@ -16,6 +16,10 @@ from apps.core.models import (
     Review, Notification, AuditLog, ProviderZoneCost,
     ProviderSchedule, ProviderUnavailability, SystemConfig
 )
+from apps.notifications.utils import (
+    send_new_service_request_notification, 
+    send_service_accepted_notification
+)
 
 logger = logging.getLogger(__name__)
 
@@ -449,6 +453,12 @@ def booking_create(request):
         booking=booking,
         action_url=f'/bookings/{booking.id}/'
     )
+    
+    # Enviar OneSignal y verificar DB notification
+    try:
+        send_new_service_request_notification(booking)
+    except Exception as e:
+        logger.error(f"Error sending OneSignal notification: {e}")
 
     try:
         from core.tasks import send_new_booking_to_provider_task
@@ -500,6 +510,12 @@ def booking_accept(request, booking_id):
         booking=booking,
         action_url=f'/bookings/{booking.id}/'
     )
+
+    # Enviar OneSignal y verificar DB notification
+    try:
+        send_service_accepted_notification(booking)
+    except Exception as e:
+        logger.error(f"Error sending OneSignal notification: {e}")
 
     try:
         from core.tasks import send_booking_accepted_to_customer_task
