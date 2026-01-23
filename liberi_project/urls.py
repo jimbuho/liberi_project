@@ -9,6 +9,7 @@ urlpatterns = [
     path('admin/', admin.site.urls),
     path('api/', include('apps.core.urls')),
     path('api/messaging/', include('apps.messaging.urls')),
+    path('api/notifications/', include('apps.notifications.urls')),
     
     # Mobile API v1
     path('api/v1/', include('apps.api_mobile.urls', namespace='api_mobile')),

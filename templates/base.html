@@ -18,6 +18,55 @@
         })(window, document, 'script', 'dataLayer', '{{ google_tag_manager_id }}');</script>
     <!-- End Google Tag Manager -->
 
+    <!-- OneSignal SDK -->
+    <script src="https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.js" defer=""></script>
+    <script>
+        window.OneSignalDeferred = window.OneSignalDeferred || [];
+        OneSignalDeferred.push(function (OneSignal) {
+            OneSignal.init({
+                appId: "ea3b0386-d698-4690-9fbb-9ad3136bb29a", // Liberi App ID
+                notifyButton: {
+                    enable: false,
+                },
+                allowLocalhostAsSecureOrigin: true,
+            });
+
+            // Save Player ID when subscription changes
+            OneSignal.User.PushSubscription.addEventListener("change", function (event) {
+                if (event.current.optedIn) {
+                    const subscriptionId = event.current.id;
+                    console.log("OneSignal: Suscrito con ID:", subscriptionId);
+
+                    fetch('/api/notifications/save-player-id/', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRFToken': '{{ csrf_token }}'
+                        },
+                        body: JSON.stringify({ player_id: subscriptionId })
+                    });
+                }
+            });
+
+            // Sync ID on load if already subscribed
+            setTimeout(function () {
+                try {
+                    var currentId = OneSignal.User.PushSubscription.id;
+                    var isOptedIn = OneSignal.User.PushSubscription.optedIn;
+
+                    if (isOptedIn && currentId) {
+                        console.log("OneSignal: Sync ID existente:", currentId);
+                        fetch('/api/notifications/save-player-id/', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token }}' },
+                            body: JSON.stringify({ player_id: currentId })
+                        });
+                    }
+                } catch (e) { console.error("OneSignal Sync error", e); }
+            }, 5000);
+        });
+    </script>
+
     <!-- Favicon -->
     <link rel="icon" type="image/svg+xml" href="{% static 'images/liberi_favicon.svg' %}">
 
@@ -204,6 +253,45 @@
             <a class="navbar-brand d-flex align-items-center" href="{% url 'home' %}">
                 <img src="{% static 'images/logo-liberi.png' %}" alt="Liberi" style="height: 40px;">
             </a>
+
+            <!-- Notification Banner for Desktop -->
+            {% if user.is_authenticated and not user.profile.onesignal_player_id %}
+            <div id="notification-banner" class="d-none d-md-flex align-items-center ms-3 px-3 py-1 rounded shadow-sm"
+                style="background: linear-gradient(135deg, #fcebb6 0%, #fbe08e 100%); border: 1px solid #e1c050;">
+                <span class="me-2" style="font-size: 0.9rem; color: #856404;">🔔 Activa notificaciones</span>
+                <button id="btn-activate-nav" class="btn btn-sm btn-primary py-0"
+                    style="font-size: 0.8rem;">Activar</button>
+            </div>
+            <script>
+                // Función global para activar notificaciones
+                window.activateNotifications = function () {
+                    if (window.OneSignalDeferred) {
+                        window.OneSignalDeferred.push(function (OneSignal) {
+                            OneSignal.Notifications.requestPermission().then(function (permission) {
+                                console.log("Permission result:", permission);
+                                if (permission === 'granted') {
+                                    // El listener 'change' del init se encargará de guardar el ID
+                                    // Recargamos para que desaparezca el banner
+                                    setTimeout(function () {
+                                        window.location.reload();
+                                    }, 1000);
+                                } else if (permission === 'denied') {
+                                    alert("⚠️ Las notificaciones están bloqueadas.\n\nPara activarlas:\n1. Haz clic en el candado 🔒 o ícono de configuración en la barra de dirección.\n2. Busca 'Notificaciones' y selecciona 'Permitir'.\n3. Recarga la página.");
+                                }
+                            });
+                        });
+                    } else {
+                        alert("Error: El sistema de notificaciones no se ha cargado correctamente. Por favor recarga la página.");
+                    }
+                };
+
+                const btnActivate = document.getElementById('btn-activate-nav');
+                if (btnActivate) {
+                    btnActivate.addEventListener('click', window.activateNotifications);
+                }
+            </script>
+            {% endif %}
+
             <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
                 <span class="navbar-toggler-icon"></span>
             </button>
