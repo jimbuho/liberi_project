@@ -2,6 +2,8 @@ from django.contrib import admin
 from django.urls import path, include
 from django.conf import settings
 from django.conf.urls.static import static
+from django.views.static import serve
+import os
 
 from apps.core import views
 
@@ -10,6 +12,7 @@ urlpatterns = [
     path('api/', include('apps.core.urls')),
     path('api/messaging/', include('apps.messaging.urls')),
     path('api/notifications/', include('apps.notifications.urls')),
+    path('OneSignalSDKWorker.js', serve, {'path': 'OneSignalSDKWorker.js', 'document_root': os.path.join(settings.BASE_DIR, 'static')}),
     
     # Mobile API v1
     path('api/v1/', include('apps.api_mobile.urls', namespace='api_mobile')),

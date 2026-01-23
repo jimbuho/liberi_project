@@ -63,7 +63,7 @@
     {% if not user.profile.onesignal_player_id %}
     <div class="row mb-4">
         <div class="col-12">
-            <div class="card border-warning bg-warning bg-opacity-10">
+            <div id="customer-notification-card" class="card border-warning bg-warning bg-opacity-10">
                 <div class="card-body d-flex align-items-center justify-content-between flex-wrap gap-3">
                     <div>
                         <h5 class="card-title text-warning-emphasis mb-1">
@@ -74,7 +74,7 @@
                             y mensajes del proveedor, es necesario activar las notificaciones.
                         </p>
                     </div>
-                    <button onclick="window.activateNotifications()" class="btn btn-warning text-white text-nowrap">
+                    <button onclick="window.activateNotifications(this)" class="btn btn-warning text-white text-nowrap">
                         Activar Notificaciones
                     </button>
                 </div>
@@ -123,7 +123,7 @@
                                                                 style="font-size: 0.75rem;">Cita agendada para:</small>
                                                             <strong class="text-primary">
                                                                 {{ booking.scheduled_time|date:"D d/m/Y" }}
-                                                                a las 
+                                                                a las
                                                                 {{ booking.scheduled_time|date:"H:i" }}
                                                             </strong>
                                                         </div>
@@ -138,8 +138,7 @@
                                                         <div>
                                                             <small class="text-muted d-block"
                                                                 style="font-size: 0.75rem;">Reserva creada:</small>
-                                                            <span
-                                                                class="text-secondary">
+                                                            <span class="text-secondary">
                                                                 {{booking.created_at|date:"d/m/Y H:i" }}
                                                             </span>
                                                         </div>
@@ -150,23 +149,21 @@
                                             <!-- Contador de tiempo -->
                                             {% if not booking.is_past and booking.status == 'accepted' and booking.payment_status == 'paid' %}
                                             {% if booking.hours_until <= 24 %} 
-                                            <div
-                                                class="alert alert-warning py-1 px-2 mb-2">
+                                            <div class="alert alert-warning py-1 px-2 mb-2">
                                                 <i class="fas fa-bell"></i>
                                                 <strong>
                                                     ¡Faltan {{ booking.hours_until }}
                                                     hora{{booking.hours_until|pluralize }} para tu cita!
                                                 </strong>
-                                            </div>
-                                            {% elif booking.days_until <= 7 %} 
-                                            <div class="alert alert-info py-1 px-2 mb-2">
-                                                <i class="fas fa-calendar-day"></i>
-                                                <strong>
-                                                    Faltan {{ booking.days_until }} día{{ booking.days_until|pluralize}}
-                                                    para tu cita
-                                                </strong>
-                                            </div>
-                                            {% endif %}
+                                        </div>
+                                        {% elif booking.days_until <= 7 %} <div class="alert alert-info py-1 px-2 mb-2">
+                                            <i class="fas fa-calendar-day"></i>
+                                            <strong>
+                                                Faltan {{ booking.days_until }} día{{ booking.days_until|pluralize}}
+                                                para tu cita
+                                            </strong>
+                                    </div>
+                                    {% endif %}
                                     {% elif booking.is_past and booking.status != 'completed' %}
                                     <div class="alert alert-danger py-1 px-2 mb-2">
                                         <i class="fas fa-exclamation-triangle"></i>
