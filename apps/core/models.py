@@ -1360,7 +1360,7 @@ class Payment(models.Model):
         self.booking.save()
         
         # Crear notificaciones en pantalla y enviar emails
-        self.send_payment_approved_notifications()
+        # self.send_payment_approved_notifications() # Manejado por signals
     
     def send_payment_approved_notifications(self):
         """

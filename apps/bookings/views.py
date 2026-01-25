@@ -445,26 +445,7 @@ def booking_create(request):
         payment_status='pending'
     )
     
-    Notification.objects.create(
-        user=provider,
-        notification_type='booking_created',
-        title='📋 Nueva Reserva Recibida',
-        message=f'{request.user.get_full_name() or request.user.username} ha creado una nueva reserva para {scheduled_datetime.strftime("%d/%m/%Y %H:%M")}. Monto: ${total_cost}',
-        booking=booking,
-        action_url=f'/bookings/{booking.id}/'
-    )
-    
-    # Enviar OneSignal y verificar DB notification
-    try:
-        send_new_service_request_notification(booking)
-    except Exception as e:
-        logger.error(f"Error sending OneSignal notification: {e}")
-
-    try:
-        from core.tasks import send_new_booking_to_provider_task
-        send_new_booking_to_provider_task.delay(booking_id=str(booking.id))
-    except Exception as e:
-        logger.error(f"Error enviando email al proveedor: {e}")
+    # La notificación se maneja vía signals (apps.notifications.signals)
     
     AuditLog.objects.create(
         user=request.user,
@@ -502,26 +483,8 @@ def booking_accept(request, booking_id):
     booking.status = 'accepted'
     booking.save()
 
-    Notification.objects.create(
-        user=booking.customer,
-        notification_type='booking_accepted',
-        title='✅ Reserva Aceptada',
-        message=f'{booking.provider.get_full_name() or booking.provider.username} ha aceptado tu reserva para el {booking.scheduled_time.strftime("%d/%m/%Y %H:%M")}. El siguiente paso es completar el pago.',
-        booking=booking,
-        action_url=f'/bookings/{booking.id}/'
-    )
+    # Notificaciones manejadas por signals
 
-    # Enviar OneSignal y verificar DB notification
-    try:
-        send_service_accepted_notification(booking)
-    except Exception as e:
-        logger.error(f"Error sending OneSignal notification: {e}")
-
-    try:
-        from core.tasks import send_booking_accepted_to_customer_task
-        send_booking_accepted_to_customer_task.delay(booking_id=str(booking.id))
-    except Exception as e:
-        logger.error(f"Error enviando email al cliente: {e}")
     
     AuditLog.objects.create(
         user=request.user,
@@ -605,23 +568,8 @@ def booking_complete(request, booking_id):
             booking.status = 'completed'
             messages.success(request, '✅ ¡Reserva completada exitosamente! Ambas partes han confirmado. El dinero ahora estará disponible para retirar.')
             
-            Notification.objects.create(
-                user=booking.customer,
-                notification_type='booking_completed',
-                title='✅ Servicio Completado',
-                message=f'Tu servicio con {booking.provider.get_full_name()} ha sido completado exitosamente.',
-                booking=booking,
-                action_url=f'/bookings/{booking.id}/'
-            )
-            
-            Notification.objects.create(
-                user=booking.provider,
-                notification_type='booking_completed',
-                title='✅ Servicio Completado',
-                message=f'Has completado el servicio con {booking.customer.get_full_name()}. El dinero estará disponible para retiro.',
-                booking=booking,
-                action_url=f'/bookings/{booking.id}/'
-            )
+            # Notificaciones manejadas por signals
+
             
             AuditLog.objects.create(
                 user=request.user,
@@ -673,23 +621,8 @@ def booking_complete_with_code(request, booking_id):
             booking.customer_completed_at = timezone.now()
             booking.save()
             
-            Notification.objects.create(
-                user=booking.customer,
-                notification_type='booking_completed',
-                title='✅ Servicio Completado',
-                message=f'Tu servicio con {booking.provider.get_full_name()} ha sido completado exitosamente.',
-                booking=booking,
-                action_url=f'/bookings/{booking.id}/'
-            )
-            
-            Notification.objects.create(
-                user=booking.provider,
-                notification_type='booking_completed',
-                title='✅ Servicio Completado',
-                message=f'Has completado el servicio con {booking.customer.get_full_name()}. El dinero estará disponible para retiro.',
-                booking=booking,
-                action_url=f'/bookings/{booking.id}/'
-            )
+            # Notificaciones manejadas por signals
+
             
             AuditLog.objects.create(
                 user=request.user,

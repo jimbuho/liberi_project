@@ -526,34 +526,9 @@ def payphone_callback(request):
                     booking.save()
                     logger.info(f"Booking actualizado a paid: {booking.id}")
                     
-                    # Crear notificaciones
-                    Notification.objects.create(
-                        user=booking.customer,
-                        notification_type='payment',
-                        title='💳 Pago Confirmado',
-                        message=f'Tu pago de ${booking.total_cost} ha sido confirmado',
-                        booking=booking,
-                        action_url=f'/bookings/{booking.id}/'
-                    )
-                    
-                    Notification.objects.create(
-                        user=booking.provider,
-                        notification_type='payment',
-                        title='💰 Pago Recibido',
-                        message=f'Recibiste un pago de ${booking.total_cost} por tu servicio',
-                        booking=booking,
-                        action_url=f'/bookings/{booking.id}/'
-                    )
-                    logger.info("Notificaciones creadas")
-                    
-                    # Enviar emails (opcional - con try/except para que no rompa si falla)
-                    try:
-                        from core.tasks import send_payment_confirmed_to_customer_task, send_payment_received_to_provider_task
-                        send_payment_confirmed_to_customer_task.delay(booking.id)
-                        send_payment_received_to_provider_task.delay(booking.id)
-                        logger.info("Emails encolados")
-                    except Exception as email_error:
-                        logger.warning(f"No se pudieron enviar emails: {email_error}")
+                    # Crear notificaciones (Manejado por Signals)
+                    logger.info("Notificaciones delegadas a signals")
+
                     
                     messages.success(request, '¡Pago confirmado exitosamente! Tu reserva está activa.')
                 else:

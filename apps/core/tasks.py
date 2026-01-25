@@ -1235,3 +1235,69 @@ Sistema de Validación Automática Liberi
         
     except Exception as e:
         logger.error(f"❌ Error enviando notificación de validación a admins: {e}")
+
+# ============================================
+# TAREA: Recordatorio de Cita (Email)
+# ============================================
+
+@shared_task
+def send_appointment_reminder_email_task(booking_id, target='customer'):
+    """
+    Envía email de recordatorio de cita (1 hora antes)
+    target: 'customer' o 'provider'
+    """
+    try:
+        booking = Booking.objects.get(id=booking_id)
+        
+        # Determine recipient and context based on target
+        if target == 'customer':
+            recipient = booking.customer
+            recipient_email = recipient.email
+            subject = '⏰ Recordatorio: Tu cita es pronto'
+            other_party_name = booking.provider.get_full_name() or booking.provider.username
+            url_path = f"/bookings/{booking.slug or str(booking.id)[:8]}/"
+        else: # provider
+            recipient = booking.provider
+            recipient_email = recipient.email
+            subject = '⏰ Recordatorio: Tienes un servicio pronto'
+            other_party_name = booking.customer.get_full_name() or booking.customer.username
+            url_path = f"/provider/bookings/{booking.slug or str(booking.id)[:8]}/"
+
+        context = {
+            'user_name': recipient.get_full_name() or recipient.username,
+            'other_party_name': other_party_name,
+            'service_name': booking.service_list[0].get('name', 'Servicio') if booking.service_list else 'Servicio',
+            'scheduled_time': booking.scheduled_time.strftime("%H:%M"),
+            'booking_url': f"{settings.BASE_URL}{url_path}",
+            'site_name': 'Liberi'
+        }
+        
+        # Simple text content for now (can expand to HTML template if needed)
+        message = f"""
+Hola {context['user_name']},
+
+Este es un recordatorio de que tienes un servicio programado pronto.
+
+DETALLES:
+- Servicio: {context['service_name']}
+- Hora: {context['scheduled_time']}
+- Con: {context['other_party_name']}
+
+Ver detalles: {context['booking_url']}
+
+---
+Liberi
+        """
+        
+        send_mail(
+            subject=subject,
+            message=message,
+            from_email=settings.DEFAULT_FROM_EMAIL,
+            recipient_list=[recipient_email],
+            fail_silently=False,
+        )
+        logger.info(f"✅ Email de recordatorio enviado a {target} ({recipient_email})")
+        
+    except Exception as e:
+        logger.error(f"❌ Error enviando email de recordatorio se servicio a {target}: {e}")
+        raise

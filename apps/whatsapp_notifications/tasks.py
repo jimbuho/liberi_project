@@ -20,15 +20,12 @@ from apps.whatsapp_notifications.services import WhatsAppService
 @shared_task
 def send_service_reminders():
     """
-    Envía recordatorios WhatsApp 1 hora antes del servicio.
+    Envía recordatorios (WhatsApp, Email, Push, DB) 1 hora antes del servicio.
     Se ejecuta cada 15 minutos vía Celery Beat.
-    
-    IMPORTANTE: Incluye 3 variables para el template 'reminder':
-    1. Nombre del servicio
-    2. Hora del servicio
-    3. URL del booking
     """
-    logger.info("🔔 Iniciando tarea de recordatorios WhatsApp...")
+    from apps.notifications.utils import send_appointment_reminder_notification
+    
+    logger.info("🔔 Iniciando tarea de recordatorios multicanal...")
     
     now = timezone.now()
     time_window_start = now + timedelta(minutes=45)
@@ -46,72 +43,18 @@ def send_service_reminders():
     
     logger.info(f"📋 Reservas encontradas: {pending_reminders.count()}")
     
-    sent_count = 0
+    processed_count = 0
     
     for booking in pending_reminders:
         try:
-            # ============================================
-            # DATOS DEL BOOKING
-            # ============================================
-            customer_phone = booking.customer.profile.phone
-            provider_phone = booking.provider.profile.phone
-            
-            # Nombre del servicio
-            if booking.service_list and len(booking.service_list) > 0:
-                service_name = booking.service_list[0].get('name', 'Servicio')
-            else:
-                service_name = 'Servicio'
-            
-            # Hora formateada
-            scheduled_time = booking.scheduled_time
-            time_str = scheduled_time.strftime("%H:%M")
-            
-            # IMPORTANTE: URL del booking (3era variable)
-            booking_identifier = booking.slug if booking.slug else str(booking.id)[:8]
-            
-            logger.info(f"📅 Booking {booking.id}: {service_name} a las {time_str}")
-            
-            # ============================================
-            # RECORDATORIO PARA EL CLIENTE
-            # ============================================
-            if customer_phone:
-                logger.info(f"📱 Enviando recordatorio a cliente: {customer_phone}")
-                try:
-                    send_whatsapp_message.delay(
-                        phone=customer_phone,
-                        template_type='reminder',
-                        variables=[service_name, time_str, booking_identifier]
-                    )
-                    logger.info(f"✅ Recordatorio cliente encolado")
-                    sent_count += 1
-                except Exception as e:
-                    logger.error(f"❌ Error con recordatorio a cliente: {e}")
-            else:
-                logger.warning(f"⚠️ Cliente sin teléfono")
-            
-            # ============================================
-            # RECORDATORIO PARA EL PROVEEDOR
-            # ============================================
-            if provider_phone:
-                logger.info(f"📱 Enviando recordatorio a proveedor: {provider_phone}")
-                try:
-                    send_whatsapp_message.delay(
-                        phone=provider_phone,
-                        template_type='reminder',
-                        variables=[service_name, time_str, booking_identifier]
-                    )
-                    logger.info(f"✅ Recordatorio proveedor encolado")
-                    sent_count += 1
-                except Exception as e:
-                    logger.error(f"❌ Error con recordatorio a proveedor: {e}")
-            else:
-                logger.warning(f"⚠️ Proveedor sin teléfono")
-                
+            logger.info(f"Processing reminder for booking {booking.id}")
+            send_appointment_reminder_notification(booking)
+            processed_count += 1
         except Exception as e:
-            logger.error(f"❌ Error procesando booking {booking.id}: {e}", exc_info=True)
+            logger.error(f"❌ Error procesando recordatorio para booking {booking.id}: {e}", exc_info=True)
     
-    logger.info(f"✅ Recordatorios encolados: {sent_count}")
-    return {'sent': sent_count, 'total_pending': pending_reminders.count()}
+    logger.info(f"✅ Recordatorios procesados: {processed_count}")
+    return {'processed': processed_count, 'total_pending': pending_reminders.count()}
 
 
 # ============================================
