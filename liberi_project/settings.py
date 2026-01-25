@@ -81,6 +81,7 @@ INSTALLED_APPS = [
     'apps.messaging',
     'apps.frontend',
     'apps.legal',
+    'apps.notifications',  # ← CRÍTICO: Sistema de notificaciones in-app
     'apps.whatsapp_notifications',
     
     # New refactored apps
