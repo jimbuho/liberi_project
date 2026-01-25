@@ -14,17 +14,26 @@ logger = logging.getLogger(__name__)
 
 def _create_notification_if_not_exists(user, title, message, notif_type, booking, action_url):
     """Helper to create DB notification only if it doesn't duplicate recently (by type and user)"""
-    if not Notification.objects.filter(user=user, booking=booking, notification_type=notif_type).exists():
-        Notification.objects.create(
-            user=user,
-            title=title,
-            message=message,
-            notification_type=notif_type,
-            booking=booking,
-            action_url=action_url
+    logger.debug(
+        f"Attempting to create Notification: user={user.id if user else 'None'}, type={notif_type}, booking={booking.id if booking else 'None'}"
+    )
+    if Notification.objects.filter(user=user, booking=booking, notification_type=notif_type).exists():
+        logger.info(
+            f"Duplicate Notification detected for user={user.id if user else 'None'}, type={notif_type}, booking={booking.id if booking else 'None'} – skipping creation."
         )
-        return True
-    return False
+        return False
+    Notification.objects.create(
+        user=user,
+        title=title,
+        message=message,
+        notification_type=notif_type,
+        booking=booking,
+        action_url=action_url,
+    )
+    logger.info(
+        f"Notification created: user={user.id if user else 'None'}, type={notif_type}, booking={booking.id if booking else 'None'}"
+    )
+    return True
 
 def send_new_service_request_notification(booking):
     """

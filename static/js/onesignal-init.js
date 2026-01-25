@@ -216,7 +216,7 @@
         // Obtener App ID desde variable global o elemento en el DOM
         const appId = window.ONESIGNAL_APP_ID || 'ea3b0386-d698-4690-9fbb-9ad3136bb29a';
 
-        console.log('🔔 Inicializando OneSignal con App ID:', appId.substring(0, 20) + '...');
+        // console.log('🔔 Inicializando OneSignal con App ID:', appId.substring(0, 20) + '...');
 
         OneSignal.init({
             appId: appId,
@@ -228,13 +228,13 @@
             allowLocalhostAsSecureOrigin: true,
         })
             .then(function () {
-                console.log('✅ OneSignal inicializado correctamente');
+                // console.log('✅ OneSignal inicializado correctamente');
 
                 // Verificar estado de suscripción
                 const isOptedIn = OneSignal.User.PushSubscription.optedIn;
                 const playerId = OneSignal.User.PushSubscription.id;
 
-                console.log('OneSignal Estado - OptedIn:', isOptedIn, 'PlayerId:', playerId ? playerId.substring(0, 20) + '...' : 'null');
+                // console.log('OneSignal Estado - OptedIn:', isOptedIn, 'PlayerId:', playerId ? playerId.substring(0, 20) + '...' : 'null');
 
                 // Si ya está suscrito, guardar ID
                 if (isOptedIn && playerId) {
@@ -247,7 +247,7 @@
 
         // Escuchar cambios en la suscripción
         OneSignal.User.PushSubscription.addEventListener('change', function (event) {
-            console.log('OneSignal: Cambio en suscripción detectado');
+            // console.log('OneSignal: Cambio en suscripción detectado');
 
             if (event.current && event.current.optedIn && event.current.id) {
                 savePlayerId(event.current.id);
@@ -264,11 +264,11 @@
                     savePlayerId(playerId);
                 }
             } catch (e) {
-                console.error('Error en sync periódico:', e);
+                // Silently fail in loop
             }
         }, 5 * 60 * 1000);
     });
 
-    console.log('📱 OneSignal script cargado');
+    // console.log('📱 OneSignal script cargado');
 
 })();

@@ -18,7 +18,10 @@ from uuid import UUID
 
 import requests
 import logging
-import bleach
+try:
+    import bleach
+except ImportError:
+    bleach = None  # Fallback stub if bleach is not installed
 
 from django.db import transaction
 

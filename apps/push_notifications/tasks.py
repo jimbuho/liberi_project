@@ -1,6 +1,7 @@
 from celery import shared_task
 from django.contrib.auth.models import User
 from django.utils import timezone
+from django.conf import settings
 from datetime import timedelta
 import logging
 
