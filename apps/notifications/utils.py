@@ -102,13 +102,12 @@ def send_service_accepted_notification(booking):
             
             provider_name = provider.get_full_name() or provider.username
             service_name = booking.service_list[0].get('name', 'Servicio') if booking.service_list else 'Servicio'
-            booking_url = f"{settings.BASE_URL}/bookings/{booking.slug or str(booking.id)[:8]}/"
 
             if hasattr(customer, 'profile') and customer.profile.phone:
                 send_whatsapp_message.delay(
                     phone=customer.profile.phone,
                     template_name='booking_accepted',
-                    variables=[provider_name, service_name, booking_url]
+                    variables=[provider_name, service_name]
                 )
         except Exception as e:
              logger.error(f"WhatsApp error (booking_accepted): {e}")
@@ -140,23 +139,6 @@ def send_reservation_paid_notification(booking):
         except Exception as e:
             logger.error(f"Email error (payment_prov): {e}")
 
-    # --- CLIENTE ---
-    title_cust = "Pago Exitoso"
-    msg_cust = f"Tu pago ha sido procesado correctamente. ¡Tu cita está confirmada!"
-    url_cust = f"/bookings/{booking.slug}/"
-    
-    if _create_notification_if_not_exists(customer, title_cust, msg_cust, 'payment_verified', booking, url_cust):
-        try:
-            OneSignalService.send_to_user(customer, title_cust, msg_cust, url=url_cust)
-        except Exception as e:
-            logger.error(f"OneSignal error (payment_cust): {e}")
-            
-        try:
-            if payment:
-                send_payment_approved_to_customer_task.delay(payment_id=payment.id)
-        except Exception as e:
-            logger.error(f"Email error (payment_cust): {e}")
-
         # 4. WhatsApp (TWILIO_TEMPLATE_BOOKING_CONFIRMED)
         try:
             from apps.whatsapp_notifications.tasks import send_whatsapp_message
@@ -174,6 +156,24 @@ def send_reservation_paid_notification(booking):
         except Exception as e:
             logger.error(f"WhatsApp error (payment_prov): {e}")
 
+    # --- CLIENTE ---
+    title_cust = "Pago Exitoso"
+    msg_cust = f"Tu pago ha sido procesado correctamente. ¡Tu cita está confirmada!"
+    url_cust = f"/bookings/{booking.slug}/"
+    
+    if _create_notification_if_not_exists(customer, title_cust, msg_cust, 'payment_verified', booking, url_cust):
+        try:
+            OneSignalService.send_to_user(customer, title_cust, msg_cust, url=url_cust)
+        except Exception as e:
+            logger.error(f"OneSignal error (payment_cust): {e}")
+            
+        try:
+            if payment:
+                send_payment_approved_to_customer_task.delay(payment_id=payment.id)
+        except Exception as e:
+            logger.error(f"Email error (payment_cust): {e}")
+
+def send_payment_verified_notification(booking, payment):
     """
     Wrapper for manual payment verification
     """
@@ -252,13 +252,12 @@ def send_appointment_reminder_notification(booking):
             from apps.whatsapp_notifications.tasks import send_whatsapp_message
 
             service_name = booking.service_list[0].get('name', 'Servicio') if booking.service_list else 'Servicio'
-            full_booking_url_prov = f"{settings.BASE_URL}{booking_url_prov}"
             
             if hasattr(provider, 'profile') and provider.profile.phone:
                 send_whatsapp_message.delay(
                      phone=provider.profile.phone,
                      template_name='reminder',
-                     variables=[service_name, time_str, full_booking_url_prov]
+                     variables=[service_name, time_str]
                 )
         except Exception as e:
             logger.error(f"WhatsApp reminder error (provider): {e}")

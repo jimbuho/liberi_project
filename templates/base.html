@@ -98,15 +98,8 @@
             });
         }
 
-        OneSignalDeferred.push(function (OneSignal) {
-            OneSignal.init({
-                appId: "ea3b0386-d698-4690-9fbb-9ad3136bb29a", // Liberi App ID
-                notifyButton: {
-                    enable: false,
-                },
-                allowLocalhostAsSecureOrigin: true,
-            });
-
+        // Custom Logic to Save Player ID
+        window.OneSignalDeferred.push(function (OneSignal) {
             // Save Player ID when subscription changes
             OneSignal.User.PushSubscription.addEventListener("change", function (event) {
                 if (event.current.optedIn && event.current.id) {
