@@ -424,7 +424,7 @@ TWILIO_TEMPLATES = {
         'booking_accepted': {
             'content_sid': os.getenv('TWILIO_TEMPLATE_BOOKING_ACEPTED', ''),
             'friendly_name': 'booking_accepted',
-            'variables_count': 3,  # nombre_proveedor, servicio, booking_url
+            'variables_count': 2,  # nombre_proveedor, servicio, booking_url
         },
         'payment_confirmed': {
             'content_sid': os.getenv('TWILIO_TEMPLATE_BOOKING_CONFIRMED', ''),
@@ -434,7 +434,7 @@ TWILIO_TEMPLATES = {
         'reminder': {
             'content_sid': os.getenv('TWILIO_TEMPLATE_BOOKING_REMINDER', ''),
             'friendly_name': 'reminder',
-            'variables_count': 3,  # servicio, hora, booking_url
+            'variables_count': 2,  # servicio, hora, booking_url
         },
     }
 
