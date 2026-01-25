@@ -7,4 +7,5 @@ def global_context(request):
     return {
         'google_tag_manager_id': getattr(settings, 'GOOGLE_TAG_MANAGER_ID', None),
         'base_url': settings.BASE_URL,
+        'ONESIGNAL_APP_ID': settings.ONESIGNAL_APP_ID,
     }
