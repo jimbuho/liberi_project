@@ -292,6 +292,8 @@
         }
     </style>
 
+    <script src="https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.js" defer></script>
+
     {% block extra_css %}{% endblock %}
 </head>
 
@@ -771,6 +773,9 @@
         target="_blank" rel="noopener noreferrer">
         <i class="fab fa-whatsapp my-float"></i>
     </a>
+
+    <script>window.ONESIGNAL_APP_ID = '{{ ONESIGNAL_APP_ID }}';</script>
+    <script src="{% static 'js/onesignal-init.js' %}"></script>
 
     {% block extra_js %}{% endblock %}
 </body>

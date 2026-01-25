@@ -16,6 +16,9 @@ urlpatterns = [
     
     # Mobile API v1
     path('api/v1/', include('apps.api_mobile.urls', namespace='api_mobile')),
+
+    # Onesignal
+    path('api/push/', include('apps.push_notifications.urls')),
     
     # New refactored apps
     path('', include('apps.authentication.urls')),

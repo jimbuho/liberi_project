@@ -96,3 +96,4 @@ numpy==1.26.4
 # HTML Sanitization
 # ============================================
 bleach==6.1.0
+onesignal-sdk==2.0.0

@@ -89,6 +89,9 @@ INSTALLED_APPS = [
     # Celery y Beat
     'django_celery_beat',
     'django_celery_results',
+
+    # One Signal Notifications
+    'apps.push_notifications',
 ]
 
 MIDDLEWARE = [
@@ -395,6 +398,10 @@ CELERY_BEAT_SCHEDULE = {
         'task': 'core.tasks.check_uncompleted_services',
         'schedule': crontab(minute=0),  # Cada hora en punto
     },
+    'send-push-reminders': {
+        'task': 'push_notifications.tasks.send_push_reminders',
+        'schedule': 3600.0,
+    },
 }
 
 # Agregar al final
@@ -502,3 +509,7 @@ PROVIDER_VERIFICATION_CONFIG['prohibited_keywords'] = {
         'servicios sexuales', 'contenido adulto',
     ],
 }
+
+ONESIGNAL_APP_ID = os.getenv('ONESIGNAL_APP_ID', '')
+ONESIGNAL_REST_API_KEY = os.getenv('ONESIGNAL_REST_API_KEY', '')
+PUSH_NOTIFICATIONS_ENABLED = os.getenv('PUSH_NOTIFICATIONS_ENABLED', 'True') == 'True'
