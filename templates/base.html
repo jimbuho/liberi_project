@@ -20,106 +20,7 @@
 
     <!-- OneSignal SDK -->
     {% if user.is_authenticated %}
-    <script src="https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.js" defer=""></script>
-    <script>
-        window.OneSignalDeferred = window.OneSignalDeferred || [];
-
-        // Función global para activar notificaciones (disponible para todos los botones)
-        window.activateNotifications = function (btnElement) {
-            // Feedback visual inmediato
-            let originalText = '';
-            if (btnElement) {
-                originalText = btnElement.innerHTML;
-                btnElement.disabled = true;
-                btnElement.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Activando...';
-            }
-
-            // Mostrar loader global también para mayor claridad
-            const globalLoader = document.getElementById('globalLoader');
-            if (globalLoader) globalLoader.classList.add('active');
-
-            if (window.OneSignalDeferred) {
-                window.OneSignalDeferred.push(function (OneSignal) {
-                    OneSignal.Notifications.requestPermission().then(function (permission) {
-                        console.log("Permission result:", permission);
-                        if (permission === 'granted') {
-                            if (btnElement) btnElement.innerHTML = '<i class="fas fa-check"></i> ¡Listo!';
-
-                            // Ocultar elementos de notificación inmediatamente
-                            ['notification-banner', 'customer-notification-card', 'provider-notification-alert'].forEach(id => {
-                                const el = document.getElementById(id);
-                                if (el) el.style.display = 'none';
-                            });
-
-                            // Fetch para guardar ID inmediatamente
-                            if (OneSignal.User.PushSubscription.id) {
-                                savePlayerId(OneSignal.User.PushSubscription.id);
-                            }
-                            // Recargamos para actualizar UI
-                            setTimeout(function () {
-                                window.location.reload();
-                            }, 1500);
-                        } else if (permission === 'denied') {
-                            if (globalLoader) globalLoader.classList.remove('active');
-                            if (btnElement) {
-                                btnElement.disabled = false;
-                                btnElement.innerHTML = originalText;
-                            }
-                            alert("⚠️ Las notificaciones están bloqueadas.\n\nPara activarlas:\n1. Haz clic en el candado 🔒 o ícono de configuración en la barra de dirección, junto a la URL.\n2. Busca 'Notificaciones' y cambia el interruptor a 'Permitir' o 'ON'.\n3. Cierra este mensaje y recarga la página.");
-                        } else {
-                            // Default / Dismissed
-                            if (globalLoader) globalLoader.classList.remove('active');
-                            if (btnElement) {
-                                btnElement.disabled = false;
-                                btnElement.innerHTML = originalText;
-                            }
-                        }
-                    });
-                });
-            } else {
-                if (globalLoader) globalLoader.classList.remove('active');
-                if (btnElement) {
-                    btnElement.disabled = false;
-                    btnElement.innerHTML = originalText;
-                }
-                alert("Error: El sistema de notificaciones no se ha cargado correctamente. Por favor recarga la página.");
-            }
-        };
-
-        function savePlayerId(id) {
-            console.log("OneSignal: Guardando ID:", id);
-            fetch('/api/notifications/save-player-id/', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRFToken': '{{ csrf_token }}'
-                },
-                body: JSON.stringify({ player_id: id })
-            });
-        }
-
-        // Custom Logic to Save Player ID
-        window.OneSignalDeferred.push(function (OneSignal) {
-            // Save Player ID when subscription changes
-            OneSignal.User.PushSubscription.addEventListener("change", function (event) {
-                if (event.current.optedIn && event.current.id) {
-                    savePlayerId(event.current.id);
-                }
-            });
-
-            // Sync ID on load if already subscribed
-            setTimeout(function () {
-                try {
-                    var currentId = OneSignal.User.PushSubscription.id;
-                    var isOptedIn = OneSignal.User.PushSubscription.optedIn;
-
-                    if (isOptedIn && currentId) {
-                        savePlayerId(currentId);
-                    }
-                } catch (e) { console.error("OneSignal Sync error", e); }
-            }, 5000);
-        });
-    </script>
+    <script src="https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.js" defer></script>
     {% endif %}
 
     <!-- Favicon -->
@@ -284,8 +185,6 @@
             white-space: normal;
         }
     </style>
-
-    <script src="https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.js" defer></script>
 
     {% block extra_css %}{% endblock %}
 </head>
@@ -767,8 +666,9 @@
         <i class="fab fa-whatsapp my-float"></i>
     </a>
 
+    <!-- OneSignal Initialization -->
     <script>window.ONESIGNAL_APP_ID = '{{ ONESIGNAL_APP_ID }}';</script>
-    <script src="{% static 'js/onesignal-init.js' %}"></script>
+    <script src="{% static 'js/onesignal-init.js' %}?v=2.0"></script>
 
     {% block extra_js %}{% endblock %}
 </body>

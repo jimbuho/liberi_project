@@ -31,6 +31,9 @@ CSRF_TRUSTED_ORIGINS = [
     "https://liberi.app",
     "https://www.liberi.app",  # Si usas www
     "http://localhost:8000",
+    # OneSignal domains - NECESARIO para push notifications
+    "https://onesignal.com",
+    "https://api.onesignal.com",
 ]
 
 # ============================================
@@ -510,6 +513,9 @@ PROVIDER_VERIFICATION_CONFIG['prohibited_keywords'] = {
     ],
 }
 
+# ============================================
+# ONESIGNAL PUSH NOTIFICATIONS CONFIGURATION
+# ============================================
 ONESIGNAL_APP_ID = os.getenv('ONESIGNAL_APP_ID', '')
 ONESIGNAL_REST_API_KEY = os.getenv('ONESIGNAL_REST_API_KEY', '')
 PUSH_NOTIFICATIONS_ENABLED = os.getenv('PUSH_NOTIFICATIONS_ENABLED', 'True') == 'True'
