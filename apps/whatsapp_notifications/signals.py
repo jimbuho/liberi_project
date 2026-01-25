@@ -44,8 +44,7 @@ def booking_whatsapp_notifications(sender, instance, created, **kwargs):
                     variables=[
                         customer_name,
                         service_name,
-                        booking_date,
-                        booking_identifier
+                        booking_date
                     ]
                 )
                 
