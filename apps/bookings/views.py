@@ -373,22 +373,8 @@ def booking_create(request):
         )
         return redirect('service_detail', service_code=service.service_code)
     
-    # Validar duplicados
-    bookings_that_day = Booking.objects.filter(
-        customer=request.user,
-        provider=provider,
-        scheduled_time__date=scheduled_datetime.date(),
-        status__in=['pending', 'accepted'],
-        payment_status__in=['pending', 'pending_validation', 'paid']
-    ).values_list('id', 'service_list')
-    
-    for booking_id, service_list in bookings_that_day:
-        if service_list and isinstance(service_list, list):
-            for service_item in service_list:
-                item_service_id = service_item.get('service_id')
-                if int(item_service_id) == int(service_id):
-                    messages.error(request, f'Ya tienes una reserva del servicio "{service.name}" para el {scheduled_datetime.strftime("%d/%m")}.')
-                    return redirect('service_detail', service_code=service.service_code)
+    # Validar duplicados - ELIMINADO para permitir múltiples reservas
+    # bookings_that_day = Booking.objects.filter(...)
     
     available_slots = get_available_time_slots(
         provider, 
