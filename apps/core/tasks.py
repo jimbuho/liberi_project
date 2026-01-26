@@ -1301,3 +1301,85 @@ Liberi
     except Exception as e:
         logger.error(f"❌ Error enviando email de recordatorio se servicio a {target}: {e}")
         raise
+
+# ============================================
+# NOTIFICACIONES DE PAGO POR TRANSFERENCIA
+# ============================================
+
+@shared_task
+def send_payment_proof_received_task(booking_id, customer_email, customer_name, amount):
+    """
+    Envía email al cliente confirmando que recibimos su comprobante de pago
+    """
+    try:
+        subject = '💳 Comprobante de Pago Recibido - Liberi'
+        message = f"""
+Hola {customer_name},
+
+Hemos recibido tu comprobante de pago por transferencia bancaria.
+
+DETALLES:
+- Reserva: #{booking_id}
+- Monto: ${amount}
+
+PRÓXIMOS PASOS:
+Nuestro equipo está validando tu pago. Este proceso generalmente toma entre 1-4 horas hábiles.
+Te notificaremos tan pronto como tu pago sea confirmado.
+
+¿Tienes preguntas? Contáctanos en soporte@liberi.app
+
+¡Gracias por confiar en Liberi!
+
+---
+El Equipo de Liberi
+        """
+        
+        send_mail(
+            subject=subject,
+            message=message,
+            from_email=settings.DEFAULT_FROM_EMAIL,
+            recipient_list=[customer_email],
+            fail_silently=False,
+        )
+        logger.info(f"✅ Email de comprobante recibido enviado a {customer_email}")
+        
+    except Exception as e:
+        logger.error(f"❌ Error enviando email de comprobante recibido: {e}")
+
+
+@shared_task
+def notify_admin_payment_pending_task(booking_id, customer_name, amount, admin_email_list):
+    """
+    Notifica a los administradores que hay un comprobante de pago pendiente de validación
+    """
+    try:
+        subject = f'[Liberi] 🔔 Nuevo Comprobante de Pago por Validar - Reserva #{booking_id}'
+        message = f"""
+Hola Administrador,
+
+Se ha recibido un nuevo comprobante de pago por transferencia bancaria que requiere validación.
+
+DETALLES:
+- Reserva: #{booking_id}
+- Cliente: {customer_name}
+- Monto: ${amount}
+
+ACCIÓN REQUERIDA:
+Por favor, revisa el comprobante y valida el pago en el panel de administración:
+{settings.BASE_URL}/admin/core/paymentproof/
+
+---
+Sistema Liberi
+        """
+        
+        send_mail(
+            subject=subject,
+            message=message,
+            from_email=settings.DEFAULT_FROM_EMAIL,
+            recipient_list=admin_email_list,
+            fail_silently=False,
+        )
+        logger.info(f"✅ Notificación de pago pendiente enviada a {len(admin_email_list)} admins")
+        
+    except Exception as e:
+        logger.error(f"❌ Error enviando notificación a admins: {e}")

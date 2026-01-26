@@ -85,8 +85,7 @@ def booking_whatsapp_notifications(sender, instance, created, **kwargs):
                     template_name='booking_accepted',
                     variables=[
                         provider_name,
-                        service_name,
-                        booking_identifier
+                        service_name
                     ]
                 )
                 

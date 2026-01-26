@@ -1479,23 +1479,19 @@ class PaymentProofAdmin(admin.ModelAdmin):
             booking.payment_status = 'paid'
             booking.save()
             
-            # Notificaciones (código existente)
-            Notification.objects.create(
-                user=booking.customer,
-                notification_type='payment_verified',
-                title='✅ Pago Verificado',
-                message=f'Tu pago para la reserva #{booking.id} ha sido verificado y confirmado.',
+            # 🔥 CREAR Payment para disparar señales automáticas
+            # Esto dispara handle_payment_notification -> send_reservation_paid_notification
+            # que envía notificaciones in-app, push y WhatsApp
+            Payment.objects.create(
                 booking=booking,
-                action_url=f'/bookings/{booking.id}/'
-            )
-            
-            Notification.objects.create(
-                user=booking.provider,
-                notification_type='payment_verified',
-                title='✅ Pago Confirmado',
-                message=f'El pago de {booking.customer.get_full_name()} ha sido verificado.',
-                booking=booking,
-                action_url=f'/bookings/{booking.id}/'
+                amount=booking.total_cost,
+                payment_method='bank_transfer',
+                status='completed',
+                transaction_id=f"BT-{proof.reference_code}",
+                reference_number=proof.reference_code,
+                validated_by=request.user,
+                validated_at=timezone.now(),
+                notes=f"Aprobado desde admin. Comprobante ID: {proof.id}"
             )
             
             count += 1

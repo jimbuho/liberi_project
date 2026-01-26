@@ -46,7 +46,7 @@ def send_new_service_request_notification(booking):
     
     title = "Nueva Solicitud de Servicio"
     msg = f"{customer.get_full_name()} ha solicitado un servicio. ¡Revisa los detalles!"
-    url = f"/provider/bookings/{booking.slug}/"
+    url = f"/bookings/{booking.id}/"
     
     # 1. DB Notification
     _create_notification_if_not_exists(provider, title, msg, 'booking_created', booking, url)
@@ -68,7 +68,7 @@ def send_service_accepted_notification(booking):
     
     title = "¡Servicio Aceptado!"
     msg = f"Tu proveedor {provider.get_full_name()} ha aceptado la solicitud. Realiza el pago para confirmar."
-    url = f"/bookings/{booking.slug}/pay/"
+    url = f"/payments/{booking.id}/"
     
     _create_notification_if_not_exists(customer, title, msg, 'booking_accepted', booking, url)
 
@@ -90,7 +90,7 @@ def send_reservation_paid_notification(booking):
     # --- PROVEEDOR ---
     title_prov = "¡Pago Confirmado!"
     msg_prov = f"El servicio para {customer.get_full_name()} está pagado. ¡Prepárate para la cita!"
-    url_prov = f"/provider/bookings/{booking.slug}/"
+    url_prov = f"/bookings/{booking.id}/"
 
     _create_notification_if_not_exists(provider, title_prov, msg_prov, 'payment_verified', booking, url_prov)
             
@@ -103,7 +103,7 @@ def send_reservation_paid_notification(booking):
     # --- CLIENTE ---
     title_cust = "Pago Exitoso"
     msg_cust = f"Tu pago ha sido procesado correctamente. ¡Tu cita está confirmada!"
-    url_cust = f"/bookings/{booking.slug}/"
+    url_cust = f"/bookings/{booking.id}/"
     
     _create_notification_if_not_exists(customer, title_cust, msg_cust, 'payment_verified', booking, url_cust)
             
@@ -137,7 +137,7 @@ def send_appointment_reminder_notification(booking):
     title = "Recordatorio de Cita"
     msg = f"Tienes un servicio programado para las {time_str} con {provider.get_full_name()}."
     
-    booking_url_cust = f"/bookings/{booking.slug}/"
+    booking_url_cust = f"/bookings/{booking.id}/"
     
     if _create_notification_if_not_exists(customer, title, msg, 'system', booking, booking_url_cust):
         # Push
@@ -172,7 +172,7 @@ def send_appointment_reminder_notification(booking):
     # Provider
     title_prov = "Recordatorio de Servicio"
     msg_prov = f"Tienes un servicio programado para las {time_str} con {customer.get_full_name()}."
-    booking_url_prov = f"/provider/bookings/{booking.slug}/"
+    booking_url_prov = f"/bookings/{booking.id}/"
     
     if _create_notification_if_not_exists(provider, title_prov, msg_prov, 'system', booking, booking_url_prov):
         # Push
