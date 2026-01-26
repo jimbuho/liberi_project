@@ -475,11 +475,8 @@ def payphone_callback(request):
         'Content-Type': 'application/json'
     }
     
-    confirm_url = getattr(
-        settings, 
-        'PAYPHONE_URL_CONFIRM_PAYPHONE',
-        'https://pay.payphonetodoesposible.com/api/button/V2/Confirm'
-    )
+    
+    confirm_url = settings.PAYPHONE_URL_CONFIRM_PAYPHONE
 
     try:
         response = requests.post(
