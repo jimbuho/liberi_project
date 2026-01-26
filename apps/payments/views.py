@@ -446,7 +446,9 @@ def payphone_callback(request):
     logger.info("="*50)
     logger.info("INICIANDO PAYPHONE CALLBACK")
     logger.info("="*50)
-    logger.info(f"Callback recibido: {request.POST}")
+    logger.info(f"GET params: {request.GET}")
+    logger.info(f"POST params: {request.POST}")
+    
     transaction_id = request.GET.get('id')
     client_transaction_id = request.GET.get('clientTransactionId')
     

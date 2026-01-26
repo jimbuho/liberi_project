@@ -115,8 +115,16 @@ def payment_whatsapp_notification(sender, instance, created, **kwargs):
         
         if provider_phone:
             try:
-                # Verificar si acaba de cambiar a 'completed'
-                if kwargs.get('update_fields') is None or 'status' in kwargs.get('update_fields', []):
+                # Disparar si:
+                # 1. Se acaba de crear con status='completed' (created=True)
+                # 2. Se actualizó el status a 'completed' ('status' in update_fields)
+                should_send = (
+                    created or 
+                    (kwargs.get('update_fields') is None) or 
+                    ('status' in kwargs.get('update_fields', []))
+                )
+                
+                if should_send:
                     
                     # Preparar datos
                     customer_name = (
