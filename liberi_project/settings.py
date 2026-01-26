@@ -347,7 +347,7 @@ PAYPHONE_CLIENT_ID = os.getenv('PAYPHONE_CLIENT_ID', '')
 PAYPHONE_CALLBACK_URL = os.getenv('PAYPHONE_CALLBACK_URL', '')
 PAYPHONE_API_URL = os.getenv('PAYPHONE_API_URL', '')
 PAYPHONE_STORE_ID = os.getenv('PAYPHONE_STORE_ID', '')
-PAYPHONE_URL_CONFIRM_PAYPHONE = os.getenv('PAYPHONE_URL_CONFIRM_PAYPHONE', 'https://pay.payphonetodoesposible.com/api/button/V2/Confirm')
+PAYPHONE_URL_CONFIRM_PAYPHONE = os.getenv('PAYPHONE_URL_CONFIRM_PAYPHONE', '')
 
 FRONTEND_URL = os.getenv('FRONTEND_URL', 'http://localhost:8000')
 
