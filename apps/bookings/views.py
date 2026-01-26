@@ -373,8 +373,26 @@ def booking_create(request):
         )
         return redirect('service_detail', service_code=service.service_code)
     
-    # Validar duplicados - ELIMINADO para permitir múltiples reservas
-    # bookings_that_day = Booking.objects.filter(...)
+    # Validar duplicados: Solo bloquear si tiene una reserva ACEPTADA pero NO PAGADA
+    bookings_that_day = Booking.objects.filter(
+        customer=request.user,
+        provider=provider,
+        scheduled_time__date=scheduled_datetime.date(),
+        status='accepted',  # Solo aceptadas
+        payment_status__in=['pending', 'pending_validation'] # Y pendiente de pago
+    ).values_list('id', 'service_list')
+    
+    for booking_id, service_list in bookings_that_day:
+        if service_list and isinstance(service_list, list):
+            for service_item in service_list:
+                item_service_id = service_item.get('service_id')
+                if int(item_service_id) == int(service_id):
+                    messages.error(
+                        request, 
+                        f'Ya tienes una reserva pendiente de pago para "{service.name}" el {scheduled_datetime.strftime("%d/%m")}. '
+                        'Por favor realiza el pago de la reserva existente o espera a completarla.'
+                    )
+                    return redirect('service_detail', service_code=service.service_code)
     
     available_slots = get_available_time_slots(
         provider, 
