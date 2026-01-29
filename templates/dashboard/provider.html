@@ -626,8 +626,7 @@
                                 class="small text-primary text-decoration-none mt-1 d-inline-block fw-bold">
                                 Completar ahora <i class="fas fa-arrow-right ms-1"></i>
                             </a>
-                            {% elif step.status == 'current' and not step.url and not step.is_processing and not
-                            step.is_rejected %}
+                            {% elif step.status == 'current' and not step.url and not step.is_processing and not step.is_rejected %}
                             <small class="text-warning d-block mt-1 fw-bold">
                                 <i class="fas fa-clock me-1"></i>Esperando acción
                             </small>

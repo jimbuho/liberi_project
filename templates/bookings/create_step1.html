@@ -225,9 +225,13 @@
                         </div>
 
                         <div class="d-grid gap-2">
-                            <button type="submit" class="btn btn-primary btn-lg">
+                            <button type="submit" class="btn btn-primary btn-lg" id="confirmBookingBtn">
                                 <i class="fas fa-check-circle"></i> Confirmar Reserva
                             </button>
+                            <div id="locationError" class="alert alert-danger mt-2" style="display: none;">
+                                <i class="fas fa-exclamation-triangle"></i> 
+                                <strong>Por favor selecciona tu ubicación</strong> haciendo clic en la tarjeta de arriba.
+                            </div>
                         </div>
                     </form>
                 </div>
@@ -333,6 +337,16 @@
         // Mostrar formulario
         document.getElementById('bookingForm').style.display = 'block';
 
+        // Auto-seleccionar ubicación si solo hay una
+        {% if service_mode == 'home' %}
+        const locationCards = document.querySelectorAll('.location-card');
+        if (locationCards.length === 1) {
+            const firstCard = locationCards[0];
+            const locationId = firstCard.querySelector('input[name="location_id"]').value;
+            selectLocation(locationId, firstCard);
+        }
+        {% endif %}
+
         // Scroll suave al formulario
         document.getElementById('bookingForm').scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
@@ -348,7 +362,23 @@
         element.style.borderWidth = '2px';
 
         document.getElementById('loc_' + locationId).checked = true;
+        
+        // Ocultar error si estaba visible
+        document.getElementById('locationError').style.display = 'none';
     }
+
+    // Validación antes de enviar el formulario
+    document.getElementById('bookingForm').addEventListener('submit', function(e) {
+        {% if service_mode == 'home' %}
+        const locationSelected = document.querySelector('input[name="location_id"]:checked');
+        if (!locationSelected) {
+            e.preventDefault();
+            document.getElementById('locationError').style.display = 'block';
+            document.getElementById('locationError').scrollIntoView({ behavior: 'smooth', block: 'center' });
+            return false;
+        }
+        {% endif %}
+    });
 </script>
 <style>
     .location-card {

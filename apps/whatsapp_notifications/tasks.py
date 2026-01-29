@@ -66,16 +66,15 @@ def send_whatsapp_message(phone=None, template_type=None, variables=None,
                          recipient=None, template_name=None):
     """
     Envía un mensaje WhatsApp usando un template.
-    
-    FLEXIBLE: Acepta múltiples nombres de parámetros para compatibilidad:
-    - phone o recipient (número de teléfono)
-    - template_type o template_name (tipo de template)
-    
-    Formas de llamada soportadas:
-    1. send_whatsapp_message(phone='...', template_type='reminder', variables=[...])
-    2. send_whatsapp_message(recipient='...', template_name='reminder', variables=[...])
-    3. send_whatsapp_message(phone='...', template_name='reminder', variables=[...])
     """
+    from django.conf import settings
+    
+    # Skip in non-production environments
+    environment = getattr(settings, 'ENVIRONMENT', 'development')
+    if environment != 'production':
+        logger.info(f"Non-production environment ({environment}): skipping WhatsApp task for {phone or recipient}")
+        return {'success': True, 'status': 'skipped_non_production'}
+        
     # Normalizar parámetros
     phone_number = phone or recipient
     template = template_type or template_name

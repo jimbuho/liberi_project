@@ -18,6 +18,12 @@ def booking_whatsapp_notifications(sender, instance, created, **kwargs):
     1. Booking creado (created=True) → Notificar al proveedor
     2. Booking aceptado (status='accepted') → Notificar al cliente
     """
+    # CRITICAL: Skip entirely in non-production to avoid Redis connection errors
+    environment = getattr(settings, 'ENVIRONMENT', 'development')
+    if environment != 'production':
+        logger.info(f"⏭️ Skipping WhatsApp notification signal in {environment} mode")
+        return
+    
     # Obtener números de teléfono
     customers_profile = getattr(instance.customer, 'profile', None)
     customer_phone = getattr(customers_profile, 'phone', None) if customers_profile else None
@@ -109,6 +115,12 @@ def payment_whatsapp_notification(sender, instance, created, **kwargs):
     
     Solo se envía cuando el estado del pago cambia a 'completed'.
     """
+    # CRITICAL: Skip entirely in non-production to avoid Redis connection errors
+    environment = getattr(settings, 'ENVIRONMENT', 'development')
+    if environment != 'production':
+        logger.info(f"⏭️ Skipping WhatsApp payment notification signal in {environment} mode")
+        return
+    
     # Solo actuar cuando el pago está completado
     if instance.status == 'completed':
         provider_phone = getattr(instance.booking.provider.profile, 'phone', None)

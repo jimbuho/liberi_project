@@ -338,12 +338,47 @@ def send_booking_accepted_to_customer_task(booking_id):
         )
         logger.info(f"✅ Email de reserva aceptada enviado a {customer.email}")
         
-        # WhatsApp no se envía desde aquí para evitar duplicados (se maneja en signals.py)
         # y para asegurar el formato correcto de la URL.
             
     except Exception as e:
         logger.error(f"❌ Error enviando email de reserva aceptada: {e}")
         raise
+
+
+@shared_task
+def send_booking_rejected_to_customer_task(booking_id):
+    """Notifica al cliente cuando proveedor RECHAZA la reserva"""
+    try:
+        booking = Booking.objects.get(id=booking_id)
+        customer = booking.customer
+        
+        subject = '❌ Tu Reserva no pudo ser confirmada'
+        message = f"""
+Hola {customer.get_full_name() or customer.username},
+
+Lo sentimos, pero tu reserva con {booking.provider.get_full_name()} para el {booking.scheduled_time.strftime("%d de %B del %Y a las %H:%M")} no pudo ser aceptada en este momento.
+
+Servicio: {booking.get_services_display()}
+
+Puedes intentar una nueva reserva con otro horario o buscar otro proveedor disponible.
+
+Explorar más opciones: {settings.BASE_URL}/services/
+
+---
+Liberi
+        """
+        
+        send_mail(
+            subject=subject,
+            message=message,
+            from_email=settings.DEFAULT_FROM_EMAIL,
+            recipient_list=[customer.email],
+            fail_silently=False,
+        )
+        logger.info(f"✅ Notificación de rechazo enviada a {customer.email}")
+    except Exception as e:
+        logger.error(f"❌ Error enviando email de rechazo: {e}")
+        # No hacemos raise para no interrumpir el flujo del usuario si falla el email
 
 
 # ============================================

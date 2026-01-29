@@ -1,0 +1,55 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Conviértete en Proveedor - Liberi{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+    <div class="row justify-content-center">
+        <div class="col-md-8 col-lg-6">
+            <div class="card shadow-md border-0">
+                <div class="card-body p-5">
+                    <div class="text-center mb-4">
+                        <i class="fas fa-briefcase fa-4x text-primary mb-3"></i>
+                        <h2 class="fw-bold">Conviértete en Proveedor</h2>
+                    </div>
+
+                    <div class="alert alert-warning mb-4">
+                        <i class="fas fa-exclamation-triangle me-2"></i>
+                        <strong>¡Importante! Lee con atención antes de continuar.</strong>
+                    </div>
+
+                    <p class="mb-4 text-secondary">
+                        Si tienes un oficio, una profesión o un servicio que quieras ofrecer a través de Liberi,
+                        puedes convertirte en un proveedor haciendo click en el siguiente enlace.
+                    </p>
+
+                    <div class="bg-light p-4 rounded mb-4 border">
+                        <h5 class="text-dark mb-3">Advertencia de cambio de cuenta</h5>
+                        <ul class="text-muted mb-0 ps-3">
+                            <li class="mb-2">Tu cuenta actual tendrá acceso a todas las funciones de
+                                <strong>Proveedor</strong>.</li>
+                            <li class="mb-2">Podrás seguir reservando servicios de otros proveedores desde esta misma
+                                cuenta.</li>
+                            <li>¡Tendrás lo mejor de ambos mundos!</li>
+                        </ul>
+                    </div>
+
+                    <form method="post" action="{% url 'become_provider' %}">
+                        {% csrf_token %}
+                        <div class="d-grid gap-2">
+                            <button type="submit" class="btn btn-primary btn-lg"
+                                onclick="return confirm('¿Estás seguro de que quieres convertir tu cuenta? Este cambio no se puede deshacer.')">
+                                Continuar y Convertirme en Proveedor
+                            </button>
+                            <a href="{% url 'dashboard' %}" class="btn btn-outline-secondary">
+                                Cancelar y volver
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -103,17 +103,13 @@ def get_available_time_slots(provider, service_date, service_duration_minutes, s
 
 @login_required
 def bookings_list(request):
-    """Lista de reservas del usuario"""
+    """Lista de reservas del usuario (como cliente o proveedor)"""
     user = request.user
     
-    if user.profile.role == 'customer':
-        bookings = Booking.objects.filter(customer=user)
-    elif user.profile.role == 'provider':
-        bookings = Booking.objects.filter(provider=user)
-    else:
-        bookings = Booking.objects.none()
-    
-    bookings = bookings.select_related('customer', 'provider', 'location').order_by('-created_at')
+    # Obtener todas las reservas donde el usuario es cliente O proveedor
+    bookings = Booking.objects.filter(
+        Q(customer=user) | Q(provider=user)
+    ).select_related('customer', 'provider', 'location').order_by('-created_at')
     
     # Separar por estado
     pending_bookings = bookings.filter(status='pending')
@@ -142,43 +138,30 @@ def booking_detail(request, booking_id):
         booking = get_object_or_404(Booking, slug=booking_id)
     
     # Verificar que el usuario tenga acceso
-    if booking.customer != request.user and booking.provider != request.user:
+    is_customer = booking.customer == request.user
+    is_provider = booking.provider == request.user
+    
+    if not is_customer and not is_provider:
         messages.error(request, 'No tienes acceso a esta reserva')
         return redirect('bookings_list')
     
-    # LÓGICA DE CONTACTO
-    can_contact = False
+    # LÓGICA DE CONTACTO - SIMPLIFICADA
+    # Si el pago está completado, mostrar contacto inmediatamente
+    can_contact = booking.payment_status == 'paid'
     contact_message = None
     
-    if request.user.profile.role == 'customer':
-        if booking.payment_status == 'paid':
-            now = timezone.now()
-            time_until_booking = booking.scheduled_time - now
-            hours_until = time_until_booking.total_seconds() / 3600
-            
-            if hours_until <= 2:
-                can_contact = True
-                if not booking.completion_code:
-                    booking.generate_completion_code()
-            else:
-                hours_remaining = int(hours_until)
-                contact_message = f'El contacto estará disponible 2 horas antes de tu cita (faltan {hours_remaining} horas) y luego del pago exitoso.'
+    if not can_contact:
+        if is_customer:
+            contact_message = 'Completa el pago para acceder a los datos de contacto del proveedor'
         else:
-            contact_message = 'Completa el pago para acceder a los datos de contacto'
+            contact_message = 'El contacto del cliente estará disponible una vez que el pago sea confirmado'
     
-    elif request.user.profile.role == 'provider':
-        now = timezone.now()
-        time_until_booking = booking.scheduled_time - now
-        hours_until = time_until_booking.total_seconds() / 3600
-        
-        if booking.payment_status == 'paid' and hours_until <= 2:
-            can_contact = True
-        else:
-            hours_remaining = int(hours_until)
-            contact_message = f'El contacto estará disponible 2 horas antes de la cita (faltan {hours_remaining} horas) y luego del pago exitoso.'
+    # Generar código de finalización si es cliente y el pago está completado
+    if is_customer and can_contact and not booking.completion_code:
+        booking.generate_completion_code()
     
     show_completion_code = False
-    if request.user.profile.role == 'customer':
+    if is_customer:
         show_completion_code = booking.should_show_completion_code()
     
     context = {
@@ -189,6 +172,8 @@ def booking_detail(request, booking_id):
         'booking_location': booking.location,
         'booking_location_lat': float(booking.location.latitude) if booking.location else None,
         'booking_location_lng': float(booking.location.longitude) if booking.location else None,
+        'is_customer': is_customer,
+        'is_provider': is_provider,
     }
     return render(request, 'bookings/detail.html', context)
 
@@ -296,9 +281,10 @@ def booking_create(request):
     if request.method != 'POST':
         return redirect('services_list') # TODO: check if services_list exists or needs to be imported/routed
     
-    if request.user.profile.role != 'customer':
-        messages.error(request, 'Solo los clientes pueden hacer reservas')
-        return redirect('services_list')
+    # Eliminado chequeo de rol para permitir que cualquier usuario cree reservas
+    # if request.user.profile.role != 'customer':
+    #     messages.error(request, 'Solo los clientes pueden hacer reservas')
+    #     return redirect('services_list')
     
     service_id = request.POST.get('service_id')
     provider_id = request.POST.get('provider_id')
@@ -315,7 +301,7 @@ def booking_create(request):
     location = None
     if service_mode == 'home':
         if not location_id:
-            messages.error(request, 'Debe seleccionar una ubicación para servicio a domicilio')
+            messages.error(request, '⚠️ Por favor selecciona tu ubicación haciendo clic en la tarjeta correspondiente antes de confirmar la reserva.')
             return redirect('service_detail', service_code=service.service_code)
         location = get_object_or_404(Location, id=location_id, customer=request.user)
     

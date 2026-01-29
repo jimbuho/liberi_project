@@ -32,13 +32,13 @@ ACCOUNT_SID = settings.TWILIO_ACCOUNT_SID
 AUTH_TOKEN = settings.TWILIO_AUTH_TOKEN
 
 # NUEVO NÚMERO DE WHATSAPP
-NEW_WHATSAPP_FROM = 'whatsapp:+15557726158'
+NEW_WHATSAPP_FROM = settings.TWILIO_WHATSAPP_FROM
 
 # Tu número para probar
 TEST_NUMBER = '+593998981436'
 
 # Template que ya tienes aprobado
-TEMPLATE_SID = 'HXac888f41014603ccab8e9670a3a864cb'  # booking_accepted
+TEMPLATE_SID = 'HXba274a73c80786dd63d408c971a29a7b'  # booking_accepted
 
 print_header("🧪 TEST DE WHATSAPP CON NUEVO NÚMERO")
 print_info("Número WhatsApp (FROM)", NEW_WHATSAPP_FROM)

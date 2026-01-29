@@ -777,31 +777,66 @@ def provider_unavailability_create(request):
         end_date = request.POST.get('end_date')
         reason = request.POST.get('reason', '')
         
-        start = datetime.strptime(start_date, '%Y-%m-%d').date()
-        end = datetime.strptime(end_date, '%Y-%m-%d').date()
-        
-        if end < start:
-            messages.error(request, 'La fecha de fin debe ser mayor o igual a la fecha de inicio')
+        try:
+            start = datetime.strptime(start_date, '%Y-%m-%d').date()
+            end = datetime.strptime(end_date, '%Y-%m-%d').date()
+            
+            if end < start:
+                messages.error(request, 'La fecha de fin debe ser mayor o igual a la fecha de inicio')
+                return redirect('provider_unavailability_manage')
+            
+            if start < timezone.now().date():
+                messages.error(request, 'No puedes crear inactividades para fechas pasadas')
+                return redirect('provider_unavailability_manage')
+            
+            ProviderUnavailability.objects.create(
+                provider=request.user,
+                start_date=start,
+                end_date=end,
+                reason=reason
+            )
+            
+            messages.success(request, 'Período de inactividad registrado')
             return redirect('provider_unavailability_manage')
-        
-        if start < timezone.now().date():
-            messages.error(request, 'No puedes crear inactividades para fechas pasadas')
-            return redirect('provider_unavailability_manage')
-        
-        ProviderUnavailability.objects.create(
-            provider=request.user,
-            start_date=start,
-            end_date=end,
-            reason=reason
-        )
-        
-        messages.success(request, 'Período de inactividad registrado')
-        return redirect('provider_unavailability_manage')
+            
+        except ValueError:
+            messages.error(request, 'Formato de fecha inválido')
     
     context = {
         'min_date': timezone.now().date(),
     }
     return render(request, 'providers/unavailability_create.html', context)
+
+
+@login_required
+def become_provider(request):
+    """
+    Vista para convertir una cuenta de cliente en proveedor.
+    Muestra advertencia y confirmación.
+    """
+    if request.user.profile.role == 'provider':
+        messages.warning(request, 'Ya eres un proveedor.')
+        return redirect('dashboard')
+        
+    if request.method == 'POST':
+        # 1. Cambiar Rol
+        profile = request.user.profile
+        profile.role = 'provider'
+        profile.save()
+        
+        # 2. Crear ProviderProfile si no existe
+        if not hasattr(request.user, 'provider_profile'):
+            ProviderProfile.objects.create(
+                user=request.user,
+                business_name=f"{request.user.first_name} {request.user.last_name}",
+                description="Perfil de proveedor nuevo",
+                status='created'
+            )
+            
+        messages.success(request, '¡Felicidades! Ahora eres un proveedor. Completa tu perfil para empezar.')
+        return redirect('dashboard')
+    
+    return render(request, 'profiles/become_provider.html')
 
 
 @login_required

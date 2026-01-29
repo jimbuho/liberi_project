@@ -57,7 +57,7 @@
                     <hr>
 
                     <!-- NUEVO: Código de Finalización para Cliente -->
-                    {% if user.profile.role == 'customer' and show_completion_code and booking.completion_code %}
+                    {% if is_customer and show_completion_code and booking.completion_code %}
                     <div class="alert alert-warning border-warning">
                         <h5 class="alert-heading">
                             <i class="fas fa-key"></i> Código de Finalización
@@ -84,7 +84,7 @@
                     {% endif %}
 
                     <!-- NUEVO: Formulario para Proveedor - Ingresar Código -->
-                    {% if user.profile.role == 'provider' and booking.status == 'accepted' and booking.payment_status == 'paid' %}
+                    {% if is_provider and booking.status == 'accepted' and booking.payment_status == 'paid' %}
                     <div class="card bg-light mb-4">
                         <div class="card-body">
                             <h5 class="card-title">
@@ -112,21 +112,25 @@
                     {% endif %}
 
                     <!-- NUEVO: Opción para Cliente - Reportar Incidencia -->
-                    {% if user.profile.role == 'customer' and booking.status == 'accepted' and booking.payment_status == 'paid' and not booking.incident_reported %}
-                    <div class="card border-danger mb-4">
-                        <div class="card-body">
-                            <h5 class="card-title text-danger">
-                                <i class="fas fa-exclamation-triangle"></i> ¿No recibiste el servicio?
-                            </h5>
-                            <p class="text-muted">
-                                Si el proveedor no asistió o hubo algún problema, repórtalo aquí:
-                            </p>
-                            <button type="button" class="btn btn-danger" data-bs-toggle="modal"
-                                data-bs-target="#reportIncidentModal">
-                                <i class="fas fa-flag"></i> Reportar Incidencia
-                            </button>
+                    <!-- Solo se muestra DESPUÉS de la hora programada del servicio -->
+                    {% if is_customer and booking.status == 'accepted' and booking.payment_status == 'paid' and not booking.incident_reported %}
+                        {% now "U" as current_timestamp %}
+                        {% if booking.scheduled_time.timestamp|floatformat:0 <= current_timestamp %}
+                        <div class="card border-danger mb-4">
+                            <div class="card-body">
+                                <h5 class="card-title text-danger">
+                                    <i class="fas fa-exclamation-triangle"></i> ¿No recibiste el servicio?
+                                </h5>
+                                <p class="text-muted">
+                                    Si el proveedor no asistió o hubo algún problema, repórtalo aquí:
+                                </p>
+                                <button type="button" class="btn btn-danger" data-bs-toggle="modal"
+                                    data-bs-target="#reportIncidentModal">
+                                    <i class="fas fa-flag"></i> Reportar Incidencia
+                                </button>
+                            </div>
                         </div>
-                    </div>
+                        {% endif %}
                     {% endif %}
 
                     <!-- MOSTRAR si ya se reportó incidencia -->
@@ -148,8 +152,9 @@
                     <hr>
                     {% endif %}
 
+
                     <!-- Provider/Customer Info -->
-                    {% if user.profile.role == 'customer' %}
+                    {% if is_customer %}
                     <h5><i class="fas fa-user-tie"></i> Proveedor</h5>
                     <div class="card bg-light mb-3">
                         <div class="card-body">
@@ -167,17 +172,21 @@
 
                             <!-- CAMBIO #1: Arreglar WhatsApp - usar booking.provider.profile.phone -->
                             {% if can_contact %}
-                            <p class="mb-1">
-                                <i class="fas fa-phone"></i> {{ booking.provider.profile.phone }}
-                            </p>
-                            <p class="mb-1">
-                                <i class="fas fa-envelope"></i> {{ booking.provider.email }}
-                            </p>
-                            <!-- CAMBIO #1 y #2: Arreglar WhatsApp y eliminar botón llamar -->
-                            <a href="https://wa.me/593{{ booking.provider.profile.phone|slice:'1:' }}" target="_blank"
-                                class="btn btn-success btn-sm mt-2">
-                                <i class="fab fa-whatsapp"></i> Contactar por WhatsApp
-                            </a>
+                                {% if booking.provider.profile and booking.provider.profile.phone %}
+                                <p class="mb-1">
+                                    <i class="fas fa-phone"></i> {{ booking.provider.profile.phone }}
+                                </p>
+                                {% endif %}
+                                <p class="mb-1">
+                                    <i class="fas fa-envelope"></i> {{ booking.provider.email }}
+                                </p>
+                                {% if booking.provider.profile and booking.provider.profile.phone %}
+                                <!-- CAMBIO #1 y #2: Arreglar WhatsApp y eliminar botón llamar -->
+                                <a href="https://wa.me/593{{ booking.provider.profile.phone|slice:'1:' }}" target="_blank"
+                                    class="btn btn-success btn-sm mt-2">
+                                    <i class="fab fa-whatsapp"></i> Contactar por WhatsApp
+                                </a>
+                                {% endif %}
                             {% else %}
                             <div
                                 class="alert alert-{% if booking.payment_status == 'paid' %}info{% else %}warning{% endif %} mt-2 mb-0">
@@ -199,17 +208,22 @@
                         <div class="card-body">
                             <h6>{{ booking.customer.get_full_name }}</h6>
 
+
                             {% if can_contact %}
-                            <p class="mb-1">
-                                <i class="fas fa-phone"></i> {{ booking.customer.profile.phone }}
-                            </p>
-                            <p class="mb-0">
-                                <i class="fas fa-envelope"></i> {{ booking.customer.email }}
-                            </p>
-                            <a href="https://wa.me/593{{ booking.customer.profile.phone|slice:'1:' }}" target="_blank"
-                                class="btn btn-success btn-sm mt-2">
-                                <i class="fab fa-whatsapp"></i> Contactar por WhatsApp
-                            </a>
+                                {% if booking.customer.profile and booking.customer.profile.phone %}
+                                <p class="mb-1">
+                                    <i class="fas fa-phone"></i> {{ booking.customer.profile.phone }}
+                                </p>
+                                {% endif %}
+                                <p class="mb-0">
+                                    <i class="fas fa-envelope"></i> {{ booking.customer.email }}
+                                </p>
+                                {% if booking.customer.profile and booking.customer.profile.phone %}
+                                <a href="https://wa.me/593{{ booking.customer.profile.phone|slice:'1:' }}" target="_blank"
+                                    class="btn btn-success btn-sm mt-2">
+                                    <i class="fab fa-whatsapp"></i> Contactar por WhatsApp
+                                </a>
+                                {% endif %}
                             {% else %}
                             <div class="alert alert-info mt-2 mb-0">
                                 <i class="fas fa-clock"></i>
@@ -291,7 +305,7 @@
                     {% endif %}
 
                     <!-- Actions for Provider -->
-                    {% if user.profile.role == 'provider' and booking.status == 'pending' %}
+                    {% if is_provider and booking.status == 'pending' %}
                     <hr>
                     <div class="d-grid gap-2">
                         <form method="post" action="{% url 'booking_accept' booking.id %}" class="d-inline">
@@ -333,7 +347,7 @@
                     <small class="text-muted">{{ booking.review.created_at|date:"d/m/Y" }}</small>
                 </div>
             </div>
-            {% elif user.profile.role == 'customer' %}
+            {% elif is_customer %}
             <div class="card">
                 <div class="card-body text-center">
                     <h5><i class="fas fa-star"></i> ¿Cómo fue tu experiencia?</h5>
@@ -386,7 +400,7 @@
             </div>
 
             <!-- Payment Action - Solo si está ACEPTADA -->
-            {% if user.profile.role == 'customer' and booking.payment_status == 'pending' %}
+            {% if is_customer and booking.payment_status == 'pending' %}
             {% if booking.status == 'accepted' %}
             <div class="card border-primary">
                 <div class="card-body text-center">
@@ -419,7 +433,7 @@
                         <i class="fas fa-phone"></i> Contacto Disponible
                     </h5>
                     <hr>
-                    {% if user.profile.role == 'customer' %}
+                    {% if is_customer %}
                     <p class="mb-2">Contacta al proveedor:</p>
                     <a href="https://wa.me/593{{ booking.provider.profile.phone|slice:'1:' }}" target="_blank"
                         class="btn btn-success w-100">
@@ -440,7 +454,7 @@
 </div>
 
 <!-- Modal para Reportar Incidencia -->
-{% if user.profile.role == 'customer' and booking.status == 'accepted' and booking.payment_status == 'paid' and not booking.incident_reported %}
+{% if is_customer and booking.status == 'accepted' and booking.payment_status == 'paid' and not booking.incident_reported %}
 <div class="modal fade" id="reportIncidentModal" tabindex="-1" aria-labelledby="reportIncidentModalLabel"
     aria-hidden="true">
     <div class="modal-dialog">

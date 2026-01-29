@@ -283,6 +283,9 @@
                                     Completa tu perfil para acceder al dashboard
                                 </small>
                             </li>
+                            <li>
+                                <hr class="dropdown-divider">
+                            </li>
                             {% else %}
                             <!-- Usuario normal o proveedor aprobado -->
                             <li>
@@ -290,6 +293,9 @@
                                     <i class="fas fa-tachometer-alt"></i> Dashboard
                                 </a>
                             </li>
+                            {% endif %}
+
+                            <!-- Links Comunes -->
                             <li>
                                 <a class="dropdown-item" href="{% url 'bookings_list' %}">
                                     <i class="fas fa-calendar-check"></i> Mis Reservas
@@ -304,6 +310,12 @@
                             <li>
                                 <a class="dropdown-item" href="{% url 'change_password' %}">
                                     <i class="fas fa-lock"></i> Cambiar Contraseña
+                                </a>
+                            </li>
+                            {% if user.profile.role == 'customer' %}
+                            <li>
+                                <a class="dropdown-item text-primary" href="{% url 'become_provider' %}">
+                                    <i class="fas fa-briefcase"></i> Conviértete en proveedor
                                 </a>
                             </li>
                             {% endif %}
@@ -366,6 +378,13 @@
                         <i class="fas fa-envelope"></i> liberiservices@gmail.com<br>
                         <i class="fas fa-phone"></i> +593 95 884 0107
                     </p>
+                    <h5 class="mt-4">Síguenos en nuestras redes</h5>
+                    <div class="social-links">
+                        <a href="https://www.instagram.com/go.liberi.app?igsh=MWN5M2o2bTJ6enN0dA==" target="_blank"
+                            class="text-white-50 me-3" style="text-decoration: none;">
+                            <i class="fab fa-instagram fa-2x"></i>
+                        </a>
+                    </div>
                 </div>
             </div>
             <hr class="bg-light">

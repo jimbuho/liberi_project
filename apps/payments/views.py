@@ -306,32 +306,77 @@ def payment_bank_transfer(request, booking_id):
                 }
             )
             
-            # 🔥 NOTIFICACIONES - USANDO TAREAS CELERY
+            # 🔥 NOTIFICACIONES
             
-            # 1. Email al CLIENTE
+            # 1. Email al CLIENTE (usando email_utils que verifica entorno)
             try:
-                from core.tasks import send_payment_proof_received_task
-                send_payment_proof_received_task.delay(
-                    booking_id=str(booking.id),
-                    customer_email=booking.customer.email,
-                    customer_name=booking.customer.get_full_name() or booking.customer.username,
-                    amount=str(booking.total_cost)
+                from apps.core.email_utils import send_mail as safe_send_mail
+                
+                subject = f'✅ Comprobante de Pago Recibido - Reserva #{booking.id}'
+                message = f"""
+Hola {booking.customer.get_full_name() or booking.customer.username},
+
+Hemos recibido tu comprobante de pago por transferencia bancaria.
+
+DETALLES DE TU RESERVA:
+- Número de Reserva: #{booking.id}
+- Servicio: {booking.get_services_display()}
+- Monto Total: ${booking.total_cost}
+- Fecha Programada: {booking.scheduled_time.strftime('%d/%m/%Y %H:%M')}
+
+ESTADO DEL PAGO:
+Tu pago está siendo validado por nuestro equipo. Este proceso generalmente toma entre 1-4 horas hábiles.
+Te notificaremos tan pronto como tu pago sea confirmado.
+
+¡Gracias por confiar en Liberi!
+
+---
+El Equipo de Liberi
+                """
+                
+                safe_send_mail(
+                    subject=subject,
+                    message=message,
+                    from_email=settings.DEFAULT_FROM_EMAIL,
+                    recipient_list=[booking.customer.email],
+                    fail_silently=True
                 )
             except Exception as e:
                 logger.warning(f"Error enviando email al cliente: {e}")
             
-            # 2. Email a ADMINS
+            # 2. Email a ADMINS (usando email_utils que verifica entorno)
             try:
-                from core.tasks import notify_admin_payment_pending_task
+                from apps.core.email_utils import send_mail as safe_send_mail
+                
                 admin_users = User.objects.filter(is_staff=True, is_active=True)
                 admin_emails = [admin.email for admin in admin_users if admin.email]
                 
                 if admin_emails:
-                    notify_admin_payment_pending_task.delay(
-                        booking_id=str(booking.id),
-                        customer_name=booking.customer.get_full_name() or booking.customer.username,
-                        amount=str(booking.total_cost),
-                        admin_email_list=admin_emails
+                    subject = f'[Liberi] Nuevo pago por validar - Reserva #{booking.id}'
+                    message = f"""
+Hola Administrador,
+
+Se ha registrado un nuevo pago por transferencia bancaria que requiere validación:
+
+DETALLES DEL PAGO:
+- ID de Reserva: {booking.id}
+- Cliente: {booking.customer.get_full_name() or booking.customer.username}
+- Monto: ${booking.total_cost}
+- Referencia: {reference_code}
+- Banco: {bank_account.bank_name}
+
+Por favor, revisa el comprobante y valida el pago en el panel de administración.
+
+---
+Sistema Liberi
+                    """
+                    
+                    safe_send_mail(
+                        subject=subject,
+                        message=message,
+                        from_email=settings.DEFAULT_FROM_EMAIL,
+                        recipient_list=admin_emails,
+                        fail_silently=True
                     )
             except Exception as e:
                 logger.warning(f"Error enviando notificación a admins: {e}")

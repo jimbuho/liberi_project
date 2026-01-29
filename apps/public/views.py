@@ -263,10 +263,14 @@ def service_detail(request, service_code):
     zone_id = request.GET.get('zone')
     if zone_id:
         try:
-            zone = zones.get(id=zone_id)
+            # Usar búsqueda global para asegurar que se encuentra la zona
+            # independientemente de si coincide con la ciudad actual de la sesión
+            zone = Zone.objects.get(id=zone_id, active=True)
             current_zone = zone
             request.session['current_zone_id'] = zone.id
-        except Zone.DoesNotExist:
+            logger.info(f"Zone manually set to: {zone.name} (ID: {zone.id})")
+        except (Zone.DoesNotExist, ValueError):
+            logger.warning(f"Could not find valid zone with ID: {zone_id}")
             pass
     
     # ✅ DETERMINAR MODALIDAD DEL PROVEEDOR
@@ -350,17 +354,21 @@ def service_detail(request, service_code):
     # ✅ VERIFICAR SI PUEDE RESERVAR - LÓGICA MEJORADA
     can_book = False
     zone_not_covered = False
-    zone_required = False  # Nueva variable
-    travel_cost = 0
+    zone_required = False
+    travel_cost = Decimal('0.00') # Force Decimal
     
     if selected_mode == 'home':
         # Modo domicilio - SÍ REQUIERE ZONA
         zone_required = True
         
+        logger.info(f"Modo HOME - current_zone: {current_zone}")
+        
         if current_zone:
             provider_covers_zone = provider_profile.coverage_zones.filter(
                 id=current_zone.id
             ).exists()
+            
+            logger.info(f"Provider covers zone {current_zone.name}: {provider_covers_zone}")
             
             if provider_covers_zone and provider_has_required_location:
                 can_book = True
@@ -372,9 +380,11 @@ def service_detail(request, service_code):
                 ).first()
                 
                 if zone_cost:
-                    travel_cost = zone_cost.travel_cost
+                    travel_cost = Decimal(str(zone_cost.travel_cost))
+                    logger.info(f"Zone cost found: {travel_cost}")
                 else:
-                    travel_cost = Decimal(SystemConfig.get_config('default_travel_cost', 2.50))
+                    travel_cost = Decimal(str(SystemConfig.get_config('default_travel_cost', 2.50)))
+                    logger.info(f"Using default cost: {travel_cost}")
             else:
                 if not provider_covers_zone:
                     zone_not_covered = True
@@ -382,6 +392,7 @@ def service_detail(request, service_code):
                     can_book = False
         else:
             # No hay zona - marcar como requerida
+            logger.info("No current_zone set")
             can_book = False
             
     elif selected_mode == 'local':
@@ -391,7 +402,7 @@ def service_detail(request, service_code):
         # Puede reservar si hay locales disponibles y ha seleccionado uno
         if provider_has_required_location and selected_provider_location:
             can_book = True
-            travel_cost = 0  # Sin costo de traslado
+            travel_cost = Decimal('0.00')  # Sin costo de traslado
         else:
             can_book = False
     
@@ -417,7 +428,8 @@ def service_detail(request, service_code):
         valid_locations = [loc for loc in user_locations if loc.zone_id in provider_zone_ids]
     
     # Calcular costo total
-    total_cost = service.base_price + Decimal(str(travel_cost))
+    total_cost = service.base_price + travel_cost
+    logger.info(f"Total Cost: {total_cost} (Base: {service.base_price} + Travel: {travel_cost})")
 
     # Meta tags
     meta_image = request.build_absolute_uri(service.primary_image.url) if service.primary_image else None
@@ -435,18 +447,19 @@ def service_detail(request, service_code):
         'travel_cost': travel_cost,
         'total_cost': total_cost,
         'today': timezone.now().date(),
-        'current_zone': current_zone,
+        'cur_zone': current_zone,
         'current_city': current_city,
-        'zones': zones,  # ✅ NUEVO: Zonas para selector
+        'zones': zones,
         'can_book': can_book,
         'zone_not_covered': zone_not_covered,
-        'zone_required': zone_required,  # ✅ NUEVO: Indica si se requiere zona
-        # Variables de modalidad
+        'zone_required': zone_required,
         'provider_service_mode': provider_service_mode,
         'selected_mode': selected_mode,
+        'is_local': selected_mode == 'local',
+        'is_home': selected_mode == 'home',
         'user_can_choose': user_can_choose,
         'available_provider_locations': available_provider_locations,
-        'selected_provider_location': selected_provider_location,
+        'sel_prov_loc': selected_provider_location,
         'provider_has_required_location': provider_has_required_location,
     }
     return render(request, 'services/detail.html', context)

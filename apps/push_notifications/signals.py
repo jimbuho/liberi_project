@@ -17,6 +17,12 @@ def booking_push_notifications(sender, instance, created, **kwargs):
     Paralelo a whatsapp_notifications/signals.py
     """
     
+    # CRITICAL: Skip entirely in non-production to avoid Redis connection errors
+    environment = getattr(settings, 'ENVIRONMENT', 'development')
+    if environment != 'production':
+        logger.info(f"⏭️ Skipping push notification signal in {environment} mode")
+        return
+    
     # ============================================
     # CASO 1: Nuevo booking creado → Notificar al proveedor
     # ============================================
@@ -98,6 +104,12 @@ def payment_push_notification(sender, instance, created, **kwargs):
     """
     Envía notificación push al proveedor cuando un pago es confirmado
     """
+    # CRITICAL: Skip entirely in non-production to avoid Redis connection errors
+    environment = getattr(settings, 'ENVIRONMENT', 'development')
+    if environment != 'production':
+        logger.info(f"⏭️ Skipping payment push notification signal in {environment} mode")
+        return
+    
     if instance.status == 'completed':
         try:
             # Verificar que acaba de cambiar a 'completed'
@@ -146,45 +158,62 @@ def notification_push_mirror(sender, instance, created, **kwargs):
     """
     if not created:
         return
+
+    # Skip in non-production environments
+    environment = getattr(settings, 'ENVIRONMENT', 'development')
+    if environment != 'production':
+        logger.info(f"Non-production environment ({environment}): skipping Push mirror for Notification #{instance.id}")
+        return
+        
+    if not getattr(settings, 'PUSH_NOTIFICATIONS_ENABLED', True):
+        return
     
-    try:
-        # Mapear tipo de notificación interna a tipo push
-        notification_type_map = {
-            'booking_created': 'booking_created',
-            'booking_accepted': 'booking_accepted',
-            'booking_completed': 'booking_completed',
-            'payment_received': 'payment_confirmed',
-            'system': 'system',
-        }
-        
-        push_type = notification_type_map.get(
-            instance.notification_type, 
-            'general'
-        )
-        
-        # URL de acción
-        action_url = instance.action_url
-        if action_url and not action_url.startswith('http'):
-            action_url = f"{settings.SITE_URL}{action_url}"
-        
-        send_push_notification.delay(
-            user_id=instance.user.id,
-            title=instance.title,
-            message=instance.message,
-            notification_type=push_type,
-            url=action_url,
-            data={
-                'notification_id': str(instance.id),
-                'type': instance.notification_type
+    def _send_push():
+        try:
+            # Mapear tipo de notificación interna a tipo push
+            notification_type_map = {
+                'booking_created': 'booking_created',
+                'booking_accepted': 'booking_accepted',
+                'booking_rejected': 'booking_rejected',
+                'booking_cancelled': 'booking_cancelled',
+                'booking_completed': 'booking_completed',
+                'payment_received': 'payment_confirmed',
+                'payment_verified': 'payment_confirmed',
+                'system': 'system',
             }
-        )
-        
-        logger.debug(
-            f"📨 Push mirror encolado para Notification #{instance.id} "
-            f"({instance.notification_type})"
-        )
-        
-    except Exception as e:
-        logger.error(
-            f"❌ Error encolando Push mirror para Notification #{instance.id}: {e}"
-        )
+            
+            push_type = notification_type_map.get(
+                instance.notification_type, 
+                'general'
+            )
+            
+            # URL de acción
+            action_url = instance.action_url
+            if action_url and not action_url.startswith('http'):
+                action_url = f"{settings.SITE_URL}{action_url}"
+            
+            send_push_notification.delay(
+                user_id=instance.user.id,
+                title=instance.title,
+                message=instance.message,
+                notification_type=push_type,
+                url=action_url,
+                data={
+                    'notification_id': str(instance.id),
+                    'type': instance.notification_type
+                }
+            )
+            
+            logger.debug(
+                f"📨 Push mirror encolado para Notification #{instance.id} "
+                f"({instance.notification_type})"
+            )
+            
+        except Exception as e:
+            logger.error(
+                f"❌ Error encolando Push mirror para Notification #{instance.id}: {e}"
+            )
+            
+    # Run only after transaction commits
+    from django.db import transaction
+    transaction.on_commit(_send_push)

@@ -177,7 +177,7 @@
                                 <hr class="my-2">
 
                                 <!-- Info según el rol -->
-                                {% if user.profile.role == 'provider' %}
+                                {% if booking.provider == user %}
                                     <p class="mb-1"><strong>Cliente:</strong> {{ booking.customer.get_full_name }}</p>
                                     <p class="mb-1"><strong>Teléfono:</strong> {{ booking.customer.profile.phone }}</p>
                                 {% else %}
@@ -228,7 +228,8 @@
                                     </a>
 
                                     <!-- Acciones según rol y estado -->
-                                    {% if user.profile.role == 'provider' %}
+                                    {% if booking.provider == user %}
+                                        <!-- Acciones del PROVEEDOR (quien da el servicio) -->
                                         {% if booking.status == 'pending' %}
                                             <form method="post" action="{% url 'booking_accept' booking.id %}" class="d-inline">
                                                 {% csrf_token %}
@@ -259,7 +260,7 @@
                                             </form>
                                         {% endif %}
                                     {% else %}
-                                        <!-- Acciones del cliente -->
+                                        <!-- Acciones del CLIENTE (quien recibe el servicio) -->
                                         {% if booking.status == 'completed' %}
                                             <a href="{% url 'review_create' booking.id %}" class="btn btn-warning btn-sm">
                                                 <i class="fas fa-star"></i> Dejar Reseña
