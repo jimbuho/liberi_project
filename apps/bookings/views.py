@@ -96,7 +96,8 @@ def get_available_time_slots(provider, service_date, service_duration_minutes, s
                         'display': slot_start.strftime('%H:%M')
                     })
             
-            current_time += timedelta(minutes=30)
+            # Change from 30 minutes to 60 minutes as per requirements
+            current_time += timedelta(minutes=60)
     
     return available_slots
 
@@ -513,6 +514,56 @@ def booking_reject(request, booking_id):
     
     messages.info(request, 'Reserva rechazada.')
     return redirect('bookings_list')
+
+
+@login_required
+def booking_cancel(request, booking_id):
+    """Cancelar una reserva aceptada (solo cliente)"""
+    if request.method != 'POST':
+        return redirect('bookings_list')
+    
+    booking = get_object_or_404(Booking, id=booking_id)
+    
+    # Verificar que sea el cliente
+    if booking.customer != request.user:
+        messages.error(request, 'No tienes permiso para esta acción')
+        return redirect('bookings_list')
+    
+    # Solo se puede cancelar si está aceptada
+    if booking.status != 'accepted':
+        messages.error(request, 'Solo puedes cancelar reservas aceptadas')
+        return redirect('booking_detail', booking_id=booking.id)
+    
+    # NO se puede cancelar si ya está pagada
+    if booking.payment_status == 'paid':
+        messages.error(request, 'No puedes cancelar una reserva que ya ha sido pagada. Por favor contacta al proveedor.')
+        return redirect('booking_detail', booking_id=booking.id)
+    
+    # Cambiar estado a cancelado
+    booking.status = 'cancelled'
+    booking.save()
+    
+    # Crear notificación para el proveedor
+    from apps.core.models import Notification
+    Notification.objects.create(
+        user=booking.provider,
+        title="Reserva Cancelada",
+        message=f"{booking.customer.get_full_name()} ha cancelado la reserva del servicio {booking.get_services_display()}",
+        notification_type='booking_cancelled',
+        booking=booking,
+        action_url=f"/bookings/{booking.id}/"
+    )
+    
+    # Audit log
+    AuditLog.objects.create(
+        user=request.user,
+        action='Reserva cancelada por cliente',
+        metadata={'booking_id': str(booking.id)}
+    )
+    
+    messages.success(request, 'Reserva cancelada exitosamente. El proveedor ha sido notificado.')
+    return redirect('bookings_list')
+
 
 
 @login_required

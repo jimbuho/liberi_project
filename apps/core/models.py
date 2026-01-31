@@ -447,6 +447,14 @@ class ProviderLocation(models.Model):
 
 
 class Service(models.Model):
+    DURATION_TYPE_CHOICES = [
+        ('minutes', 'Minutos'),
+        ('hours', 'Horas'),
+        ('days', 'Días'),
+        ('weeks', 'Semanas'),
+        ('months', 'Meses'),
+    ]
+
     provider = models.ForeignKey(User, on_delete=models.CASCADE, related_name='services',
                                 verbose_name='Proveedor')
     service_code = models.UUIDField(
@@ -459,7 +467,19 @@ class Service(models.Model):
     name = models.CharField('Nombre', max_length=200)
     description = models.TextField('Descripción', help_text='Puede incluir formato HTML básico')
     base_price = models.DecimalField('Precio base', max_digits=8, decimal_places=2)
-    duration_minutes = models.IntegerField('Duración (minutos)')
+    
+    # Duration fields
+    duration_type = models.CharField(
+        'Tipo de Duración',
+        max_length=10,
+        choices=DURATION_TYPE_CHOICES,
+        default='minutes'
+    )
+    duration_value = models.IntegerField('Valor de Duración', default=60)
+    
+    # Legacy field - kept for backward compatibility but effectively replaced by above
+    duration_minutes = models.IntegerField('Duración (minutos)', default=60)
+    
     available = models.BooleanField('Disponible', default=True)
     
     # Múltiples imágenes del servicio (hasta 3)
@@ -478,6 +498,26 @@ class Service(models.Model):
         verbose_name = 'Servicio'
         verbose_name_plural = 'Servicios'
         ordering = ['-created_at']
+    
+    @property
+    def formatted_duration(self):
+        """Retorna el texto formateado de la duración según el tipo"""
+        if self.duration_type == 'minutes':
+            return f"Duración del servicio: {self.duration_value} minutos"
+        elif self.duration_type == 'hours':
+            return f"Duración del servicio: {self.duration_value} horas"
+        elif self.duration_type == 'days':
+            # "Servicio Diario (duracion: dias)" requested format
+            # Interpreting as "Servicio Diario" + explicitly showing value?
+            # User said: "Servicio Diario (duracion: dias)"
+            # Example: "Servicio Diario" might be the Title for the type "days"?
+            # Let's just output readable string:
+            return f"Servicio Diario ({self.duration_value} días)"
+        elif self.duration_type == 'weeks':
+            return f"Servicio Semanal ({self.duration_value} semanas)"
+        elif self.duration_type == 'months':
+            return f"Servicio Mensual ({self.duration_value} meses)"
+        return f"{self.duration_value} {self.get_duration_type_display()}"
 
     def __str__(self):
         return f"{self.name} - ${self.base_price}"

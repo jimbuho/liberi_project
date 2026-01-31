@@ -40,10 +40,19 @@
                             </div>
 
                             <div class="col-md-6 mb-3">
-                                <label for="duration_minutes" class="form-label">Duración (minutos) *</label>
-                                <input type="number" class="form-control" id="duration_minutes" name="duration_minutes"
-                                    min="15" step="15" required value="{{ service.duration_minutes }}">
-                                <small class="text-muted">En intervalos de 15 minutos</small>
+                                <label class="form-label">Duración del Servicio *</label>
+                                <div class="input-group">
+                                    <select class="form-select" id="duration_type" name="duration_type" required>
+                                        <option value="minutes" {% if service.duration_type == 'minutes' %}selected{% endif %}>Minutos</option>
+                                        <option value="hours" {% if service.duration_type == 'hours' %}selected{% endif %}>Horas</option>
+                                        <option value="days" {% if service.duration_type == 'days' %}selected{% endif %}>Días</option>
+                                        <option value="weeks" {% if service.duration_type == 'weeks' %}selected{% endif %}>Semanas</option>
+                                        <option value="months" {% if service.duration_type == 'months' %}selected{% endif %}>Meses</option>
+                                    </select>
+                                    <input type="number" class="form-control" id="duration_value" name="duration_value"
+                                         min="1" required value="{{ service.duration_value }}" placeholder="Cantidad">
+                                </div>
+                                <small class="text-muted">Elige la unidad y el valor (Ej: Días: 2)</small>
                             </div>
                         </div>
 

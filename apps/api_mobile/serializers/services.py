@@ -58,11 +58,14 @@ class ServiceListSerializer(serializers.ModelSerializer):
         help_text='Costo de traslado calculado según zona del cliente'
     )
     
+    formatted_duration = serializers.CharField(source='formatted_duration', read_only=True)
+
     class Meta:
         model = Service
         fields = [
             'id', 'service_code', 'name', 'description', 'base_price',
-            'duration_minutes', 'primary_image', 'provider', 'travel_cost',
+            'duration_minutes', 'duration_type', 'duration_value', 'formatted_duration',
+            'primary_image', 'provider', 'travel_cost',
             'available', 'created_at'
         ]
     

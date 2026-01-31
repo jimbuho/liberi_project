@@ -271,7 +271,15 @@ def service_create(request):
         name = request.POST.get('name')
         description = request.POST.get('description')
         base_price = request.POST.get('base_price')
-        duration_minutes = request.POST.get('duration_minutes')
+        # duration_minutes kept effectively as duration_value if needed, but we look for new fields
+        duration_type = request.POST.get('duration_type', 'minutes')
+        duration_value = request.POST.get('duration_value')
+        
+        # Fallback if duration_value is not present (legacy form submission)
+        if not duration_value and request.POST.get('duration_minutes'):
+            duration_value = request.POST.get('duration_minutes')
+            duration_type = 'minutes'
+            
         available = request.POST.get('available') == 'on'
         
         # Obtener hasta 3 imágenes
@@ -294,7 +302,10 @@ def service_create(request):
                 name=name,
                 description=clean_description,
                 base_price=base_price,
-                duration_minutes=duration_minutes,
+                duration_type=duration_type,
+                duration_value=duration_value,
+                # Set legacy field to value just in case
+                duration_minutes=duration_value if duration_type == 'minutes' else 60,
                 image_1=image_1_url,
                 image_2=image_2_url,
                 image_3=image_3_url,
@@ -355,7 +366,25 @@ def service_edit(request, service_id):
         description = request.POST.get('description')
         service.description = sanitize_html(description) if description else ''
         service.base_price = request.POST.get('base_price')
-        service.duration_minutes = request.POST.get('duration_minutes')
+        
+        duration_type = request.POST.get('duration_type')
+        duration_value = request.POST.get('duration_value')
+        
+        if duration_type:
+            service.duration_type = duration_type
+        if duration_value:
+            service.duration_value = duration_value
+            # Update legacy field if type is minutes, otherwise keep it or default?
+            # Safe to just update it if minutes.
+            if duration_type == 'minutes':
+                service.duration_minutes = duration_value
+            
+        # Legacy fallback
+        if not duration_value and request.POST.get('duration_minutes'):
+             service.duration_minutes = request.POST.get('duration_minutes')
+             # If type not set, assume minutes?
+             # Probably handled by current values.
+        
         service.available = request.POST.get('available') == 'on'
         
         # Manejar hasta 3 imágenes
